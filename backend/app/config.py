@@ -1,3 +1,4 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
     tmp_dir: str = "/tmp/miximixi"
 
     class Config:
-        env_file = ".env"
+        env_file = str(Path(__file__).parent.parent.parent / ".env")
         env_file_encoding = "utf-8"
 
 

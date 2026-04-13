@@ -1,11 +1,25 @@
 # n8n mit yt-dlp und ffmpeg für Instagram-Medien-Download
-FROM n8nio/n8n:latest
+FROM alpine:latest
 
-USER root
-
-# yt-dlp + ffmpeg installieren
-RUN apk add --no-cache ffmpeg python3 py3-pip curl && \
+# Alle notwendigen Tools installieren
+RUN apk add --no-cache \
+    ffmpeg \
+    python3 \
+    py3-pip \
+    curl \
+    nodejs \
+    npm && \
     pip3 install --break-system-packages yt-dlp
 
-# Zurück zu n8n-User
-USER node
+# n8n installieren
+RUN npm install -g n8n
+
+EXPOSE 5678
+
+# RUN addgroup -S node && \
+#     adduser -S -G node -h /home/node -s /bin/sh node
+
+# # Als node-User ausführen (ähnlich wie das Original-Image)
+# USER node
+
+ENTRYPOINT ["n8n", "start", "--tunnel"]

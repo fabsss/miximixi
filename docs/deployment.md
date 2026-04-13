@@ -127,7 +127,8 @@ docker compose ps
 # 5. Migrations ausführen (einmalig)
 docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
   -f /docker-entrypoint-initdb.d/001_initial.sql \
-  -f /docker-entrypoint-initdb.d/002_translations.sql
+  -f /docker-entrypoint-initdb.d/002_translations.sql \
+  -f /docker-entrypoint-initdb.d/003_schema_updates.sql
 
 # 6. Supabase Keys auslesen
 # → Supabase Studio öffnen (Port 3000 oder via Zoraxy)
