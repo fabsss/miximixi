@@ -1,8 +1,14 @@
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).parent.parent.parent / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",  # Felder für andere Services (n8n, Supabase, Vite) ignorieren
+    )
+
     # LLM
     llm_provider: str = "ollama"  # ollama | gemini | claude | openai | openai_compat
 
@@ -28,18 +34,19 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_anon_key: str = ""
 
+    # Telegram
+    telegram_bot_token: str = ""
+    telegram_notify_chat_id: str = ""
+
     # Instagram
     instagram_username: str = ""
     instagram_password: str = ""
     instagram_collection_id: str = ""
     instagram_session_file: str = "instagram_session.json"
+    instagram_cookies_file: str = "instagram_cookies.txt"  # yt-dlp cookies export
 
     # Temp storage for media downloads
     tmp_dir: str = "/tmp/miximixi"
-
-    class Config:
-        env_file = str(Path(__file__).parent.parent.parent / ".env")
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()

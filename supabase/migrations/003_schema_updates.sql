@@ -46,6 +46,11 @@ ALTER TABLE import_queue
 ALTER TABLE import_queue
   ADD COLUMN IF NOT EXISTS llm_provider_used TEXT;
 
+-- ── import_queue: caption speichern (von n8n mitgeschickt) ──────────
+-- Wird vom Worker als raw_source_text verwendet, falls yt-dlp keine Beschreibung liefert.
+ALTER TABLE import_queue
+  ADD COLUMN IF NOT EXISTS caption TEXT;
+
 -- ── Index für häufige Abfrage: unvollständige Rezepte finden ─────────
 CREATE INDEX IF NOT EXISTS recipes_extraction_status_idx
   ON recipes (extraction_status)

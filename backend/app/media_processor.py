@@ -49,37 +49,41 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     os.makedirs(output_dir, exist_ok=True)
     output_template = os.path.join(output_dir, "%(id)s.%(ext)s")
 
+    # Cookie-Auth: cookies.txt falls vorhanden, sonst kein Auth
+    cookie_args = []
+    if os.path.exists(settings.instagram_cookies_file):
+        cookie_args = ["--cookies", settings.instagram_cookies_file]
+        logger.info(f"yt-dlp: Verwende Cookies aus {settings.instagram_cookies_file}")
+
     # Schritt 1: Beschreibung via --print holen (kein separater Download)
     description = ""
-    desc_proc = await asyncio.create_subprocess_exec(
-        "yt-dlp",
-        "--no-playlist",
-        "--no-warnings",
-        "--print", "%(description)s",
-        url,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
     try:
-        desc_out, _ = await asyncio.wait_for(desc_proc.communicate(), timeout=30)
-        description = desc_out.decode().strip()
+        def _get_description():
+            return subprocess.run(
+                ["yt-dlp", "--no-playlist", "--no-warnings"] + cookie_args +
+                ["--print", "%(description)s", url],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+            )
+        desc_result = await asyncio.wait_for(asyncio.to_thread(_get_description), timeout=35)
+        description = desc_result.stdout.strip()
     except Exception as e:
         logger.warning(f"yt-dlp Beschreibung fehlgeschlagen: {e}")
 
     # Schritt 2: Medien herunterladen
-    proc = await asyncio.create_subprocess_exec(
-        "yt-dlp",
-        "--no-playlist",
-        "--no-warnings",
-        "-o", output_template,
-        url,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+    def _download():
+        return subprocess.run(
+            ["yt-dlp", "--no-playlist", "--no-warnings"] + cookie_args +
+            ["-o", output_template, url],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+        )
+    try:
+        result = await asyncio.wait_for(asyncio.to_thread(_download), timeout=130)
+    except Exception as e:
+        logger.error(f"yt-dlp Fehler ({url}): {e}")
+        return DownloadResult(description=description)
 
-    if proc.returncode != 0:
-        logger.error(f"yt-dlp Fehler ({url}): {stderr.decode()[:500]}")
+    if result.returncode != 0:
+        logger.error(f"yt-dlp Fehler ({url}): {result.stderr[:500]}")
         return DownloadResult(description=description)
 
     media_paths = [

@@ -89,9 +89,7 @@ async def create_import(req: ImportRequest):
         "source_url": req.url,
         "source_type": req.source_type,
         "status": "pending",
-        # Extra-Felder für Worker (werden im Supabase JSONB-Feld gespeichert)
-        # Hinweis: Falls media_paths und caption übergeben werden, speichern wir
-        # sie in einer separaten Tabelle oder als Notiz – für jetzt reicht die URL.
+        "caption": req.caption or None,  # Caption/Beschreibung für Worker-Fallback
     }).execute()
 
     logger.info(f"Import-Job erstellt: {queue_id} für {req.url}")
@@ -133,6 +131,84 @@ async def list_imports(limit: int = 20):
         .limit(limit) \
         .execute()
     return result.data
+
+
+# ── Instagram Auth Endpoints ────────────────────────────────────────
+
+# Shared state for pending 2FA challenge
+_instagram_challenge_client = None
+
+
+@app.post("/instagram/login")
+async def instagram_login():
+    """
+    Einmalig aufrufen nach Deployment um die Instagram-Session zu initialisieren.
+    Falls Instagram einen Verification Code schickt → /instagram/challenge aufrufen.
+    """
+    global _instagram_challenge_client
+    import asyncio
+    from instagrapi import Client
+    from instagrapi.exceptions import ChallengeRequired, TwoFactorRequired
+
+    if not settings.instagram_username or not settings.instagram_password:
+        raise HTTPException(status_code=400, detail="INSTAGRAM_USERNAME/PASSWORD nicht konfiguriert")
+
+    def _login():
+        cl = Client()
+        if os.path.exists(settings.instagram_session_file):
+            try:
+                cl.load_settings(settings.instagram_session_file)
+                cl.login(settings.instagram_username, settings.instagram_password)
+                cl.dump_settings(settings.instagram_session_file)
+                return cl, "reused"
+            except Exception:
+                pass
+        cl.login(settings.instagram_username, settings.instagram_password)
+        cl.dump_settings(settings.instagram_session_file)
+        return cl, "new"
+
+    try:
+        cl, mode = await asyncio.to_thread(_login)
+        logger.info(f"Instagram Login erfolgreich ({mode} session)")
+        return {"status": "ok", "message": f"Login erfolgreich ({mode} session)"}
+    except ChallengeRequired:
+        from instagrapi import Client
+        cl = Client()
+        if os.path.exists(settings.instagram_session_file):
+            cl.load_settings(settings.instagram_session_file)
+        cl.challenge_resolve(cl.last_json)
+        _instagram_challenge_client = cl
+        return {"status": "challenge_required", "message": "Verification Code wurde an E-Mail/SMS geschickt. POST /instagram/challenge mit {\"code\": \"123456\"}"}
+    except TwoFactorRequired:
+        _instagram_challenge_client = None
+        raise HTTPException(status_code=400, detail="2FA aktiv – bitte App-Passwort verwenden")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/instagram/challenge")
+async def instagram_challenge(body: dict):
+    """Verification Code nach Instagram Login-Challenge einreichen."""
+    global _instagram_challenge_client
+    import asyncio
+
+    code = body.get("code", "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="'code' fehlt")
+    if not _instagram_challenge_client:
+        raise HTTPException(status_code=400, detail="Kein aktiver Challenge-Login. Zuerst /instagram/login aufrufen.")
+
+    def _verify():
+        _instagram_challenge_client.challenge_resolve(_instagram_challenge_client.last_json, code)
+        _instagram_challenge_client.dump_settings(settings.instagram_session_file)
+
+    try:
+        await asyncio.to_thread(_verify)
+        _instagram_challenge_client = None
+        logger.info("Instagram Challenge erfolgreich, Session gespeichert")
+        return {"status": "ok", "message": "Login abgeschlossen, Session gespeichert"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Challenge fehlgeschlagen: {e}")
 
 
 # ── Instagram Sync Endpoint ─────────────────────────────────────────

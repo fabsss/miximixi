@@ -6,6 +6,7 @@ class Ingredient(BaseModel):
     name: str
     amount: float | None = None
     unit: str | None = None
+    group_name: str | None = None  # z.B. "Für das Soja-Hack", "Dressing", "Toppings"
 
 
 class Step(BaseModel):
