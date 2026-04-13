@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recipe Detail - Culinary Journal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-primary-fixed": "#4d1500",
+                "on-primary": "#fff7f5",
+                "secondary-fixed-dim": "#d4e9c5",
+                "surface-container-highest": "#eee0d5",
+                "on-error-container": "#65000b",
+                "surface-container-high": "#f3e6db",
+                "secondary-fixed": "#e2f7d3",
+                "surface-bright": "#fff8f4",
+                "tertiary": "#655f4a",
+                "on-error": "#fff7f6",
+                "tertiary-fixed-dim": "#e8dfc5",
+                "primary-container": "#ffad90",
+                "secondary": "#526448",
+                "surface-dim": "#e7d7cb",
+                "on-tertiary-container": "#5e5844",
+                "tertiary-container": "#f7eed2",
+                "tertiary-dim": "#58533f",
+                "on-tertiary": "#fff8ea",
+                "primary": "#a43f14",
+                "error": "#ac3434",
+                "on-surface": "#393129",
+                "primary-fixed-dim": "#ff9973",
+                "surface-container-lowest": "#ffffff",
+                "tertiary-fixed": "#f7eed2",
+                "on-secondary-container": "#4d5f43",
+                "primary-dim": "#943308",
+                "inverse-primary": "#f97d4f",
+                "outline": "#84796f",
+                "background": "#fff8f4",
+                "on-primary-container": "#702200",
+                "outline-variant": "#bdb0a5",
+                "on-secondary-fixed": "#3c4d32",
+                "surface-tint": "#a43f14",
+                "primary-fixed": "#ffad90",
+                "surface-variant": "#eee0d5",
+                "on-secondary": "#ecffdd",
+                "on-tertiary-fixed-variant": "#68634d",
+                "secondary-dim": "#46583d",
+                "inverse-surface": "#110d0a",
+                "surface": "#fff8f4",
+                "error-container": "#f56965",
+                "on-secondary-fixed-variant": "#576a4d",
+                "error-dim": "#70030f",
+                "secondary-container": "#e2f7d3",
+                "on-tertiary-fixed": "#4b4633",
+                "on-background": "#393129",
+                "inverse-on-surface": "#a49b95",
+                "surface-container": "#f8ece2",
+                "on-surface-variant": "#675d54",
+                "on-primary-fixed-variant": "#7f2700",
+                "surface-container-low": "#fdf1e9"
+            },
+            "borderRadius": {
+                "DEFAULT": "1rem",
+                "lg": "2rem",
+                "xl": "3rem",
+                "full": "9999px"
+            },
+            "fontFamily": {
+                "headline": ["Noto Serif"],
+                "body": ["Plus Jakarta Sans"],
+                "label": ["Plus Jakarta Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scale-98-active:active { transform: scale(0.98); }
+        .tonal-shift { transition: background-color 0.3s ease; }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50 bg-[#fff8f4] dark:bg-stone-950/80 backdrop-blur-md tonal-shift">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface p-2 hover:bg-surface-container rounded-full transition-colors">arrow_back</button>
+<h1 class="text-2xl font-serif italic text-[#D36135] dark:text-[#E07A5F]">Culinary Journal</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary hover:bg-primary-dim text-on-primary px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-lg shadow-primary/10 transition-all scale-98-active">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">restaurant</span>
+                Cook Mode
+            </button>
+<div class="h-10 w-10 rounded-full overflow-hidden border-2 border-primary/20">
+<img alt="User Profile" class="h-full w-full object-cover" data-alt="Portrait of a smiling home chef in a clean modern kitchen with warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDukSYnVVlEN_RyddAnRjBCWtyAEUZ0UmkZIi9Y-TGyQXywY0lOCKxXsSzN3z1JznvPsXmhTFLH6YVGFmW6WA9xJ4TROuAYLPHH5bYzaP1AaTpVAqIT4Kw28pW-kacMfjjRdRITWYgszGi-xMOc_PykF9Ks1bQ3_vctkIrY2vgZce1WbLOJ83CYETfZMBdnmyxzo8qd9Vt12l2HWnw3QLqeugOWsN0QpsfMyPzoAieEJHoQpeanULF7keaNodNoUxshXcD9HT0MRaY"/>
+</div>
+</div>
+</header>
+<main class="max-w-[1440px] mx-auto pb-20">
+<!-- Hero Section -->
+<div class="px-6 pt-2 pb-8">
+<div class="relative h-[450px] w-full rounded-lg overflow-hidden group">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Close-up of a vibrant salmon salad with fresh greens, citrus slices, and toasted seeds in a ceramic bowl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoBH3t9LG3-ILwO3f23fjJy6IPTSIkv6q66F301WB18VphL1p_JVCoFWucAAY-OH0lRbm0OhOwJN7_YyYWwqpEbYAmsZ1zKrLL_w1wEdGh9rkFdX7GayFo7ftIU87LoWobn-vVKhWYyDvXqAw4GoJihgoIPUl1JoekgCKdcWgUVqzQEJu8hMNG5Afd06FHi9H1NX9SCv6DTDoYCuAHOvjKZ8vFDNuk8CniJa1sxo-ZhcYsqFfEAOG23lWAyLG5CW_5P4Imz_C7ywU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-10 max-w-2xl">
+<div class="inline-flex items-center gap-2 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">eco</span>
+                        Healthy Choice
+                    </div>
+<h2 class="text-5xl md:text-6xl font-headline font-bold text-white leading-tight -ml-1">Pan-Seared Salmon with Citrus Gremolata</h2>
+<div class="flex items-center gap-6 mt-6 text-white/90">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">schedule</span>
+<span class="text-sm font-medium">25 Mins</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">local_fire_department</span>
+<span class="text-sm font-medium">420 Cal</span>
+</div>
+<a class="flex items-center gap-2 hover:text-white transition-colors" href="https://instagram.com">
+<span class="material-symbols-outlined">link</span>
+<span class="text-sm font-medium">Instagram: @chefstable</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Split Layout -->
+<div class="flex flex-col lg:flex-row gap-8 px-6">
+<!-- Left Side: Ingredients -->
+<aside class="w-full lg:w-[400px] flex-shrink-0">
+<div class="bg-surface-container-low rounded-lg p-8 sticky top-24">
+<div class="flex items-center justify-between mb-8">
+<h3 class="text-2xl font-headline font-bold text-on-surface">Ingredients</h3>
+<div class="bg-surface-container-highest p-1 rounded-full flex">
+<button class="px-4 py-1.5 text-xs font-bold rounded-full bg-surface-container-lowest shadow-sm">Imperial</button>
+<button class="px-4 py-1.5 text-xs font-bold rounded-full text-on-surface-variant hover:text-on-surface transition-colors">Metric</button>
+</div>
+</div>
+<!-- Servings Slider -->
+<div class="mb-10">
+<div class="flex justify-between items-center mb-4">
+<span class="text-sm font-medium text-on-surface-variant">Adjust Servings</span>
+<span class="text-lg font-bold text-primary">2 People</span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-highest rounded-full appearance-none accent-primary cursor-pointer" type="range"/>
+</div>
+<ul class="space-y-6">
+<li class="flex justify-between items-start group">
+<div class="flex gap-4">
+<div class="mt-1 w-5 h-5 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors"></div>
+<span class="text-on-surface font-medium leading-relaxed">Fresh Atlantic Salmon Fillets</span>
+</div>
+<span class="text-on-surface-variant font-medium shrink-0">2 (6oz)</span>
+</li>
+<li class="flex justify-between items-start group">
+<div class="flex gap-4">
+<div class="mt-1 w-5 h-5 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors"></div>
+<span class="text-on-surface font-medium leading-relaxed">Extra Virgin Olive Oil</span>
+</div>
+<span class="text-on-surface-variant font-medium shrink-0">2 tbsp</span>
+</li>
+<li class="flex justify-between items-start group">
+<div class="flex gap-4">
+<div class="mt-1 w-5 h-5 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors"></div>
+<span class="text-on-surface font-medium leading-relaxed">Fresh Italian Parsley</span>
+</div>
+<span class="text-on-surface-variant font-medium shrink-0">1/2 cup</span>
+</li>
+<li class="flex justify-between items-start group">
+<div class="flex gap-4">
+<div class="mt-1 w-5 h-5 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors"></div>
+<span class="text-on-surface font-medium leading-relaxed">Lemon Zest &amp; Juice</span>
+</div>
+<span class="text-on-surface-variant font-medium shrink-0">1 unit</span>
+</li>
+<li class="flex justify-between items-start group">
+<div class="flex gap-4">
+<div class="mt-1 w-5 h-5 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors"></div>
+<span class="text-on-surface font-medium leading-relaxed">Garlic Cloves, minced</span>
+</div>
+<span class="text-on-surface-variant font-medium shrink-0">2 units</span>
+</li>
+<li class="flex justify-between items-start group">
+<div class="flex gap-4">
+<div class="mt-1 w-5 h-5 rounded-full border-2 border-outline-variant flex items-center justify-center group-hover:border-primary transition-colors"></div>
+<span class="text-on-surface font-medium leading-relaxed">Kosher Salt &amp; Pepper</span>
+</div>
+<span class="text-on-surface-variant font-medium shrink-0">to taste</span>
+</li>
+</ul>
+<div class="mt-10 p-6 bg-primary-container/20 rounded-lg border border-primary-container/30">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-primary">lightbulb</span>
+<p class="text-sm leading-relaxed text-on-primary-container">
+<strong class="block mb-1">Chef's Note</strong>
+                                For the crispiest skin, pat the salmon dry with paper towels before seasoning. Don't move it once it hits the pan!
+                            </p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Right Side: Cooking Steps -->
+<section class="flex-grow">
+<div class="flex items-center justify-between mb-8">
+<h3 class="text-3xl font-headline font-bold text-on-surface">Instructions</h3>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"><span class="material-symbols-outlined">print</span></button>
+<button class="p-2 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors"><span class="material-symbols-outlined">share</span></button>
+</div>
+</div>
+<div class="space-y-12">
+<!-- Step 1 -->
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-10 h-10 bg-primary text-on-primary rounded-full flex items-center justify-center font-bold text-lg">1</div>
+<div class="space-y-4">
+<h4 class="text-xl font-bold font-headline">Prepare the Salmon</h4>
+<p class="text-on-surface-variant leading-relaxed text-lg">Remove the salmon fillets from the refrigerator 15 minutes before cooking. Pat them extremely dry on all sides using paper towels. Season generously with kosher salt and freshly cracked black pepper.</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-10 h-10 bg-primary text-on-primary rounded-full flex items-center justify-center font-bold text-lg">2</div>
+<div class="space-y-4">
+<h4 class="text-xl font-bold font-headline">Sear the Fillets</h4>
+<p class="text-on-surface-variant leading-relaxed text-lg">Heat olive oil in a heavy-bottomed stainless steel or cast iron skillet over medium-high heat. Once the oil is shimmering, place fillets skin-side down. Press gently with a spatula for 10 seconds.</p>
+<!-- Timer Component -->
+<div class="inline-flex items-center gap-4 bg-surface-container-highest p-4 rounded-xl border border-outline-variant/10">
+<div class="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin-slow"></div>
+<div>
+<span class="text-xs font-bold uppercase tracking-widest text-primary block mb-0.5">Active Timer</span>
+<span class="text-2xl font-bold font-mono tracking-tighter">05:00</span>
+</div>
+<button class="ml-4 bg-primary text-on-primary w-10 h-10 rounded-full flex items-center justify-center material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">pause</button>
+</div>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-10 h-10 bg-primary text-on-primary rounded-full flex items-center justify-center font-bold text-lg">3</div>
+<div class="space-y-4">
+<h4 class="text-xl font-bold font-headline">Make the Gremolata</h4>
+<p class="text-on-surface-variant leading-relaxed text-lg">While the salmon sears, finely chop the parsley. In a small bowl, combine parsley, lemon zest, minced garlic, and a splash of olive oil. Mix well to create a bright, chunky herb paste.</p>
+<div class="grid grid-cols-2 gap-4 mt-4">
+<div class="aspect-video rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Close up of fresh green herbs being finely chopped on a rustic wooden board with a professional knife" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaxnUJKh7IeEXhnqw57ObqckzNskDR1C-QC2WovbD-LVBYy_kIRNU-VpxEvXlgHnR43eDdHWdciANNWZQ-h1TOOcY8_tSjREHtwGjL_1xW2xleA6IIOYjYEPu8HGDdykjiEyDTdYnRRBU-oM5ediO-lUzrLxakLyB7Q6UckYMyV9nSJCMbrytIRmvj7VVTBVE2L2a1E5Yq0U8QgYfTV-7_W4DjGL8Ru9x8DPQJM0oWd_hZW0GtUO-uMPfCHCaD6BGAwFPshKj3fY8"/>
+</div>
+<div class="aspect-video rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Fresh lemons and garlic on a marble surface with morning sunlight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpbpYmbctdBQ0tSHkuHdTXnYIqn1D5E0mq_xrQryL18f_CuXld8kALq-TwMr-LZyZS0ldjEI0pau56wD33MnMn9SSTqW5qWLMqnksLADBG6V4fVFY_ZkuxAT8aerGmeJeHd6VnXRzMsnjoMqd7ID20N7LjJkeTDKsRN04hQTp1tl43a6uo9lk7RTerq0_wpP4XKS9SOCRP8Bpc1Ntv5x4IK-PPSl8ip4-kBGu8oJSO80_smXqjBH6gp8Bh4K68ka7CnJtXHwdB_uo"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-10 h-10 bg-primary text-on-primary rounded-full flex items-center justify-center font-bold text-lg">4</div>
+<div class="space-y-4">
+<h4 class="text-xl font-bold font-headline">Flip and Finish</h4>
+<p class="text-on-surface-variant leading-relaxed text-lg">Carefully flip the fillets. Cook for another 2-3 minutes until the salmon is just cooked through but still moist in the center. Top immediately with the gremolata and a squeeze of fresh lemon juice.</p>
+<div class="inline-flex items-center gap-4 bg-surface-container-high p-4 rounded-xl">
+<span class="material-symbols-outlined text-secondary">timer</span>
+<div>
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-0.5">Flip Timer</span>
+<span class="text-xl font-bold">03:00</span>
+</div>
+<button class="ml-4 border border-primary text-primary px-4 py-2 rounded-full text-xs font-bold hover:bg-primary/5 transition-colors">START</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Recipe Info -->
+<div class="mt-20 pt-10 border-t border-outline-variant/10">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+<div>
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Cuisine</span>
+<span class="font-bold">Mediterranean</span>
+</div>
+<div>
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Difficulty</span>
+<span class="font-bold">Intermediate</span>
+</div>
+<div>
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Serves</span>
+<span class="font-bold">2 Persons</span>
+</div>
+<div>
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Source</span>
+<a class="font-bold text-primary hover:underline" href="#">Instagram</a>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- SideNavBar (Hidden on desktop as per Shell Visibility rule for detail views, but defined in JSON) -->
+<!-- Represented here as a floating mobile drawer indicator if needed, but suppressed per Task-Focused rule -->
+</body></html>

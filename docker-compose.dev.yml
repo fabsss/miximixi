@@ -1,0 +1,120 @@
+name: miximixi-dev
+
+# Dev-Override: Supabase via offizieller CLI, Backend hot-reload, kein Frontend-Build
+# Starten mit: docker compose -f docker-compose.dev.yml up -d
+
+services:
+
+  # ── Supabase (via CLI-Image, alle Sub-Services inklusive) ─
+  # Für lokale Entwicklung nutzen wir das offizielle Supabase-Docker-Setup.
+  # Keys werden nach dem Start aus dem Studio ausgelesen.
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: miximixi-supabase-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+      - "54322:5432"   # Direkter DB-Zugriff für Tools wie TablePlus
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgREST (REST API über PostgreSQL)
+  supabase-rest:
+    image: postgrest/postgrest:v12.0.2
+    container_name: miximixi-supabase-rest
+    restart: unless-stopped
+    ports:
+      - "54321:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@supabase-db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # Supabase Studio (Admin UI)
+  supabase-studio:
+    image: supabase/studio:20240101-8e4a094
+    container_name: miximixi-supabase-studio
+    restart: unless-stopped
+    ports:
+      - "54323:3000"
+    environment:
+      STUDIO_PG_META_URL: http://supabase-meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DEFAULT_ORGANIZATION_NAME: Miximixi
+      DEFAULT_PROJECT_NAME: miximixi
+      SUPABASE_URL: http://supabase-rest:3000
+      SUPABASE_PUBLIC_URL: http://localhost:54321
+      SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRFA0NiK7ACcPanFkUZRkzyAZcxBNqBPK1-I2BSQO3c}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hj04zWl196z2-SBc0}
+    depends_on:
+      - supabase-db
+      - supabase-rest
+
+  # pg-meta (Metadaten-API für Studio)
+  supabase-meta:
+    image: supabase/postgres-meta:v0.75.0
+    container_name: miximixi-supabase-meta
+    restart: unless-stopped
+    ports:
+      - "54324:8080"
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: supabase-db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  # ── Ollama (CPU-only) ──────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: miximixi-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+  # ── n8n ───────────────────────────────────────────────────
+  n8n:
+    build:
+      context: ./n8n
+      dockerfile: Dockerfile
+    container_name: miximixi-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-admin}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-dev-encryption-key}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - BACKEND_URL=http://host.docker.internal:8000  # Backend läuft lokal
+      - WEBHOOK_TUNNEL_URL=   # Optional: ngrok URL für Telegram Webhooks
+    volumes:
+      - n8n-data:/home/node/.n8n
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  supabase-db-data:
+  ollama-models:
+  n8n-data:

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recipe Feed - Culinary Journal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed": "#4d1500",
+                    "on-primary": "#fff7f5",
+                    "secondary-fixed-dim": "#d4e9c5",
+                    "surface-container-highest": "#eee0d5",
+                    "on-error-container": "#65000b",
+                    "surface-container-high": "#f3e6db",
+                    "secondary-fixed": "#e2f7d3",
+                    "surface-bright": "#fff8f4",
+                    "tertiary": "#655f4a",
+                    "on-error": "#fff7f6",
+                    "tertiary-fixed-dim": "#e8dfc5",
+                    "primary-container": "#ffad90",
+                    "secondary": "#526448",
+                    "surface-dim": "#e7d7cb",
+                    "on-tertiary-container": "#5e5844",
+                    "tertiary-container": "#f7eed2",
+                    "tertiary-dim": "#58533f",
+                    "on-tertiary": "#fff8ea",
+                    "primary": "#a43f14",
+                    "error": "#ac3434",
+                    "on-surface": "#393129",
+                    "primary-fixed-dim": "#ff9973",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-fixed": "#f7eed2",
+                    "on-secondary-container": "#4d5f43",
+                    "primary-dim": "#943308",
+                    "inverse-primary": "#f97d4f",
+                    "outline": "#84796f",
+                    "background": "#fff8f4",
+                    "on-primary-container": "#702200",
+                    "outline-variant": "#bdb0a5",
+                    "on-secondary-fixed": "#3c4d32",
+                    "surface-tint": "#a43f14",
+                    "primary-fixed": "#ffad90",
+                    "surface-variant": "#eee0d5",
+                    "on-secondary": "#ecffdd",
+                    "on-tertiary-fixed-variant": "#68634d",
+                    "secondary-dim": "#46583d",
+                    "inverse-surface": "#110d0a",
+                    "surface": "#fff8f4",
+                    "error-container": "#f56965",
+                    "on-secondary-fixed-variant": "#576a4d",
+                    "error-dim": "#70030f",
+                    "secondary-container": "#e2f7d3",
+                    "on-tertiary-fixed": "#4b4633",
+                    "on-background": "#393129",
+                    "inverse-on-surface": "#a49b95",
+                    "surface-container": "#f8ece2",
+                    "on-surface-variant": "#675d54",
+                    "on-primary-fixed-variant": "#7f2700",
+                    "surface-container-low": "#fdf1e9"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Plus Jakarta Sans"],
+                    "label": ["Plus Jakarta Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-[#fff8f4] text-on-surface font-body selection:bg-primary-container/30">
+<!-- SideNavBar Integrated -->
+<aside class="hidden md:flex fixed left-0 top-0 h-full w-72 flex-col p-6 border-r border-[#393129]/5 bg-[#fff8f4] dark:bg-stone-950 rounded-r-[3rem] z-40 shadow-2xl shadow-[#393129]/5">
+<div class="mb-12 mt-4">
+<h2 class="font-serif text-xl font-bold text-[#393129] dark:text-stone-100 mb-1">Table for Two</h2>
+<p class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Cooking together</p>
+</div>
+<nav class="flex flex-col gap-2 font-sans text-sm font-medium tracking-wide">
+<a class="flex items-center gap-4 bg-[#D36135]/10 text-[#D36135] dark:bg-[#D36135]/20 rounded-full px-6 py-3 scale-98-active duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span>Recipe Feed</span>
+</a>
+<a class="flex items-center gap-4 text-[#393129]/70 dark:text-stone-400 px-6 py-3 hover:bg-[#f2eae4] dark:hover:bg-stone-800 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">cloud_download</span>
+<span>Import Hub</span>
+</a>
+<a class="flex items-center gap-4 text-[#393129]/70 dark:text-stone-400 px-6 py-3 hover:bg-[#f2eae4] dark:hover:bg-stone-800 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">star</span>
+<span>Rating Mode</span>
+</a>
+<a class="flex items-center gap-4 text-[#393129]/70 dark:text-stone-400 px-6 py-3 hover:bg-[#f2eae4] dark:hover:bg-stone-800 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="mt-auto p-6 bg-primary-container/20 rounded-lg">
+<p class="text-xs font-bold text-on-primary-container mb-2">CHEF'S TIP</p>
+<p class="text-sm text-on-primary-container/80 leading-relaxed italic">"Always salt your pasta water like the Mediterranean sea."</p>
+</div>
+</aside>
+<!-- TopAppBar (Modified for Sidebar layout) -->
+<header class="md:pl-72 flex justify-between items-center px-6 py-4 w-full sticky top-0 z-50 bg-[#fff8f4]/80 dark:bg-stone-950/80 backdrop-blur-md">
+<div class="md:hidden text-2xl font-serif italic text-[#D36135] dark:text-[#E07A5F]">
+        Culinary Journal
+    </div>
+<div class="hidden md:block"></div>
+<div class="flex items-center gap-4">
+<div class="bg-surface-container-highest rounded-full px-4 py-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm placeholder:text-on-surface-variant/50 w-32 md:w-48" placeholder="Search secrets..." type="text"/>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant tap-highlight-transparent active:scale-95" data-icon="account_circle">account_circle</button>
+</div>
+</header>
+<main class="md:pl-72 min-h-screen">
+<div class="max-w-7xl mx-auto px-6 py-8">
+<!-- Hero Section -->
+<section class="mb-12">
+<div class="relative w-full aspect-[21/9] md:aspect-[2.4/1] rounded-[2.5rem] overflow-hidden group">
+<img alt="Recipe of the Day - Vibrant Mediterranean Salad" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp4nSUenD-1jHI9Btc7kW51r_mf1okPmWn49xMn8zj_MAiySw5FUUj28QLLajeQbI9ct_xF582d08VMLNG2srPHQ4OdOFlisQiFPgOf1V8Y7rzO_3c0A3z59dQNEMMuhsxIynzkLLpzR7KEfhxBk183IiYSqkPpc-JbrDDBOeJl9EZgu4jmSEEiGF0c4o2StvmsrGhCLBAvGGWHq_jDHDNqYGsEopF5zQygiCELkktAi20_9EXKh2oekqakoX7iwc4UVi0xiYcGJ0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-8 md:p-12 w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="max-w-2xl">
+<span class="bg-primary/90 backdrop-blur-md text-on-primary text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] px-3 py-1 rounded-full mb-4 inline-block">Recipe of the Day</span>
+<h1 class="text-4xl md:text-6xl font-headline font-bold text-white leading-[1.1] mb-4">Summer Fig &amp; <br/>Burrata Harvest</h1>
+<div class="flex items-center gap-4 text-white/90 font-medium text-sm">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-base">schedule</span> 15 mins</span>
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-base">restaurant</span> Beginner</span>
+</div>
+</div>
+<button class="bg-white hover:bg-[#fff8f4] text-primary px-8 py-4 rounded-full flex items-center gap-3 transition-all font-bold shadow-xl active:scale-95 self-start md:self-auto">
+                        View Recipe
+                    </button>
+</div>
+</div>
+</section>
+<!-- Categories & Import CTA -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+<div class="flex-1 overflow-hidden relative">
+<div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+<button class="px-8 py-3 bg-primary text-on-primary rounded-full font-bold text-sm whitespace-nowrap shadow-lg shadow-primary/20">All Recipes</button>
+<button class="px-8 py-3 bg-white text-on-surface-variant border border-outline-variant/30 hover:border-primary/30 rounded-full font-semibold text-sm whitespace-nowrap transition-all">Breakfast</button>
+<button class="px-8 py-3 bg-white text-on-surface-variant border border-outline-variant/30 hover:border-primary/30 rounded-full font-semibold text-sm whitespace-nowrap transition-all">Pasta</button>
+<button class="px-8 py-3 bg-white text-on-surface-variant border border-outline-variant/30 hover:border-primary/30 rounded-full font-semibold text-sm whitespace-nowrap transition-all">Quick &amp; Easy</button>
+<button class="px-8 py-3 bg-white text-on-surface-variant border border-outline-variant/30 hover:border-primary/30 rounded-full font-semibold text-sm whitespace-nowrap transition-all">Vegetarian</button>
+<button class="px-8 py-3 bg-white text-on-surface-variant border border-outline-variant/30 hover:border-primary/30 rounded-full font-semibold text-sm whitespace-nowrap transition-all">Desserts</button>
+</div>
+</div>
+<button class="bg-primary hover:bg-primary-dim text-on-primary px-8 py-4 rounded-full flex items-center gap-3 transition-all shadow-xl shadow-primary/10 active:scale-95 shrink-0">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="font-bold">Import New</span>
+</button>
+</div>
+<!-- Recipe Masonry-like Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="group cursor-pointer">
+<div class="relative rounded-[2rem] overflow-hidden mb-4 aspect-[4/5]">
+<img alt="Healthy Salad Bowl" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0iKj4ep-BOvEP5V-PS5digaA0xHqC0tFzFjX9pumhu9FoFKl2kEtp6uKYTAPvhCJI1OK1NSAfYOLEusP5s7JLTqiz49d_08oHc055I9y4QiwoZI25g16FvB4ED3IsBMFxbmAKb94d3Twiu5M-8J6FppM2PoMmZ7y8Gf0U7_q66hB8nIyhs-1kr2P1CzguRNLz4PICGF88hD5DXjjWtGrLpd3V_dl8Gd2456WxkyTDsEm5HZeLEnCpdqCfvV_rtQtaeWW2u6xTVWA"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tight">Instagram</span>
+</div>
+</div>
+<div class="px-2">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-headline font-bold text-on-surface group-hover:text-primary transition-colors">Crispy Chickpea &amp; Kale Bowl</h3>
+<span class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">schedule</span> 20m
+                        </span>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2">A nutritious mix of roasted chickpeas, curly kale, and a lemon-tahini dressing.</p>
+</div>
+</div>
+<!-- Card 2 (Taller Aspect) -->
+<div class="group cursor-pointer">
+<div class="relative rounded-[2rem] overflow-hidden mb-4 aspect-[3/4]">
+<img alt="Pesto Pasta" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCO6B4ZJ01y_hhLSJy1-PI-oYiU-K5ti3hRq4SEEnONwPpzO8EpINfv85gFfyiQwIN4QskAq5PmdD7d_-hM--pEpuqKTG9qdcX2CvdZrdaZq_wcHkxmBteoqxnoPKm9BcEh3PrCCzhGIuNry6r3j6GBf5D00BHh05fLBBUbIGDLNwcSizkGiKA_KPIgzPTlYTZw3VNgIlYfnke-v8f7uRclln8tl8skdeG4zU2m-gGct1zG_7uQfElfW-Ue90_NccRnlDI1GFUpWto"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tight">Telegram</span>
+</div>
+</div>
+<div class="px-2">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-headline font-bold text-on-surface group-hover:text-primary transition-colors">Wild Garlic &amp; Walnut Pesto</h3>
+<span class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">schedule</span> 15m
+                        </span>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2">Bright, punchy pesto made with seasonal wild garlic foraged from the forest.</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group cursor-pointer">
+<div class="relative rounded-[2rem] overflow-hidden mb-4 aspect-[4/5]">
+<img alt="Chocolate Dessert" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpdf_lMw0IS1sxYTTHjngnIURPOLz9uU_-YwddloP3Y2LvGsEfTzLEH7vnuxNHjtLBIoIFJhg5XIzEVJ-Y9GyfKWZOOKYzfcgVtwHCEnGga2OE8__iX3HBbt2Ll56EXqPviSfKHa97u5KiZXW5hPsd4QnzrOwWyXn6kKzB1lefpMP-wyTf0q2nIKMKT_PJZObBYmj2YIsL1coHq3VxejCSmzouSjm1h1f2Qy0J4Uz2dopnFN2Fyt1zBPe0qlBc8NbRxCaAXLpzCfc"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tight">Journal</span>
+</div>
+</div>
+<div class="px-2">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-headline font-bold text-on-surface group-hover:text-primary transition-colors">Midnight Flourless Cake</h3>
+<span class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">schedule</span> 45m
+                        </span>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2">Intense 70% dark chocolate paired with flaky sea salt and fresh raspberries.</p>
+</div>
+</div>
+<!-- Card 4 (Horizontal Grid Layout style card) -->
+<div class="group cursor-pointer md:col-span-2">
+<div class="relative rounded-[2.5rem] overflow-hidden mb-4 aspect-[21/9] flex bg-white border border-outline-variant/10 shadow-sm">
+<div class="w-1/2 overflow-hidden">
+<img alt="Steak" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqADEQsbkbBVlmVsxK5tu0XLNomp4F7ZaXQZiN0fSNkyim0UButIXQBad8QyEKxBe5n7xsTghkgdp-nYAGRQHOwmBcSwoLyIhkyvPXR6aATph9830ol6yylEIYHAVqWmSnxvLoYLczdxZdYkpO9rUNAhnX9aSRh6GNRN1Zrx_tOI92p-QLnrT0mha-e9OaYLOmjFLFfzmh_M0zVUERMoi-GahXpSHuJlLd1B-IichbpuQ9pxLK9PAsto6-_xGT8VG60scY7PkRrso"/>
+</div>
+<div class="w-1/2 p-8 flex flex-col justify-center">
+<div class="flex items-center gap-2 mb-4">
+<span class="bg-secondary/10 text-secondary text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded">Family Classic</span>
+</div>
+<h3 class="text-2xl font-headline font-bold text-on-surface group-hover:text-primary transition-colors mb-2">Herb-Crusted Ribeye</h3>
+<p class="text-sm text-on-surface-variant mb-6">Perfectly seared with rosemary, thyme, and a hint of smoked paprika butter.</p>
+<div class="flex items-center gap-4 mt-auto">
+<span class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">schedule</span> 30m
+                            </span>
+<span class="text-[10px] font-bold text-primary uppercase">Telegram</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="group cursor-pointer">
+<div class="relative rounded-[2rem] overflow-hidden mb-4 aspect-[4/5]">
+<img alt="Pizza" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChUv3ct26UwDV3jNW8-R80TjhXCL7QZJTV37GUyty0dcM7MrBFfWqk9rrXVtdyOoziNnUffxdUzjXKpLOumGRq7RxsonZjotZHH54Um2lrQvJx9iJzGYETvDKEgJ25uPdX86HDAJ8Rd9CDbdZ7VyXUdgvT2gmixgY5ygndo86ZA5MAAPUY-6ePo-g9ne2DbUR2WYJrBprl764YlAWJ3veSB-FGaiCt_b5-a-0KGk19ZJToYpmJGJ0fhXFeuz5z6ISnU-ehXC8JSQk"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tight">Instagram</span>
+</div>
+</div>
+<div class="px-2">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-headline font-bold text-on-surface group-hover:text-primary transition-colors">Sourdough Margherita</h3>
+<span class="flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">schedule</span> 12m
+                        </span>
+</div>
+<p class="text-sm text-on-surface-variant line-clamp-2">Simple perfection with buffalo mozzarella and San Marzano tomatoes.</p>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="mt-20 mb-20 flex justify-center">
+<button class="flex flex-col items-center gap-3 group">
+<span class="text-xs font-bold uppercase tracking-[0.3em] text-on-surface-variant/50 group-hover:text-primary transition-colors">Load More Delights</span>
+<div class="w-14 h-14 rounded-full border-2 border-outline-variant/30 flex items-center justify-center group-hover:border-primary transition-all group-hover:scale-110">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">expand_more</span>
+</div>
+</button>
+</div>
+</div>
+</main>
+<!-- Mobile Bottom NavBar -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl flex justify-around items-center py-4 px-6 z-50 shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Feed</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface/40" href="#">
+<span class="material-symbols-outlined">cloud_download</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Import</span>
+</a>
+<div class="relative -top-6">
+<button class="bg-primary text-on-primary w-14 h-14 rounded-full shadow-lg shadow-primary/40 flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center gap-1 text-on-surface/40" href="#">
+<span class="material-symbols-outlined">star</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Rates</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface/40" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">More</span>
+</a>
+</nav>
+<!-- Kitchen Mode Toggle -->
+<button class="hidden md:flex fixed bottom-8 right-8 bg-on-surface text-surface py-3 px-6 rounded-full items-center gap-3 shadow-2xl z-50 active:scale-95 transition-all">
+<span class="material-symbols-outlined">restaurant_menu</span>
+<span class="text-sm font-bold tracking-tight">Kitchen Mode</span>
+<div class="w-10 h-5 bg-surface/20 rounded-full relative ml-2">
+<div class="absolute right-1 top-1 w-3 h-3 bg-primary rounded-full"></div>
+</div>
+</button>
+</body></html>

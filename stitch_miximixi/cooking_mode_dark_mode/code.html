@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&amp;family=Work+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed-variant": "#50453a",
+                    "error-container": "#93000a",
+                    "surface-tint": "#ffb59c",
+                    "on-tertiary-container": "#32281f",
+                    "surface": "#161311",
+                    "surface-container": "#221f1d",
+                    "tertiary-container": "#9d8e82",
+                    "outline-variant": "#57423b",
+                    "inverse-on-surface": "#33302d",
+                    "primary-fixed-dim": "#ffb59c",
+                    "on-secondary": "#353025",
+                    "tertiary-fixed": "#f1dfd1",
+                    "on-background": "#e9e1dd",
+                    "tertiary-fixed-dim": "#d4c4b6",
+                    "secondary-container": "#4f483d",
+                    "on-primary": "#5c1900",
+                    "on-surface": "#e9e1dd",
+                    "tertiary": "#d4c4b6",
+                    "inverse-primary": "#a43d14",
+                    "secondary-fixed-dim": "#cfc5b6",
+                    "secondary-fixed": "#ece1d2",
+                    "on-secondary-fixed-variant": "#4c463b",
+                    "on-tertiary-fixed": "#231a11",
+                    "surface-container-low": "#1e1b19",
+                    "surface-container-lowest": "#100e0c",
+                    "error": "#ffb4ab",
+                    "on-tertiary": "#392f25",
+                    "background": "#161311",
+                    "surface-container-high": "#2d2927",
+                    "on-error": "#690005",
+                    "surface-dim": "#161311",
+                    "surface-container-highest": "#383432",
+                    "on-surface-variant": "#dec0b7",
+                    "primary-fixed": "#ffdbcf",
+                    "inverse-surface": "#e9e1dd",
+                    "on-primary-container": "#511500",
+                    "on-secondary-container": "#c1b7a9",
+                    "outline": "#a68b82",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed-variant": "#822700",
+                    "surface-variant": "#383432",
+                    "primary-container": "#e66d41",
+                    "on-primary-fixed": "#390c00",
+                    "secondary": "#cfc5b6",
+                    "primary": "#ffb59c",
+                    "surface-bright": "#3c3836",
+                    "on-secondary-fixed": "#201b12"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Work Sans"],
+                    "label": ["Work Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #161311;
+            color: #e9e1dd;
+            font-family: 'Work Sans', sans-serif;
+        }
+        .serif-headline {
+            font-family: 'Noto Serif', serif;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .glass-panel {
+            background: rgba(60, 56, 54, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .step-active {
+            box-shadow: 0 0 40px 0 rgba(255, 181, 156, 0.04);
+        }
+    </style>
+</head>
+<body class="antialiased">
+<!-- TopAppBar (Content & Identity from JSON) -->
+<nav class="flex justify-between items-center px-6 h-16 w-full z-40 fixed top-0 bg-[#161311] dark:bg-[#161311]">
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-[#221F1D] transition-colors rounded-full text-[#cfc5b6]">
+<span class="material-symbols-outlined">close</span>
+</button>
+<span class="text-2xl font-serif font-bold text-[#ffb59c]">Midnight Kitchen</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex gap-8 items-center">
+<span class="font-['Noto_Serif'] text-lg tracking-tight text-[#cfc5b6] hover:bg-[#221F1D] transition-colors cursor-pointer px-3 py-1 rounded">Recipe Feed</span>
+<span class="font-['Noto_Serif'] text-lg tracking-tight text-[#ffb59c] font-bold px-3 py-1 rounded">Cooking Mode</span>
+<span class="font-['Noto_Serif'] text-lg tracking-tight text-[#cfc5b6] hover:bg-[#221F1D] transition-colors cursor-pointer px-3 py-1 rounded">Import Hub</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#ffb59c]">account_circle</span>
+</div>
+</div>
+</nav>
+<main class="pt-24 pb-32 px-6 lg:px-12 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 min-h-screen">
+<!-- Left Column: Main Step Focus -->
+<section class="lg:col-span-8 flex flex-col space-y-8">
+<!-- Progress Header -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-end">
+<p class="font-label uppercase tracking-widest text-xs text-primary font-bold">Step 04 of 12</p>
+<p class="font-label text-sm text-on-surface-variant">33% Complete</p>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-primary-container w-1/3"></div>
+</div>
+</div>
+<!-- Active Step Card -->
+<div class="bg-surface-container-low rounded-xl p-8 md:p-12 step-active relative overflow-hidden">
+<div class="absolute top-0 right-0 p-6 opacity-10">
+<span class="material-symbols-outlined text-8xl" style="font-variation-settings: 'FILL' 1;">restaurant_menu</span>
+</div>
+<h2 class="serif-headline text-4xl md:text-5xl lg:text-6xl text-on-surface leading-tight mb-8">
+                    Gently fold the whipped egg whites into the dark chocolate base.
+                </h2>
+<p class="text-xl md:text-2xl text-on-surface-variant font-light leading-relaxed mb-12">
+                    Use a silicone spatula and work in a circular motion from the bottom up. Avoid over-mixing to maintain the airy structure.
+                </p>
+<!-- Step Specific Action: Timer -->
+<div class="bg-surface-container rounded-xl p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8 border border-outline-variant/15">
+<div class="flex flex-col items-center md:items-start">
+<span class="font-label uppercase text-xs tracking-widest text-secondary mb-2">Resting Period</span>
+<div class="serif-headline text-6xl md:text-7xl text-primary tabular-nums">04:59</div>
+</div>
+<div class="flex gap-4">
+<button class="h-16 w-16 flex items-center justify-center rounded-full bg-surface-container-highest text-on-surface hover:bg-surface-bright transition-all">
+<span class="material-symbols-outlined text-3xl">replay</span>
+</button>
+<button class="h-16 px-8 flex items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold shadow-lg shadow-primary/10">
+<span class="material-symbols-outlined mr-2" style="font-variation-settings: 'FILL' 1;">pause</span>
+                            PAUSE
+                        </button>
+</div>
+</div>
+</div>
+<!-- Main Navigation Controls -->
+<div class="flex gap-4 h-20">
+<button class="flex-1 bg-surface-container-low hover:bg-surface-container-high transition-all rounded-xl flex items-center justify-center gap-3 text-secondary font-semibold">
+<span class="material-symbols-outlined">arrow_back</span>
+                    PREVIOUS
+                </button>
+<button class="flex-[2] bg-gradient-to-br from-primary to-primary-container text-on-primary hover:opacity-90 transition-all rounded-xl flex items-center justify-center gap-3 font-bold text-lg shadow-xl shadow-primary/5">
+                    NEXT STEP
+                    <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</section>
+<!-- Right Column: Sidebar (Ingredients Peek) -->
+<aside class="lg:col-span-4 flex flex-col gap-8">
+<div class="bg-surface-container-low rounded-xl p-6 h-fit sticky top-24 border border-outline-variant/10">
+<div class="flex items-center justify-between mb-6">
+<h3 class="serif-headline text-2xl text-on-surface">Pantry Peek</h3>
+<span class="material-symbols-outlined text-primary">kitchen</span>
+</div>
+<ul class="space-y-4">
+<li class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Dark Chocolate (70%)</span>
+<span class="text-xs text-on-surface-variant">200g, melted &amp; cooled</span>
+</div>
+<span class="material-symbols-outlined text-primary-container opacity-0 group-hover:opacity-100">check_circle</span>
+</li>
+<li class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Large Organic Eggs</span>
+<span class="text-xs text-on-surface-variant">4 units, separated</span>
+</div>
+<span class="material-symbols-outlined text-primary-container opacity-0 group-hover:opacity-100">check_circle</span>
+</li>
+<li class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-container transition-colors border-l-2 border-primary">
+<div class="flex flex-col">
+<span class="text-primary font-medium">Castor Sugar</span>
+<span class="text-xs text-on-surface-variant">50g, sifted</span>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</li>
+<li class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Sea Salt</span>
+<span class="text-xs text-on-surface-variant">Pinch for egg whites</span>
+</div>
+<span class="material-symbols-outlined text-primary-container opacity-0 group-hover:opacity-100">check_circle</span>
+</li>
+<li class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Vanilla Bean Paste</span>
+<span class="text-xs text-on-surface-variant">1 teaspoon</span>
+</div>
+<span class="material-symbols-outlined text-primary-container opacity-0 group-hover:opacity-100">check_circle</span>
+</li>
+</ul>
+<button class="w-full mt-8 py-3 rounded-lg bg-surface-container-highest text-secondary text-xs font-label uppercase tracking-widest hover:text-primary transition-colors">
+                    View Full Equipment List
+                </button>
+</div>
+<!-- Visual Inspiration Card -->
+<div class="rounded-xl overflow-hidden aspect-[4/3] relative group border border-outline-variant/10">
+<img alt="Step Reference" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="Close up of chocolate mousse being folded with a spatula in a dark moody kitchen setting with warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCK5RDPa_trYAR5RFIq3pbpU53T09lt1rMHkqEeAcaK0_Es17pEOQ07YtXKy6IWUiFyFf3Hpt1ITe5Ob9nTSiUUPfvUT1BmqWQOlKvh_yTqaBgTkhSCTp92jaAic5niMcXMIULCFO6DZ0n7wLrcCPgoC1yOtf4PyXKC2TEUwlsWyxN1DEfY7XWU2X1d2z_vH3RRWtK2z5TAQc7wXUJJlgpADqaU6qwzk9KmAZwx2mpKH2b4jLpcf88aMx8PY31roYh5my2oGY2ssjQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent opacity-60"></div>
+<div class="absolute bottom-4 left-4">
+<p class="font-label text-xs uppercase tracking-widest text-on-primary-container bg-primary/80 px-2 py-1 rounded backdrop-blur-sm">Visual Target</p>
+</div>
+</div>
+</aside>
+</main>
+<!-- SideNavBar (Contextual minimized for focus - Hidden on Mobile) -->
+<aside class="hidden xl:flex flex-col h-full py-8 space-y-4 fixed left-0 top-0 w-20 bg-[#1E1B19] border-r border-outline-variant/5 z-50">
+<div class="flex flex-col items-center gap-10 mt-16">
+<div class="flex flex-col items-center gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-[#cfc5b6] group-hover:text-[#ffb59c] transition-colors">restaurant_menu</span>
+<span class="font-['Work_Sans'] font-medium uppercase tracking-tighter text-[10px] text-[#cfc5b6]">Feed</span>
+</div>
+<div class="flex flex-col items-center gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-[#ffb59c] bg-[#ffb59c]/10 p-3 rounded-xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-['Work_Sans'] font-medium uppercase tracking-tighter text-[10px] text-[#ffb59c]">Cook</span>
+</div>
+<div class="flex flex-col items-center gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-[#cfc5b6] group-hover:text-[#ffb59c] transition-colors">star_rate</span>
+<span class="font-['Work_Sans'] font-medium uppercase tracking-tighter text-[10px] text-[#cfc5b6]">Rate</span>
+</div>
+<div class="flex flex-col items-center gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-[#cfc5b6] group-hover:text-[#ffb59c] transition-colors">settings</span>
+<span class="font-['Work_Sans'] font-medium uppercase tracking-tighter text-[10px] text-[#cfc5b6]">Tools</span>
+</div>
+</div>
+</aside>
+<!-- Contextual "Chef Notes" Floating Toast -->
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 glass-panel px-6 py-4 rounded-full border-l-4 border-primary flex items-center gap-4 z-50 shadow-2xl">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<p class="text-on-surface text-sm font-medium">Chef's Tip: Use a metal bowl for the egg whites to achieve maximum volume.</p>
+<button class="text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+</body></html>

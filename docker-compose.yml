@@ -1,0 +1,146 @@
+name: miximixi
+
+services:
+
+  # ── Frontend ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: miximixi-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - miximixi
+
+  # ── Backend ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: miximixi-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2-vision:11b}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-6}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - OPENAI_COMPAT_BASE_URL=${OPENAI_COMPAT_BASE_URL}
+      - OPENAI_COMPAT_API_KEY=${OPENAI_COMPAT_API_KEY}
+      - OPENAI_COMPAT_MODEL=${OPENAI_COMPAT_MODEL}
+      - SUPABASE_URL=${SUPABASE_URL:-http://supabase-api:8000}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - INSTAGRAM_USERNAME=${INSTAGRAM_USERNAME}
+      - INSTAGRAM_PASSWORD=${INSTAGRAM_PASSWORD}
+      - INSTAGRAM_COLLECTION_ID=${INSTAGRAM_COLLECTION_ID}
+    volumes:
+      - backend-tmp:/tmp/miximixi
+      - ./backend/instagram_session.json:/app/instagram_session.json
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    networks:
+      - miximixi
+
+  # ── Ollama (CPU-only LLM) ─────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: miximixi-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - miximixi
+
+  # ── n8n ───────────────────────────────────────────────────
+  n8n:
+    build:
+      context: ./n8n
+      dockerfile: Dockerfile
+    container_name: miximixi-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - BACKEND_URL=http://backend:8000
+      - WEBHOOK_URL=http://n8n:5678  # Anpassen auf externe URL in Produktion
+    volumes:
+      - n8n-data:/home/node/.n8n
+    depends_on:
+      - backend
+    networks:
+      - miximixi
+
+  # ── Supabase PostgreSQL ───────────────────────────────────
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: miximixi-supabase-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - miximixi
+
+  # ── Supabase API (PostgREST + GoTrue + Realtime) ──────────
+  supabase-api:
+    image: supabase/supabase-studio:latest
+    container_name: miximixi-supabase-api
+    restart: unless-stopped
+    # Supabase self-hosted benötigt den vollständigen Kong-basierten Stack.
+    # Für lokale Entwicklung: supabase CLI nutzen (docker-compose.dev.yml)
+    # Für Produktion: siehe https://supabase.com/docs/guides/self-hosting/docker
+    profiles:
+      - production
+    networks:
+      - miximixi
+
+  # ── Supabase Studio ───────────────────────────────────────
+  supabase-studio:
+    image: supabase/studio:latest
+    container_name: miximixi-supabase-studio
+    restart: unless-stopped
+    ports:
+      - "54323:3000"
+    environment:
+      SUPABASE_URL: http://supabase-db:5432
+      STUDIO_PG_META_URL: http://supabase-db:5432
+    profiles:
+      - production
+    networks:
+      - miximixi
+
+volumes:
+  supabase-db-data:
+  ollama-models:
+  n8n-data:
+  backend-tmp:
+
+networks:
+  miximixi:
+    driver: bridge

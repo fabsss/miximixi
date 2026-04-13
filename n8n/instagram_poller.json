@@ -1,0 +1,72 @@
+{
+  "name": "Miximixi – Instagram Collection Poller",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Alle 15 Minuten",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_URL }}/instagram/sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "call-sync",
+      "name": "Backend /instagram/sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconsole.log(`Instagram Sync: ${result.queued} neue Rezepte von ${result.total_checked} geprüft`);\nreturn $input.all();"
+      },
+      "id": "log-result",
+      "name": "Ergebnis loggen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Alle 15 Minuten": {
+      "main": [
+        [{"node": "Backend /instagram/sync", "type": "main", "index": 0}]
+      ]
+    },
+    "Backend /instagram/sync": {
+      "main": [
+        [{"node": "Ergebnis loggen", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["miximixi", "instagram", "poller"]
+}

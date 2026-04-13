@@ -1,0 +1,180 @@
+{
+  "name": "Miximixi – Telegram Import",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Miximixi Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// URL aus Telegram-Nachricht extrahieren\nconst message = $input.first().json.message;\nconst text = message?.text || '';\nconst chatId = message?.chat?.id;\nconst messageId = message?.message_id;\n\n// Instagram-URL erkennen\nconst urlPattern = /https?:\\/\\/(www\\.)?instagram\\.com\\/[^\\s]+/gi;\nconst matches = text.match(urlPattern);\n\nif (!matches || matches.length === 0) {\n  return [{\n    json: {\n      valid: false,\n      chat_id: chatId,\n      message_id: messageId,\n      error: 'Kein Instagram-Link gefunden. Schick mir einen Link wie https://www.instagram.com/p/...'\n    }\n  }];\n}\n\nconst url = matches[0].split('?')[0]; // Query-Parameter entfernen\n\nreturn [{\n  json: {\n    valid: true,\n    url: url,\n    chat_id: chatId,\n    message_id: messageId\n  }\n}];"
+      },
+      "id": "extract-url",
+      "name": "URL extrahieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-valid",
+      "name": "URL gültig?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.error }}",
+        "additionalFields": {
+          "reply_to_message_id": "={{ $json.message_id }}"
+        }
+      },
+      "id": "send-error",
+      "name": "Fehler senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [900, 460],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Miximixi Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "⏳ Link erkannt! Rezept wird importiert…",
+        "additionalFields": {
+          "reply_to_message_id": "={{ $json.message_id }}"
+        }
+      },
+      "id": "send-ack",
+      "name": "Bestätigung senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [900, 160],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Miximixi Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BACKEND_URL }}/import",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $('extract-url').item.json.url }}\",\n  \"source_type\": \"telegram\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "call-backend",
+      "name": "Backend /import aufrufen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 160]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('extract-url').item.json.chat_id }}",
+        "text": "✅ Rezept wird verarbeitet! Es erscheint in ein paar Minuten in der App.",
+        "additionalFields": {}
+      },
+      "id": "send-success",
+      "name": "Erfolg senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1340, 160],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Miximixi Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [{"node": "URL extrahieren", "type": "main", "index": 0}]
+      ]
+    },
+    "URL extrahieren": {
+      "main": [
+        [{"node": "URL gültig?", "type": "main", "index": 0}]
+      ]
+    },
+    "URL gültig?": {
+      "main": [
+        [{"node": "Bestätigung senden", "type": "main", "index": 0}],
+        [{"node": "Fehler senden", "type": "main", "index": 0}]
+      ]
+    },
+    "Bestätigung senden": {
+      "main": [
+        [{"node": "Backend /import aufrufen", "type": "main", "index": 0}]
+      ]
+    },
+    "Backend /import aufrufen": {
+      "main": [
+        [{"node": "Erfolg senden", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": ["miximixi", "telegram", "import"]
+}
