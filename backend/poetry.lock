@@ -695,7 +695,7 @@ grpcio = {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_versio
 grpcio-status = {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_version >= \"3.11\" and extra == \"grpc\""}
 proto-plus = [
     {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
-    {version = ">=1.22.3,<2.0.0"},
+    {version = ">=1.22.3,<2.0.0", markers = "python_version < \"3.13\""},
 ]
 protobuf = ">=4.25.8,<8.0.0"
 requests = ">=2.20.0,<3.0.0"
@@ -1319,6 +1319,24 @@ requests = "2.32.5"
 
 [package.extras]
 test = ["Pillow (==12.1.0)", "bandit (==1.8.6)", "flake8 (==7.3.0)", "isort (==7.0.0)", "markdown-include (==0.8.1)", "mike (==2.1.3)", "mkdocs-material (==9.7.1)", "mkdocs-minify-html-plugin (>=0.3.1)", "mkdocstrings (==0.30.1)", "pytest (>=8.4.0,<8.5.0)", "pytest-xdist (==3.8.0)"]
+
+[[package]]
+name = "instaloader"
+version = "4.15.1"
+description = "Download pictures (or videos) along with their captions and other metadata from Instagram."
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "instaloader-4.15.1-py3-none-any.whl", hash = "sha256:d89544b841d3d2471d6e270568474a0f022daaf392c2836499c51b332bcd530e"},
+    {file = "instaloader-4.15.1.tar.gz", hash = "sha256:323ee2015540e627df25535703f246dc39695b71f7f04dadfe67e239dadf3b55"},
+]
+
+[package.dependencies]
+requests = ">=2.25"
+
+[package.extras]
+browser-cookie3 = ["browser_cookie3 (>=0.19.1)"]
 
 [[package]]
 name = "jinja2"
@@ -4041,4 +4059,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "6a8c503f2eac3166eb489b85a6a2cf73743402dc2b9d36bd1965cb13fce3c2c3"
+content-hash = "6879e5ebb1d16f9402d018739806a7f7068a5c2963db82f3cb10a411b863fa91"

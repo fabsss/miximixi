@@ -1,10 +1,10 @@
 """
-Instagram Collection Poller via instagrapi.
-Wird von n8n per HTTP-Request ausgelöst (alle 15 Min).
+Instagram Collection Poller via instaloader.
+Authentifizierung via cookies.txt (sessionid Cookie) – kein programmatischer Login nötig.
 """
-import json
 import logging
 import os
+from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 
 from app.config import settings
@@ -12,51 +12,70 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def get_client():
-    """Erstellt instagrapi-Client mit gecachter Session."""
-    from instagrapi import Client
+def _get_loader():
+    """
+    Erstellt einen authentifizierten instaloader-Client via sessionid aus cookies.txt.
+    Wirft ValueError wenn die Cookies-Datei fehlt oder keinen sessionid-Eintrag hat.
+    """
+    import instaloader
 
-    cl = Client()
-    session_file = settings.instagram_session_file
+    cookies_file = settings.instagram_cookies_file
+    if not os.path.exists(cookies_file):
+        raise ValueError(
+            f"Keine Cookies-Datei gefunden: {cookies_file}. "
+            "Bitte cookies.txt aus dem Browser exportieren (z.B. via 'Get cookies.txt LOCALLY')."
+        )
 
-    if os.path.exists(session_file):
-        try:
-            cl.load_settings(session_file)
-            cl.login(settings.instagram_username, settings.instagram_password)
-            logger.info("Instagram: Session aus Cache geladen")
-            return cl
-        except Exception as e:
-            logger.warning(f"Session-Cache ungültig, neu einloggen: {e}")
+    # sessionid aus cookies.txt extrahieren
+    jar = MozillaCookieJar(cookies_file)
+    jar.load(ignore_discard=True, ignore_expires=True)
+    session_id = next(
+        (c.value for c in jar if c.name == "sessionid" and "instagram.com" in c.domain),
+        None,
+    )
+    if not session_id:
+        raise ValueError("Kein 'sessionid' Cookie in der Cookies-Datei gefunden.")
 
-    cl.login(settings.instagram_username, settings.instagram_password)
-    cl.dump_settings(session_file)
-    logger.info("Instagram: Neu eingeloggt, Session gecacht")
-    return cl
+    L = instaloader.Instaloader(
+        download_pictures=False,
+        download_videos=False,
+        download_video_thumbnails=False,
+        download_geotags=False,
+        download_comments=False,
+        save_metadata=False,
+        quiet=True,
+    )
+
+    # Session direkt via sessionid setzen – kein Login-Request
+    L.context._session.cookies.set("sessionid", session_id, domain=".instagram.com")
+    L.context.username = settings.instagram_username or "unknown"
+
+    return L
 
 
 def get_collection_media_urls(limit: int = 20) -> list[dict]:
     """
     Gibt die neuesten URLs aus der konfigurierten Instagram Saved Collection zurück.
+    Benötigt INSTAGRAM_COLLECTION_ID in der .env.
     """
     if not settings.instagram_collection_id:
         raise ValueError("INSTAGRAM_COLLECTION_ID nicht konfiguriert")
 
-    cl = get_client()
+    import instaloader
 
-    medias = cl.collection_medias(
-        settings.instagram_collection_id,
-        amount=limit,
-    )
+    L = _get_loader()
+
+    collection = instaloader.Collection(L.context, int(settings.instagram_collection_id))
 
     result = []
-    for media in medias:
-        url = f"https://www.instagram.com/p/{media.code}/"
-        caption = media.caption_text or ""
-        username = media.user.username if media.user else ""
+    for post in collection.get_posts():
+        if len(result) >= limit:
+            break
+        url = f"https://www.instagram.com/p/{post.shortcode}/"
         result.append({
             "url": url,
-            "caption": caption,
-            "source_label": f"@{username}",
+            "caption": post.caption or "",
+            "source_label": f"@{post.owner_username}",
         })
 
     logger.info(f"Instagram Collection: {len(result)} Medien gefunden")

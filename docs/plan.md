@@ -54,8 +54,8 @@ Private Rezepte-App für 2 Nutzer (Fabian + Freundin). Der wichtigste Teil der A
 | 1b | Migration 003: raw_source_text, extraction_status, youtube source_type | ✅ Erledigt |
 | 2a | FastAPI + LLM Abstraction (Gemini, Claude, OpenAI, Ollama) | ✅ Erledigt |
 | 2b | Gemini: Foto-Extraktion + Fallback (partial / needs_review) | ✅ Erledigt |
-| 2c | Website- + YouTube-Import (Playwright + yt-dlp) | ❌ Offen |
-| 2d | Fallback-Kaskade + Telegram-Benachrichtigung bei needs_review | ❌ Offen |
+| 2c | Website- + YouTube-Import (Playwright + yt-dlp) | ✅ Erledigt |
+| 2d | Fallback-Kaskade + Telegram-Benachrichtigung bei needs_review | ✅ Erledigt |
 | 3 | Telegram Import (n8n Workflow) | ✅ Erledigt |
 | 4 | Instagram Collection Poller | ✅ Erledigt |
 | 5 | Verifikations-Seite | ✅ Erledigt (verify.html) |

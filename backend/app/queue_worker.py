@@ -16,6 +16,8 @@ import os
 import shutil
 import uuid
 
+import httpx
+
 from supabase import create_client
 
 from app.config import settings
@@ -106,8 +108,7 @@ async def process_job(job: dict) -> None:
             "tags": recipe_data.tags,
             "image_url": image_url,
             "source_url": source_url,
-            "source_type": source_type,
-            "source_label": _extract_source_label(source_url),
+            "source_label": source_url,
             "raw_source_text": raw_source_text or None,
             "llm_provider_used": settings.llm_provider,
             "extraction_status": extraction_status,
@@ -121,6 +122,7 @@ async def process_job(job: dict) -> None:
                     "name": ing.name,
                     "amount": ing.amount,
                     "unit": ing.unit,
+                    "group_name": ing.group_name,
                 }
                 for ing in recipe_data.ingredients
             ]).execute()
@@ -149,6 +151,7 @@ async def process_job(job: dict) -> None:
             "status": "needs_review",
             "error_msg": str(e)[:1000],
         }).eq("id", queue_id).execute()
+        await _notify_needs_review(source_url, str(e))
 
     finally:
         if os.path.exists(tmp_job_dir):
@@ -158,8 +161,9 @@ async def process_job(job: dict) -> None:
 async def _download_for_source(url: str, source_type: str, output_dir: str) -> DownloadResult:
     """
     Routing je nach Quell-Typ:
-      instagram / youtube / telegram → yt-dlp (Video + Beschreibung)
-      web                            → Playwright (Screenshot + HTML-Text)
+      instagram              → instagrapi (authentifiziert, kein Cookie-Hack)
+      youtube / telegram     → yt-dlp
+      web                    → Playwright (Screenshot + HTML-Text)
     """
     if source_type == "web":
         logger.info(f"Website-Download via Playwright: {url}")
@@ -223,6 +227,39 @@ def _extract_source_label(url: str) -> str:
         return urlparse(url).netloc
     except Exception:
         return ""
+
+
+async def _notify_needs_review(source_url: str, error: str) -> None:
+    """
+    Schickt eine Telegram-Benachrichtigung wenn ein Import manuell überprüft werden muss.
+    Kein Fehler wenn Telegram nicht konfiguriert ist.
+    """
+    if not settings.telegram_bot_token or not settings.telegram_notify_chat_id:
+        return
+
+    short_url = source_url[:80] + "…" if len(source_url) > 80 else source_url
+    short_err = error[:200] + "…" if len(error) > 200 else error
+    text = (
+        f"⚠️ *Rezept konnte nicht extrahiert werden*\n\n"
+        f"🔗 {short_url}\n"
+        f"❌ `{short_err}`\n\n"
+        f"Bitte manuell in der App prüfen und ergänzen."
+    )
+
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage",
+                json={
+                    "chat_id": settings.telegram_notify_chat_id,
+                    "text": text,
+                    "parse_mode": "Markdown",
+                },
+                timeout=10.0,
+            )
+        logger.info(f"Telegram needs_review Benachrichtigung gesendet: {source_url}")
+    except Exception as e:
+        logger.warning(f"Telegram-Benachrichtigung fehlgeschlagen (kein Blocker): {e}")
 
 
 async def run_worker(poll_interval: int = 5) -> None:

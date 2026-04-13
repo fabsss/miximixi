@@ -30,7 +30,7 @@ JSON-Format:
   "cook_time": "20 min",
   "tags": ["vegetarisch", "schnell"],
   "ingredients": [
-    {"id": 1, "name": "Zutat", "amount": 200, "unit": "g"}
+    {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
     {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5}
@@ -43,6 +43,7 @@ Wichtig:
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
+- "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_timestamp" = Timestamp im Format "MM:SS" des Moments, in dem das fertige Gericht am appetitlichsten zu sehen ist. NULL wenn kein geeigneter Moment vorhanden.
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
@@ -62,7 +63,7 @@ JSON-Format:
   "cook_time": "20 min",
   "tags": ["vegetarisch", "schnell"],
   "ingredients": [
-    {"id": 1, "name": "Zutat", "amount": 200, "unit": "g"}
+    {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
     {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5}
@@ -75,6 +76,7 @@ Wichtig:
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
+- "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt. NULL wenn kein geeignetes Bild vorhanden.
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
@@ -85,6 +87,20 @@ def _image_to_base64(path: str) -> str:
         return base64.standard_b64encode(f.read()).decode("utf-8")
 
 
+def _fix_encoding(obj):
+    """Repariert double-encoded UTF-8 Strings (Latin-1 mis-decoded als Unicode)."""
+    if isinstance(obj, str):
+        try:
+            return obj.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            return obj
+    if isinstance(obj, list):
+        return [_fix_encoding(i) for i in obj]
+    if isinstance(obj, dict):
+        return {k: _fix_encoding(v) for k, v in obj.items()}
+    return obj
+
+
 def _parse_llm_response(text: str, is_gemini: bool = False) -> ExtractionResult:
     """JSON aus LLM-Antwort parsen und in ExtractionResult umwandeln."""
     text = text.strip()
@@ -93,6 +109,7 @@ def _parse_llm_response(text: str, is_gemini: bool = False) -> ExtractionResult:
         if text.startswith("json"):
             text = text[4:]
     data = json.loads(text.strip())
+    data = _fix_encoding(data)
     if "error" in data:
         raise ValueError(data["error"])
 
