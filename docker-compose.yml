@@ -37,16 +37,21 @@ services:
       - OPENAI_COMPAT_BASE_URL=${OPENAI_COMPAT_BASE_URL}
       - OPENAI_COMPAT_API_KEY=${OPENAI_COMPAT_API_KEY}
       - OPENAI_COMPAT_MODEL=${OPENAI_COMPAT_MODEL}
-      - SUPABASE_URL=${SUPABASE_URL:-http://supabase-api:8000}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-miximixi}
       - INSTAGRAM_USERNAME=${INSTAGRAM_USERNAME}
       - INSTAGRAM_PASSWORD=${INSTAGRAM_PASSWORD}
       - INSTAGRAM_COLLECTION_ID=${INSTAGRAM_COLLECTION_ID}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
       - backend-tmp:/tmp/miximixi
+      - recipe-images:/data/recipe-images
       - ./backend/instagram_session.json:/app/instagram_session.json
     depends_on:
-      supabase-db:
+      db:
         condition: service_healthy
     networks:
       - miximixi
@@ -87,60 +92,34 @@ services:
     networks:
       - miximixi
 
-  # ── Supabase PostgreSQL ───────────────────────────────────
-  supabase-db:
-    image: supabase/postgres:15.1.0.147
-    container_name: miximixi-supabase-db
+  # ── PostgreSQL Database ────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: miximixi-db
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-miximixi}
     volumes:
-      - supabase-db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - miximixi
 
-  # ── Supabase API (PostgREST + GoTrue + Realtime) ──────────
-  supabase-api:
-    image: supabase/supabase-studio:latest
-    container_name: miximixi-supabase-api
-    restart: unless-stopped
-    # Supabase self-hosted benötigt den vollständigen Kong-basierten Stack.
-    # Für lokale Entwicklung: supabase CLI nutzen (docker-compose.dev.yml)
-    # Für Produktion: siehe https://supabase.com/docs/guides/self-hosting/docker
-    profiles:
-      - production
-    networks:
-      - miximixi
-
-  # ── Supabase Studio ───────────────────────────────────────
-  supabase-studio:
-    image: supabase/studio:latest
-    container_name: miximixi-supabase-studio
-    restart: unless-stopped
-    ports:
-      - "54323:3000"
-    environment:
-      SUPABASE_URL: http://supabase-db:5432
-      STUDIO_PG_META_URL: http://supabase-db:5432
-    profiles:
-      - production
-    networks:
-      - miximixi
-
 volumes:
-  supabase-db-data:
+  db-data:
   ollama-models:
   n8n-data:
   backend-tmp:
+  recipe-images:
 
 networks:
   miximixi:

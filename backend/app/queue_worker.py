@@ -8,17 +8,18 @@ Verarbeitungs-Pfade:
 
 Fallback-Kaskade:
   LLM-Fehler → raw_source_text bleibt erhalten → extraction_status = 'needs_review'
-  Kein Foto  → image_url = NULL              → extraction_status = 'partial'
+  Kein Foto  → image_filename = NULL            → extraction_status = 'partial'
 """
 import asyncio
 import logging
 import os
 import shutil
 import uuid
+from typing import Optional
 
 import httpx
-
-from supabase import create_client
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from app.config import settings
 from app.llm_provider import LLMProvider
@@ -30,43 +31,54 @@ from app.media_processor import (
     extract_frame_at_timestamp,
     prepare_media_for_frames,
     prepare_media_for_gemini,
-    upload_cover_to_storage,
+    save_cover_to_storage,
 )
 
 logger = logging.getLogger(__name__)
 llm = LLMProvider()
 
 
-def get_supabase():
-    return create_client(settings.supabase_url, settings.supabase_service_key)
+def get_db_connection():
+    """Erstellt eine PostgreSQL-Verbindung."""
+    return psycopg2.connect(
+        host=settings.db_host,
+        port=settings.db_port,
+        user=settings.db_user,
+        password=settings.db_password,
+        database=settings.db_name,
+    )
 
 
 async def process_job(job: dict) -> None:
+    """Verarbeitet einen einzelnen Import-Job."""
     queue_id = job["id"]
     source_url = job["source_url"]
     source_type = job.get("source_type", "telegram")
     tmp_job_dir = os.path.join(settings.tmp_dir, queue_id)
-    supabase = get_supabase()
+    db = None
 
     try:
-        supabase.table("import_queue").update({
-            "status": "processing",
-            "llm_provider_used": settings.llm_provider,
-        }).eq("id", queue_id).execute()
+        db = get_db_connection()
+        cursor = db.cursor()
+
+        # Job-Status auf "processing" setzen
+        cursor.execute(
+            "UPDATE import_queue SET status = %s, llm_provider_used = %s WHERE id = %s",
+            ("processing", settings.llm_provider, queue_id),
+        )
+        db.commit()
         logger.info(f"Verarbeite Job {queue_id}: {source_url}")
 
-        # 1. Medien herunterladen – Pfad je nach source_type
+        # 1. Medien herunterladen
         download = await _download_for_source(source_url, source_type, tmp_job_dir)
 
-        # Caption aus dem Job hat Vorrang (von n8n mitgeschickt),
-        # sonst Beschreibung aus dem Download (YouTube / Website)
         raw_source_text = job.get("caption") or download.description or ""
         media_paths = download.media_paths
 
         if not media_paths:
             raise ValueError(f"Keine Medien herunterladbar: {source_url}")
 
-        # 2. Medien für LLM vorbereiten – Pfad je nach Provider
+        # 2. Medien für LLM vorbereiten
         if settings.llm_provider == "gemini":
             llm_media = prepare_media_for_gemini(media_paths)
         else:
@@ -75,96 +87,112 @@ async def process_job(job: dict) -> None:
         if not llm_media:
             raise ValueError("Keine verwertbaren Medien nach Verarbeitung")
 
-        # 3. LLM-Extraktion: Rezept + Foto-Hint in einem Call
+        # 3. LLM-Extraktion
         extraction = llm.extract_recipe(llm_media, raw_source_text)
         recipe_data = extraction.recipe
         logger.info(f"Rezept extrahiert: '{recipe_data.title}'")
 
-        # 4. Titelbild aus Video extrahieren
+        # 4. Titelbild extrahieren und speichern
         recipe_id = str(uuid.uuid4())
-        image_url: str | None = None
+        image_filename: Optional[str] = None
         extraction_status = "success"
 
         cover_path = _resolve_cover(extraction, media_paths, llm_media, tmp_job_dir)
         if cover_path:
             try:
-                image_url = upload_cover_to_storage(cover_path, recipe_id)
+                image_filename = save_cover_to_storage(cover_path, recipe_id)
             except Exception as e:
-                logger.warning(f"Titelbild-Upload fehlgeschlagen: {e}")
+                logger.warning(f"Titelbild-Speicherung fehlgeschlagen: {e}")
                 extraction_status = "partial"
         else:
-            logger.info("Kein Titelbild – image_url bleibt NULL")
+            logger.info("Kein Titelbild – image_filename bleibt NULL")
             extraction_status = "partial"
 
-        # 5. Rezept in Supabase speichern
-        supabase.table("recipes").insert({
-            "id": recipe_id,
-            "title": recipe_data.title,
-            "lang": recipe_data.lang,
-            "category": recipe_data.category,
-            "servings": recipe_data.servings,
-            "prep_time": recipe_data.prep_time,
-            "cook_time": recipe_data.cook_time,
-            "tags": recipe_data.tags,
-            "image_url": image_url,
-            "source_url": source_url,
-            "source_label": source_url,
-            "raw_source_text": raw_source_text or None,
-            "llm_provider_used": settings.llm_provider,
-            "extraction_status": extraction_status,
-        }).execute()
+        # 5. Rezept in der Datenbank speichern
+        cursor.execute(
+            """
+            INSERT INTO recipes (
+                id, title, lang, category, servings, prep_time, cook_time, tags,
+                image_filename, source_url, source_label, raw_source_text,
+                llm_provider_used, extraction_status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                recipe_id,
+                recipe_data.title,
+                recipe_data.lang,
+                recipe_data.category,
+                recipe_data.servings,
+                recipe_data.prep_time,
+                recipe_data.cook_time,
+                recipe_data.tags,
+                image_filename,
+                source_url,
+                _extract_source_label(source_url),
+                raw_source_text or None,
+                settings.llm_provider,
+                extraction_status,
+            ),
+        )
 
+        # 6. Zutaten speichern
         if recipe_data.ingredients:
-            supabase.table("ingredients").insert([
-                {
-                    "recipe_id": recipe_id,
-                    "sort_order": ing.id,
-                    "name": ing.name,
-                    "amount": ing.amount,
-                    "unit": ing.unit,
-                    "group_name": ing.group_name,
-                }
-                for ing in recipe_data.ingredients
-            ]).execute()
+            for ing in recipe_data.ingredients:
+                cursor.execute(
+                    """
+                    INSERT INTO ingredients (recipe_id, sort_order, name, amount, unit, group_name)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (recipe_id, ing.id, ing.name, ing.amount, ing.unit, ing.group_name),
+                )
 
+        # 7. Schritte speichern
         if recipe_data.steps:
-            supabase.table("steps").insert([
-                {
-                    "recipe_id": recipe_id,
-                    "sort_order": step.id,
-                    "text": step.text,
-                    "time_minutes": step.time_minutes,
-                }
-                for step in recipe_data.steps
-            ]).execute()
+            for step in recipe_data.steps:
+                cursor.execute(
+                    """
+                    INSERT INTO steps (recipe_id, sort_order, text, time_minutes)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (recipe_id, step.id, step.text, step.time_minutes),
+                )
 
-        supabase.table("import_queue").update({
-            "status": "done",
-            "recipe_id": recipe_id,
-        }).eq("id", queue_id).execute()
+        # 8. Import-Queue-Status auf "done" setzen
+        cursor.execute(
+            "UPDATE import_queue SET status = %s, recipe_id = %s WHERE id = %s",
+            ("done", recipe_id, queue_id),
+        )
+        db.commit()
 
-        logger.info(f"Job {queue_id} ✓  recipe_id={recipe_id}  status={extraction_status}")
+        logger.info(
+            f"Job {queue_id} ✓  recipe_id={recipe_id}  status={extraction_status}"
+        )
 
     except Exception as e:
         logger.exception(f"Fehler bei Job {queue_id}: {e}")
-        supabase.table("import_queue").update({
-            "status": "needs_review",
-            "error_msg": str(e)[:1000],
-        }).eq("id", queue_id).execute()
+        if db:
+            try:
+                cursor = db.cursor()
+                cursor.execute(
+                    "UPDATE import_queue SET status = %s, error_msg = %s WHERE id = %s",
+                    ("needs_review", str(e)[:1000], queue_id),
+                )
+                db.commit()
+            except Exception as db_err:
+                logger.warning(f"Fehler beim Update der import_queue: {db_err}")
         await _notify_needs_review(source_url, str(e))
 
     finally:
+        if db:
+            db.close()
         if os.path.exists(tmp_job_dir):
             shutil.rmtree(tmp_job_dir, ignore_errors=True)
 
 
-async def _download_for_source(url: str, source_type: str, output_dir: str) -> DownloadResult:
-    """
-    Routing je nach Quell-Typ:
-      instagram              → instagrapi (authentifiziert, kein Cookie-Hack)
-      youtube / telegram     → yt-dlp
-      web                    → Playwright (Screenshot + HTML-Text)
-    """
+async def _download_for_source(
+    url: str, source_type: str, output_dir: str
+) -> DownloadResult:
+    """Routing je nach Quell-Typ."""
     if source_type == "web":
         logger.info(f"Website-Download via Playwright: {url}")
         return await download_website(url, output_dir)
@@ -178,13 +206,9 @@ def _resolve_cover(
     media_paths: list[str],
     llm_media: list[str],
     tmp_dir: str,
-) -> str | None:
+) -> Optional[str]:
     """
-    Ermittelt den Cover-Frame basierend auf dem LLM-Ergebnis:
-
-    Gemini-Pfad:  extraction.cover_timestamp → ffmpeg Frame bei diesem Timestamp
-    Andere:       extraction.cover_frame_index → Frame aus der bereits extrahierten Liste
-    Fallback:     Mittlerer Frame (wenn LLM keinen Hint geliefert hat)
+    Ermittelt den Cover-Frame basierend auf dem LLM-Ergebnis.
     """
     from app.media_processor import is_video
 
@@ -210,7 +234,9 @@ def _resolve_cover(
 
 
 def _extract_source_label(url: str) -> str:
+    """Extrahiert einen kurzen Label aus der URL."""
     import re
+
     match = re.search(r"instagram\.com/([^/?#]+)", url)
     if match:
         username = match.group(1)
@@ -224,16 +250,14 @@ def _extract_source_label(url: str) -> str:
         return "YouTube"
     try:
         from urllib.parse import urlparse
+
         return urlparse(url).netloc
     except Exception:
         return ""
 
 
 async def _notify_needs_review(source_url: str, error: str) -> None:
-    """
-    Schickt eine Telegram-Benachrichtigung wenn ein Import manuell überprüft werden muss.
-    Kein Fehler wenn Telegram nicht konfiguriert ist.
-    """
+    """Schickt eine Telegram-Benachrichtigung bei Fehler."""
     if not settings.telegram_bot_token or not settings.telegram_notify_chat_id:
         return
 
@@ -259,25 +283,27 @@ async def _notify_needs_review(source_url: str, error: str) -> None:
             )
         logger.info(f"Telegram needs_review Benachrichtigung gesendet: {source_url}")
     except Exception as e:
-        logger.warning(f"Telegram-Benachrichtigung fehlgeschlagen (kein Blocker): {e}")
+        logger.warning(f"Telegram-Benachrichtigung fehlgeschlagen: {e}")
 
 
 async def run_worker(poll_interval: int = 5) -> None:
+    """Startet die Background-Worker-Loop."""
     logger.info(f"Queue-Worker gestartet (provider={settings.llm_provider}, poll={poll_interval}s)")
-    supabase = get_supabase()
 
     while True:
         try:
-            result = (
-                supabase.table("import_queue")
-                .select("*")
-                .eq("status", "pending")
-                .order("created_at")
-                .limit(1)
-                .execute()
+            db = get_db_connection()
+            cursor = db.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute(
+                "SELECT * FROM import_queue WHERE status = %s ORDER BY created_at LIMIT 1",
+                ("pending",),
             )
-            if result.data:
-                await process_job(result.data[0])
+            result = cursor.fetchone()
+            db.close()
+
+            if result:
+                await process_job(dict(result))
             else:
                 await asyncio.sleep(poll_interval)
         except Exception as e:

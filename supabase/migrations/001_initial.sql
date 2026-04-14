@@ -1,27 +1,35 @@
--- Miximixi – Initial Schema
+-- Miximixi – Initial Schema (Plain PostgreSQL)
 -- Migration 001: recipes, ingredients, steps, import_queue
 
 -- ── Extensions ──────────────────────────────────────────────────────
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- ── Users ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS users (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username   TEXT UNIQUE NOT NULL,
+  email      TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- ── Recipes ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS recipes (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title        TEXT NOT NULL,
-  lang         TEXT DEFAULT 'de',          -- Originalsprache des Rezepts
+  lang         TEXT DEFAULT 'de',
   category     TEXT,
   servings     INT,
   prep_time    TEXT,
   cook_time    TEXT,
   tags         TEXT[],
-  image_url    TEXT,                        -- Supabase Storage URL
-  source_url   TEXT,                        -- Original-URL (Instagram, etc.)
-  source_label TEXT,                        -- z.B. "@username"
-  rating       SMALLINT CHECK (rating IN (-1, 1)),  -- NULL=unbewertet
+  image_filename TEXT,                      -- Local filename: {recipe_id}.jpg
+  source_url   TEXT,
+  source_label TEXT,
+  rating       SMALLINT CHECK (rating IN (-1, 0, 1)),
   notes        TEXT,
   created_at   TIMESTAMPTZ DEFAULT now(),
   updated_at   TIMESTAMPTZ DEFAULT now(),
-  created_by   UUID                         -- auth.users(id) – nullable für Import
+  created_by   UUID REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- ── Ingredients ─────────────────────────────────────────────────────
@@ -85,25 +93,3 @@ CREATE TRIGGER import_queue_updated_at
   BEFORE UPDATE ON import_queue
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- ── Row Level Security ────────────────────────────────────────────────
-ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ingredients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE steps ENABLE ROW LEVEL SECURITY;
-ALTER TABLE import_queue ENABLE ROW LEVEL SECURITY;
-
--- Alle authentifizierten User dürfen alles lesen und schreiben
--- (shared collection für 2 User – Fabian + Freundin)
-CREATE POLICY "authenticated_all" ON recipes
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "authenticated_all" ON ingredients
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "authenticated_all" ON steps
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "authenticated_all" ON import_queue
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- Service Role (Backend) kann ohne RLS-Einschränkung schreiben
--- (wird automatisch durch service_role JWT gewährt)

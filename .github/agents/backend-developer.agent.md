@@ -24,10 +24,11 @@ applyTo: ["backend/**", "pyproject.toml", "docs/architecture.md"]
 ### Tech Stack
 - **Framework:** FastAPI (Python 3.12)
 - **Package Manager:** Poetry
-- **Database:** PostgreSQL via Supabase
+- **Database:** PostgreSQL 15 (direct connection via psycopg2)
 - **Async Runtime:** asyncio (uvicorn)
 - **LLM Integration:** Abstraction layer supporting Gemini, Claude, Ollama, OpenAI
 - **Media Processing:** ffmpeg, yt-dlp, Playwright
+- **Image Storage:** Local filesystem (/data/recipe-images/)
 
 ### Key Files
 - `backend/app/main.py` — Router setup, startup tasks
@@ -101,55 +102,67 @@ async def import_recipe(request: ImportRequest):
 -- supabase/migrations/004_add_image_metadata.sql
 ALTER TABLE recipes ADD COLUMN image_width INT;
 ALTER TABLE recipes ADD COLUMN image_height INT;
-
--- RLS: allow authenticated users to read/write
-ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "auth_all" ON recipes FOR ALL 
-  TO authenticated USING (true) WITH CHECK (true);
 ```
 
 **Apply locally:**
 ```bash
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
-  -f /docker-entrypoint-initdb.d/004_add_image_metadata.sql
+docker exec -it miximixi-db psql -U postgres -d miximixi \
+  -c "ALTER TABLE recipes ADD COLUMN image_width INT;"
 ```
+
+**Note:** This project does not use Row-Level Security (RLS). Permission checking is handled in the FastAPI application code instead.
 
 ### 3. Async Job Queue
 
 **Pattern:**
 ```python
 # backend/app/queue_worker.py
-async def process_import_job(queue_id: str):
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+async def process_import_job():
     """Main job processor loop."""
     while True:
-        # 1. Fetch pending job from import_queue
-        job = await db.fetch_one(
-            "SELECT * FROM import_queue WHERE status = 'pending' LIMIT 1"
-        )
-        if not job:
-            await asyncio.sleep(5)  # Poll every 5 seconds
-            continue
-
+        db = psycopg2.connect(host=settings.db_host, ...)
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        
         try:
+            # 1. Fetch pending job from import_queue
+            cursor.execute(
+                "SELECT * FROM import_queue WHERE status = 'pending' LIMIT 1"
+            )
+            job = cursor.fetchone()
+            if not job:
+                await asyncio.sleep(5)  # Poll every 5 seconds
+                continue
+
             # 2. Download media + extract caption
-            media_paths, caption = await download_media(job.source_url)
+            media_paths, caption = await download_media(job['source_url'])
             
             # 3. Call LLM extraction
             extracted = await llm_provider.extract_recipe(media_paths, caption)
             
             # 4. Save to database
-            recipe_id = await save_recipe(extracted)
+            cursor.execute(
+                "INSERT INTO recipes (title, source_url, ...) VALUES (%s, %s, ...)",
+                (extracted.title, job['source_url'], ...)
+            )
+            recipe_id = cursor.fetchone()['id']
             
             # 5. Update queue status
-            await db.execute(
-                "UPDATE import_queue SET status = 'done', recipe_id = $1 WHERE id = $2",
-                recipe_id, queue_id
+            cursor.execute(
+                "UPDATE import_queue SET status = 'done', recipe_id = %s WHERE id = %s",
+                (recipe_id, job['id'])
             )
+            db.commit()
         except Exception as e:
-            await db.execute(
-                "UPDATE import_queue SET status = 'error', error_msg = $1 WHERE id = $2",
-                str(e), queue_id
+            cursor.execute(
+                "UPDATE import_queue SET status = 'needs_review', error_msg = %s WHERE id = %s",
+                (str(e), job['id'])
             )
+            db.commit()
+        finally:
+            db.close()
 ```
 
 ---
@@ -223,22 +236,38 @@ extracted_recipe = await provider.extract_recipe(
 
 ### Database Queries
 ```python
-from app.db import supabase
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from app.config import settings
+
+def get_db():
+    return psycopg2.connect(
+        host=settings.db_host,
+        port=settings.db_port,
+        user=settings.db_user,
+        password=settings.db_password,
+        database=settings.db_name
+    )
 
 # Read
-recipe = await supabase.table("recipes").select("*").eq("id", recipe_id).single()
+db = get_db()
+cursor = db.cursor(cursor_factory=RealDictCursor)
+cursor.execute("SELECT * FROM recipes WHERE id = %s", (recipe_id,))
+recipe = cursor.fetchone()
+db.close()
 
 # Create
-recipe = await supabase.table("recipes").insert({
-    "title": "Pasta",
-    "source_url": "https://...",
-    "llm_provider_used": "gemini"
-}).single()
+cursor.execute("""
+    INSERT INTO recipes (title, source_url, llm_provider_used)
+    VALUES (%s, %s, %s)
+    RETURNING id
+""", ("Pasta", "https://...", "gemini"))
+recipe_id = cursor.fetchone()['id']
+db.commit()
 
 # Update
-await supabase.table("recipes").update({
-    "rating": 5
-}).eq("id", recipe_id)
+cursor.execute("UPDATE recipes SET rating = %s WHERE id = %s", (5, recipe_id))
+db.commit()
 ```
 
 ### Error Handling
@@ -247,7 +276,11 @@ from fastapi import HTTPException
 
 @router.get("/recipes/{recipe_id}")
 async def get_recipe(recipe_id: str):
-    recipe = await supabase.table("recipes").select("*").eq("id", recipe_id).single()
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM recipes WHERE id = %s", (recipe_id,))
+    recipe = cursor.fetchone()
+    db.close()
     
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
@@ -295,9 +328,11 @@ poetry install
 - Check `.env` GEMINI_API_KEY is set
 - Fallback to Ollama if cloud API unavailable
 
-### Database auth errors
-- Verify `SUPABASE_SERVICE_KEY` in `.env`
-- Check RLS policies on table
+### Database connection errors
+- Verify DB_HOST, DB_PORT, DB_USER, DB_PASSWORD in `.env`
+- Ensure PostgreSQL container is running: `docker compose ps db`
+- Check firewall rules: `docker exec miximixi-db pg_isready`
+- Test connection directly: `psql postgresql://user:pass@host:5432/miximixi`
 
 ---
 
@@ -306,7 +341,8 @@ poetry install
 - **FastAPI Docs:** https://fastapi.tiangolo.com/
 - **Async Python:** https://docs.python.org/3/library/asyncio.html
 - **Poetry:** https://python-poetry.org/docs/
-- **Supabase Python SDK:** https://supabase.com/docs/reference/python
+- **psycopg2 Docs:** https://www.psycopg.org/
+- **PostgreSQL Docs:** https://www.postgresql.org/docs/15/
 - **Project Architecture:** `docs/architecture.md`
 
 ---

@@ -265,25 +265,15 @@ def extract_cover_frame(media_paths: list[str], output_dir: str) -> str | None:
 
 # ── Supabase Storage Upload ───────────────────────────────────────────
 
-def upload_cover_to_storage(file_path: str, recipe_id: str) -> str:
-    """Lädt Titelbild in Supabase Storage hoch und gibt die öffentliche URL zurück."""
-    bucket = "recipe-images"
-    storage_path = f"{recipe_id}.jpg"
-    url = f"{settings.supabase_url}/storage/v1/object/{bucket}/{storage_path}"
+def save_cover_to_storage(file_path: str, recipe_id: str) -> str:
+    """Speichert Titelbild lokal und gibt den Dateinamen zurück."""
+    import shutil
 
-    with open(file_path, "rb") as f:
-        response = httpx.put(
-            url,
-            content=f.read(),
-            headers={
-                "Authorization": f"Bearer {settings.supabase_service_key}",
-                "Content-Type": "image/jpeg",
-                "x-upsert": "true",
-            },
-            timeout=60.0,
-        )
-        response.raise_for_status()
+    os.makedirs(settings.images_dir, exist_ok=True)
+    image_filename = f"{recipe_id}.jpg"
+    destination = os.path.join(settings.images_dir, image_filename)
 
-    public_url = f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{storage_path}"
-    logger.info(f"Cover hochgeladen: {public_url}")
-    return public_url
+    shutil.copy2(file_path, destination)
+    logger.info(f"Cover gespeichert: {destination}")
+
+    return image_filename

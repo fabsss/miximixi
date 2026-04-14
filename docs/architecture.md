@@ -5,24 +5,27 @@
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   Frontend (React PWA)               │
-│              Vite + Tailwind + Supabase JS           │
+│              Vite + Tailwind + HTTP API              │
 └───────────────────────┬─────────────────────────────┘
-                        │ HTTP / Supabase Realtime
-┌───────────────────────▼─────────────────────────────┐
-│              Supabase (self-hosted)                   │
-│     PostgreSQL + Auth + Storage + PostgREST + RLS    │
-└───────────────────────┬─────────────────────────────┘
-                        │ import_queue polling
+                        │ HTTP / REST API
 ┌───────────────────────▼─────────────────────────────┐
 │                FastAPI Backend                        │
 │      LLM Abstraction + Queue Worker + ffmpeg         │
+│          Direct PostgreSQL Connection                │
 └──────┬─────────────────────┬───────────────────────-─┘
        │                     │
-┌──────▼──────┐    ┌─────────▼──────────┐
-│   Ollama    │    │  Gemini/Claude/    │
-│ llama3.2-   │    │  OpenAI API        │
-│ vision:11b  │    └────────────────────┘
-└─────────────┘
+┌──────▼──────────────┐  ┌───▼─────────────────────┐
+│   PostgreSQL 15     │  │  Gemini/Claude/Ollama   │
+│  (recipes table,    │  │    LLM APIs             │
+│   ingredients,      │  └────────────────────────┘
+│   steps, queue)     │
+└──────┬──────────────┘
+       │
+┌──────▼─────────────────────────────────────────────┐
+│     Local Filesystem (recipe-images volume)         │
+│              /{recipe_id}.jpg                       │
+└─────────────────────────────────────────────────────┘
+
 ┌─────────────────────────────────────────────────────┐
 │                    n8n (self-hosted)                  │
 │    Telegram Trigger → yt-dlp → Backend /import       │
@@ -42,7 +45,9 @@
 | Icons | Material Symbols Outlined | – | Stitch-Vorgabe |
 | Backend | FastAPI + Python | 3.12+ | Async, einfach, schnell |
 | Dependency Mgmt | Poetry | – | Lockfile, sauber |
-| DB + Auth + Storage | Supabase (self-hosted) | – | PostgreSQL + RLS + Storage in einem |
+| Database | PostgreSQL 15 (Alpine) | 15+ | Leichtgewichtig, zuverlässig, Standard |
+| DB-Client | psycopg2 | 2.9+ | Parametrisierte Abfragen, schnell |
+| Image Storage | Local Filesystem | – | Einfach, schnell, auf Docker-Volume |
 | Workflow | n8n (self-hosted) | – | Import-Pipelines ohne Code-Boilerplate |
 | LLM (lokal) | Ollama + llama3.2-vision:11b | – | Kein GPU nötig, CPU-only, langsam |
 | LLM (Cloud) | Google Gemini | gemini-2.0-flash | Native Video-Analyse, 1 API-Call für Rezept + Foto |
@@ -70,7 +75,12 @@
 ## Datenbank-Schema
 
 ```sql
--- Supabase verwaltet auth.users
+CREATE TABLE users (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username   TEXT UNIQUE NOT NULL,
+  email      TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 
 CREATE TABLE recipes (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,7 +95,7 @@ CREATE TABLE recipes (
   tags              TEXT[],
 
   -- Bild (optional – NULL wenn nicht extrahierbar)
-  image_url         TEXT,              -- Supabase Storage URL
+  image_filename    TEXT,              -- Lokale Datei: /data/recipe-images/{recipe_id}.jpg
 
   -- Quell-Informationen
   source_url        TEXT NOT NULL,
@@ -103,7 +113,7 @@ CREATE TABLE recipes (
   -- Metadaten
   created_at        TIMESTAMPTZ DEFAULT now(),
   updated_at        TIMESTAMPTZ DEFAULT now(),
-  created_by        UUID REFERENCES auth.users(id),
+  created_by        UUID REFERENCES users(id),
 
   -- Extraktion-Tracking
   llm_provider_used TEXT,              -- 'gemini' | 'claude' | 'ollama' | etc.
@@ -112,12 +122,13 @@ CREATE TABLE recipes (
 );
 
 CREATE TABLE ingredients (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  recipe_id  UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-  sort_order INT NOT NULL DEFAULT 0,
-  name       TEXT NOT NULL,
-  amount     NUMERIC,
-  unit       TEXT
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  recipe_id   UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  sort_order  INT NOT NULL DEFAULT 0,
+  section     TEXT,                    -- Optionaler Gruppierungstitel (z.B. "Teig", "Belag")
+  name        TEXT NOT NULL,
+  amount      NUMERIC,
+  unit        TEXT
 );
 
 CREATE TABLE steps (
@@ -136,6 +147,7 @@ CREATE TABLE import_queue (
   recipe_id         UUID REFERENCES recipes(id),
   error_msg         TEXT,
   llm_provider_used TEXT,
+  caption           TEXT,              -- Optional: ursprünglicher Caption/Beschreibung
   created_at        TIMESTAMPTZ DEFAULT now(),
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
@@ -154,13 +166,25 @@ CREATE TABLE translations (
 );
 ```
 
-### RLS-Policy
-```sql
--- Alle authentifizierten User lesen + schreiben alles
-ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "auth_all" ON recipes FOR ALL TO authenticated USING (true) WITH CHECK (true);
--- analog für ingredients, steps, import_queue, translations
-```
+### Sicherheitsmodell
+
+**Hinweis:** Dieses Projekt nutzt **keine Row-Level Security (RLS)** Policies. Stattdessen:
+
+1. **Momentan (Single-User-Modus):** Backend hat Zugriff auf alle Daten (Backend ist vertrauenswürdig)
+2. **Zukünftig (Multi-User):** Anwendungslogik im Backend prüft `created_by` Feld auf jeder Anfrage
+   ```python
+   # Backend-Beispiel (zukünftig):
+   def get_recipe(recipe_id: str, current_user: UUID):
+       recipe = db.execute(
+           "SELECT * FROM recipes WHERE id = %s AND created_by = %s",
+           (recipe_id, current_user)
+       )
+       if not recipe:
+           raise HTTPException(status_code=404)
+       return recipe
+   ```
+
+Diese Architektur ist einfacher zu testen, zu debuggen und zu verstehen als RLS-Policies, und für Self-Hosted-Setup völlig ausreichend.
 
 ---
 
@@ -252,12 +276,12 @@ User → Telegram Bot (Instagram-Link | YouTube-Link | Website-URL)
       ├─ [Gemini-Pfad]
       │    → Video/Screenshot + raw_source_text an Gemini (1 API-Call)
       │    → Output: { recipe_json, image_base64 }
-      │    → image_base64 → Supabase Storage
+      │    → image_base64 → lokales Filesystem (/data/recipe-images/{recipe_id}.jpg)
       │
       └─ [Anderer-Pfad: Ollama / Claude / OpenAI]
            → ffmpeg: Video → 5 Keyframes
            → LLM: Frames + raw_source_text → { recipe_json, best_frame_index }
-           → ffmpeg: Frame extrahieren → Base64 → Supabase Storage
+           → ffmpeg: Frame extrahieren → Base64 → lokales Filesystem (/data/recipe-images/{recipe_id}.jpg)
 
       ── Fehlerbehandlung ──────────────────────────────────────
       ├─ Rezept ok, kein Foto:
@@ -289,16 +313,27 @@ n8n Schedule (alle 15 Min)
 
 ---
 
-## Supabase Storage
+## Image Storage (Lokales Filesystem)
 
 ```
-supabase-storage/
-└── recipe-images/
+Docker Volume: recipe-images
+└── /data/recipe-images/
     ├── {recipe_id}.jpg     # Titelbild (dauerhaft)
-    └── tmp/                # Temporär (nach Verarbeitung gelöscht)
+    └── {recipe_id}.jpg     # Jedes Rezept hat genau ein Titelbild
 ```
 
-Bilder nur für authentifizierte User zugänglich (Storage RLS).
+**Zugriff im Frontend:**
+```
+GET http://backend:8000/images/{recipe_id}
+```
+
+Backend antwortet mit `FileResponse` (direkte Datei-Zustellung) aus dem Filesystem.
+
+**Vorteil gegenüber Supabase Storage:**
+- Keine RLS-Policies nötig (Backend stellt einfach die Datei bereit)
+- Schneller (lokales Filesystem statt Cloud Storage)
+- Kein Third-Party-Dependency
+- Backups einfach (Teil des Docker-Volumes)
 
 ---
 
@@ -306,19 +341,47 @@ Bilder nur für authentifizierte User zugänglich (Storage RLS).
 
 Vollständige Liste → `.env.example`
 
+### LLM-Konfiguration
+
 | Variable | Beispiel | Beschreibung |
 |----------|---------|-------------|
-| `LLM_PROVIDER` | `gemini` | `gemini` / `ollama` / `claude` / `openai` / `openai_compat` |
-| `GEMINI_API_KEY` | `AIza...` | – |
-| `GEMINI_MODEL` | `gemini-2.0-flash` | – |
-| `OLLAMA_BASE_URL` | `http://ollama:11434` | – |
-| `OLLAMA_MODEL` | `llama3.2-vision:11b` | – |
-| `CLAUDE_API_KEY` | `sk-ant-...` | – |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | – |
-| `SUPABASE_URL` | `http://supabase-api:8000` | – |
-| `SUPABASE_ANON_KEY` | – | Aus Supabase Studio |
-| `SUPABASE_SERVICE_KEY` | – | Für Backend (RLS bypass) |
+| `LLM_PROVIDER` | `gemini` | `gemini` / `ollama` / `claude` / `openai` / `openai_compat` / `gemma3n` |
+| `GEMINI_API_KEY` | `AIza...` | Google Gemini API Key |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini Modell |
+| `OLLAMA_BASE_URL` | `http://ollama:11434` | Ollama Endpoint |
+| `OLLAMA_MODEL` | `llama3.2-vision:11b` | Ollama Modell |
+| `CLAUDE_API_KEY` | `sk-ant-...` | Claude API Key |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude Modell |
+| `OPENAI_API_KEY` | `sk-...` | OpenAI API Key |
+| `OPENAI_MODEL` | `gpt-4o` | OpenAI Modell |
+| `OPENAI_COMPAT_BASE_URL` | `https://api.together.ai/v1` | Alternativer OpenAI-kompatibler Endpoint |
+| `OPENAI_COMPAT_API_KEY` | – | API Key für Alternative |
+| `OPENAI_COMPAT_MODEL` | – | Modellname bei Alternative |
+
+### Datenbank-Konfiguration
+
+| Variable | Beispiel | Beschreibung |
+|----------|---------|-------------|
+| `DB_HOST` | `localhost` | PostgreSQL Host (oder `db` im Docker Compose) |
+| `DB_PORT` | `5432` | PostgreSQL Port |
+| `DB_USER` | `postgres` | PostgreSQL Nutzer |
+| `DB_PASSWORD` | – | PostgreSQL Passwort |
+| `DB_NAME` | `miximixi` | Datenbankname |
+
+### Integrations-Konfiguration
+
+| Variable | Beispiel | Beschreibung |
+|----------|---------|-------------|
 | `TELEGRAM_BOT_TOKEN` | – | Von @BotFather |
+| `TELEGRAM_NOTIFY_CHAT_ID` | – | Chat-ID für Fehlerbenachrichtigungen |
 | `INSTAGRAM_USERNAME` | `fabian.rezepte` | Zweit-Account! |
-| `INSTAGRAM_PASSWORD` | – | – |
+| `INSTAGRAM_PASSWORD` | – | Passwort |
 | `INSTAGRAM_COLLECTION_ID` | – | ID der Saved Collection |
+
+### n8n Konfiguration
+
+| Variable | Beispiel | Beschreibung |
+|----------|---------|-------------|
+| `N8N_BASIC_AUTH_USER` | `admin` | n8n Admin-Nutzer |
+| `N8N_BASIC_AUTH_PASSWORD` | – | n8n Passwort |
+| `N8N_ENCRYPTION_KEY` | – | Für n8n-interne Verschlüsselung |

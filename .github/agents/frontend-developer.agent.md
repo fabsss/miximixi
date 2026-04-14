@@ -33,6 +33,10 @@ applyTo: ["frontend/", "src/", "*.tsx", "*.jsx", "*.css"]
 - Zustand or Context API (state management)
 - Supabase client (authentication & real-time)
 
+** Design Language and Specification:**
+- stick to the design defined in design-system.md as well as the directory /stitch_miximixi/* for everything related to UI components, spacing, colors, typography, and interactions. This ensures a consistent and cohesive user experience across the entire application.
+
+
 **Key Features:**
 - Recipe import interface (paste link, show progress)
 - Recipe detail view (ingredients, steps, photos)
@@ -679,6 +683,8 @@ refactor/recipe-card-component
 
 | File | Purpose | Who touches |
 |------|---------|------------|
+| `stitch_miximixi/*` | Detailed Style Guide for different UI pages | Frontend Dev + Google Stitch|
+| `docs/design-system.md` | Design language and specification | Frontend Dev + Google Stitch|
 | `frontend/src/components/` | Reusable UI components | Frontend Dev |
 | `frontend/src/pages/` | Page-level components | Frontend Dev |
 | `frontend/src/hooks/` | Custom React hooks | Frontend Dev |

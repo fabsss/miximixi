@@ -16,10 +16,6 @@ CREATE TABLE IF NOT EXISTS translations (
 
 CREATE INDEX IF NOT EXISTS translations_recipe_id_idx ON translations (recipe_id);
 
-ALTER TABLE translations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "authenticated_all" ON translations
-  FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
 -- ── updated_at Trigger ───────────────────────────────────────────────
 CREATE TRIGGER translations_updated_at
   BEFORE UPDATE ON translations
