@@ -28,9 +28,11 @@ function shortIngName(name: string): string {
 function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
   return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
-    const isIngName = allIngredients.some(
-      (ing) => shortIngName(ing.name).toLowerCase() === normalized
-    )
+    if (normalized.includes(',')) return match
+    const isIngName = allIngredients.some((ing) => {
+      const canonical = shortIngName(ing.name).toLowerCase()
+      return canonical === normalized || normalized.startsWith(canonical) || canonical.startsWith(normalized)
+    })
     return isIngName ? '' : match
   })
 }
