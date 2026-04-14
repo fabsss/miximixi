@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// URL aus Telegram-Nachricht extrahieren\nconst message = $input.first().json.message;\nconst text = message?.text || '';\nconst chatId = message?.chat?.id;\nconst messageId = message?.message_id;\n\n// Instagram-URL erkennen\nconst urlPattern = /https?:\\/\\/(www\\.)?instagram\\.com\\/[^\\s]+/gi;\nconst matches = text.match(urlPattern);\n\nif (!matches || matches.length === 0) {\n  return [{\n    json: {\n      valid: false,\n      chat_id: chatId,\n      message_id: messageId,\n      error: 'Kein Instagram-Link gefunden. Schick mir einen Link wie https://www.instagram.com/p/...'\n    }\n  }];\n}\n\nconst url = matches[0].split('?')[0]; // Query-Parameter entfernen\n\nreturn [{\n  json: {\n    valid: true,\n    url: url,\n    chat_id: chatId,\n    message_id: messageId\n  }\n}];"
+        "jsCode": "// URL aus Telegram-Nachricht extrahieren\nconst message = $input.first().json.message;\nconst text = message?.text || '';\nconst chatId = message?.chat?.id;\nconst messageId = message?.message_id;\n\n// Beliebige URL erkennen (Instagram, YouTube, Website, etc.)\nconst urlPattern = /https?:\\/\\/[^\\s]+/gi;\nconst matches = text.match(urlPattern);\n\nif (!matches || matches.length === 0) {\n  return [{\n    json: {\n      valid: false,\n      chat_id: chatId,\n      message_id: messageId,\n      error: 'Kein Link gefunden. Schick mir einen Link wie https://www.instagram.com/p/... oder https://www.rezept.de/...'\n    }\n  }];\n}\n\nconst url = matches[0].split('?')[0]; // Query-Parameter entfernen\n\n// Source-Type erkennen\nfunction detectSourceType(url) {\n  if (/instagram\\.com/i.test(url)) return 'instagram';\n  if (/(youtube\\.com|youtu\\.be)/i.test(url)) return 'youtube';\n  return 'web';\n}\n\nreturn [{\n  json: {\n    valid: true,\n    url: url,\n    source_type: detectSourceType(url),\n    chat_id: chatId,\n    message_id: messageId\n  }\n}];"
       },
       "id": "extract-url",
       "name": "URL extrahieren",
@@ -111,7 +111,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"url\": \"{{ $('extract-url').item.json.url }}\",\n  \"source_type\": \"telegram\"\n}",
+        "jsonBody": "={\n  \"url\": \"{{ $('URL extrahieren').item.json.url }}\",\n  \"source_type\": \"{{ $('URL extrahieren').item.json.source_type }}\"\n}",
         "options": {
           "timeout": 30000
         }

@@ -16,8 +16,11 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urljoin
 
 import httpx
+import requests
+from bs4 import BeautifulSoup
 
 from app.config import settings
 
@@ -94,51 +97,140 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     return DownloadResult(media_paths=media_paths, description=description)
 
 
-# ── Playwright: Website-Import ────────────────────────────────────────
+# ── Website-Import: HTML-Parsing für Rezept-Extraktion ──────────────────
+
+def _find_og_image(soup) -> str | None:
+    """Findet og:image oder twitter:image Meta-Tag."""
+    for prop in ["og:image", "twitter:image"]:
+        tag = soup.find("meta", property=prop) or soup.find("meta", attrs={"name": prop})
+        if tag and tag.get("content"):
+            return tag["content"]
+    return None
+
+
+def _find_schema_image(soup) -> str | None:
+    """Findet Bild aus schema.org Recipe JSON-LD oder itemprop."""
+    # JSON-LD
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            if not script.string:
+                continue
+            data = json.loads(script.string)
+            # Handle list of schemas
+            if isinstance(data, list):
+                data = next((d for d in data if d.get("@type") == "Recipe"), {})
+            # Extract image from Recipe
+            if data.get("@type") == "Recipe":
+                img = data.get("image")
+                if isinstance(img, list) and img:
+                    img = img[0]
+                if isinstance(img, dict):
+                    img = img.get("url")
+                if img:
+                    return img
+        except Exception as e:
+            logger.debug(f"Schema.org JSON-LD Parsing fehlgeschlagen: {e}")
+
+    # itemprop attribute fallback
+    tag = soup.find(itemprop="image")
+    if tag:
+        return tag.get("src") or tag.get("content")
+
+    return None
+
+
+def _find_largest_img(soup, base_url: str) -> str | None:
+    """Fallback: Findet das größte Bild auf der Seite (wahrscheinlich Rezept-Foto)."""
+    imgs = soup.find_all("img", src=True)
+
+    # Bevorzuge Bilder mit großer width (wahrscheinlich Hero-Image)
+    for img in imgs:
+        src = img.get("src", "")
+        width = int(img.get("width", 0) or 0)
+        alt = img.get("alt", "").lower()
+        # Skip obvious icons/logos
+        if width >= 400 and not any(x in alt for x in ["logo", "icon", "avatar"]):
+            return urljoin(base_url, src)
+
+    # Fallback: erstes aussagekräftiges Bild
+    for img in imgs:
+        src = img.get("src", "")
+        if not any(x in src for x in ["logo", "icon", "avatar", "sprite", "pixel"]):
+            return urljoin(base_url, src)
+
+    return None
+
+
+def _download_image(url: str, output_dir: str) -> str | None:
+    """Lädt Bild herunter und speichert lokal. Gibt lokalen Pfad zurück."""
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; Miximixi/1.0)"}
+        resp = requests.get(url, headers=headers, timeout=15, stream=True)
+        resp.raise_for_status()
+
+        # Dateiendung aus URL
+        ext = Path(url.split("?")[0]).suffix.lower() or ".jpg"
+        if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+            ext = ".jpg"
+
+        out_path = str(Path(output_dir) / f"recipe_image{ext}")
+        with open(out_path, "wb") as f:
+            for chunk in resp.iter_content(8192):
+                f.write(chunk)
+
+        logger.info(f"Rezept-Bild heruntergeladen: {out_path}")
+        return out_path
+    except Exception as e:
+        logger.warning(f"Bild-Download fehlgeschlagen ({url}): {e}")
+        return None
+
 
 async def download_website(url: str, output_dir: str) -> DownloadResult:
     """
-    Lädt eine Website via Playwright herunter:
-    - Screenshot als PNG (für LLM-Analyse)
+    Lädt eine Website herunter:
+    - Extrahiert Rezept-Bild (og:image → schema.org → größtes Bild)
     - Bereinigter Seitentext als raw_source_text
     """
-    from playwright.async_api import async_playwright
-    from bs4 import BeautifulSoup
+    import asyncio
 
     os.makedirs(output_dir, exist_ok=True)
-    screenshot_path = os.path.join(output_dir, "screenshot.png")
     description = ""
 
+    def _fetch_and_parse():
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; Miximixi/1.0)"}
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
+
+        # ── Text-Inhalt bereinigen ──────────────────────────
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+        text = "\n".join(line for line in text.splitlines() if line.strip())
+        text = text[:8000]  # Max 8000 Zeichen
+
+        # ── Rezept-Bild extrahieren ────────────────────────
+        image_url = (
+            _find_og_image(soup) or
+            _find_schema_image(soup) or
+            _find_largest_img(soup, url)
+        )
+
+        return text, image_url
+
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page(viewport={"width": 1280, "height": 900})
-
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            # Kurz warten für lazy-loaded Inhalte
-            await page.wait_for_timeout(2000)
-
-            # Screenshot der gesamten Seite
-            await page.screenshot(path=screenshot_path, full_page=True)
-            logger.info(f"Playwright Screenshot: {screenshot_path}")
-
-            # HTML-Text bereinigen via BeautifulSoup
-            html = await page.content()
-            soup = BeautifulSoup(html, "html.parser")
-            # Nicht relevante Tags entfernen
-            for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
-                tag.decompose()
-            raw_text = soup.get_text(separator="\n", strip=True)
-            # Mehrfache Leerzeilen reduzieren
-            description = re.sub(r"\n{3,}", "\n\n", raw_text).strip()[:8000]
-
-            await browser.close()
-
+        description, image_url = await asyncio.to_thread(_fetch_and_parse)
     except Exception as e:
-        logger.error(f"Playwright Fehler ({url}): {e}")
+        logger.error(f"Website-Fehler ({url}): {e}")
         return DownloadResult(description=description)
 
-    media_paths = [screenshot_path] if os.path.exists(screenshot_path) else []
+    # ── Bild herunterladen ──────────────────────────────────
+    media_paths = []
+    if image_url:
+        img_path = await asyncio.to_thread(_download_image, image_url, output_dir)
+        if img_path:
+            media_paths.append(img_path)
+
     return DownloadResult(media_paths=media_paths, description=description)
 
 
