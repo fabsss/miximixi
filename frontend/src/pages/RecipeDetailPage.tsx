@@ -651,11 +651,11 @@ export function RecipeDetailPage() {
                         <span key={i} className="relative inline-block">
                           <button type="button" onClick={() => setHighlightedSortOrder(isHighlighted ? null : sortOrder)}
                             className={`rounded-md px-1.5 py-0.5 text-xs font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                            {ingredient?.name ?? `Zutat #${sortOrder}`}
+                            {tipText || '?'}
                           </button>
-                          {isHighlighted && tipText && (
+                          {isHighlighted && (
                             <span className="lg:hidden pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
-                              {tipText}
+                              {ingredient?.name ?? `Zutat #${sortOrder}`}{tipText ? ` · ${tipText}` : ''}
                               <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
                             </span>
                           )}
