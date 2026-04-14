@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './context/ThemeContext'
+import { NavDrawerProvider } from './context/NavDrawerContext'
 
 const queryClient = new QueryClient()
 
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <App />
+          <NavDrawerProvider>
+            <App />
+          </NavDrawerProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>

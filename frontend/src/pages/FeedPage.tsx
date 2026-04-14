@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
+import { useNavDrawer } from '../context/NavDrawerContext'
 
 const MAIN_CATEGORIES = ['Vorspeisen', 'Hauptspeisen', 'Nachspeisen', 'Getr\u00e4nke'] as const
 type MainCategory = (typeof MAIN_CATEGORIES)[number]
@@ -14,7 +15,7 @@ export function FeedPage() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
   const mainRef = useRef<HTMLDivElement>(null)
 
   const recipesQuery = useQuery({
@@ -213,14 +214,7 @@ export function FeedPage() {
         {/* SEARCH + HAMBURGER (mobile) + TAG FILTERS + FAVORITES */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            {/* Hamburger – mobile only */}
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className="lg:hidden flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--mx-surface-container)] text-[var(--mx-on-surface-variant)]"
-              aria-label="Kategorien \u00f6ffnen"
-            >
-              <span className="material-symbols-outlined text-[20px]">menu</span>
-            </button>
+
             <div className="mx-glass flex flex-1 items-center rounded-full px-4 py-2">
               <span className="material-symbols-outlined mr-2 flex-shrink-0 text-[18px] text-[var(--mx-on-surface-variant)]">search</span>
               <input
