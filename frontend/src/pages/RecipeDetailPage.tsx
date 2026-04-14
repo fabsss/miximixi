@@ -225,8 +225,39 @@ export function RecipeDetailPage() {
 
   useEffect(() => {
     const el = ingredientsRef.current
-    if (!el) return
-    const check = () => setIngredientsVisible(el.getBoundingClientRect().bottom > 0)
+    const panel = ingredientsPanelRef.current
+    if (!el || !panel) return
+
+    panel.style.transition = 'max-height 380ms ease-in-out'
+    const baseH = window.innerHeight - 112 // 7rem
+    const THRESH = 150
+    let expanded = false
+
+    const check = () => {
+      setIngredientsVisible(el.getBoundingClientRect().bottom > 0)
+      const dist = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
+
+      if (dist < THRESH && !expanded) {
+        expanded = true
+        panel.scrollTop = 0
+        // Measure full height now (data is loaded by the time user scrolls to bottom)
+        panel.style.maxHeight = 'none'
+        const fullH = panel.scrollHeight
+        // Restore previous max-height so browser has a start value for the transition
+        panel.style.maxHeight = panel.style.maxHeight === 'none' ? '' : panel.style.maxHeight
+        panel.style.maxHeight = '' // let Tailwind value be start point
+        panel.offsetHeight    // force reflow so transition sees the baseH start value
+        panel.style.maxHeight = `${fullH}px`
+      } else if (dist >= THRESH && expanded) {
+        expanded = false
+        panel.scrollTop = 0
+        panel.style.maxHeight = `${baseH}px`
+        panel.addEventListener('transitionend', () => {
+          panel.style.maxHeight = ''
+        }, { once: true })
+      }
+    }
+
     check()
     window.addEventListener('scroll', check, { passive: true, capture: true })
     return () => window.removeEventListener('scroll', check, { capture: true })
@@ -584,7 +615,10 @@ export function RecipeDetailPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         {/* INGREDIENTS SIDEBAR */}
-        <aside ref={ingredientsPanelRef} className="w-full flex-shrink-0 lg:sticky lg:top-24 lg:w-[350px] lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+        <aside
+          ref={ingredientsPanelRef}
+          className="w-full flex-shrink-0 lg:sticky lg:top-24 lg:w-[350px] lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
+        >
           <div ref={ingredientsRef} className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-headline text-xl font-bold text-[var(--mx-on-surface)]">Zutaten</h3>
@@ -760,9 +794,6 @@ export function RecipeDetailPage() {
           <div className="mt-14 border-t border-[var(--mx-outline-variant)]/20 pt-8">
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
               {recipe.prep_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Vorbereitung</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.prep_time}</span></div>}
-              {recipe.category ? (
-                <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kategorie</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.category}</span></div>
-              ) : null}
             </div>
           </div>
         </section>
