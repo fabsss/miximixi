@@ -128,9 +128,9 @@ a {
 
 /* --- Page transitions --- */
 
-/* Forward: zoom into the recipe */
-@keyframes vt-fwd-old  { to   { opacity: 0; transform: scale(0.96); } }
-@keyframes vt-fwd-new  { from { opacity: 0; transform: scale(1.03); } }
+/* Forward: slide in from the right */
+@keyframes vt-fwd-old  { to   { opacity: 0; transform: translateX(-1.5rem); } }
+@keyframes vt-fwd-new  { from { opacity: 0; transform: translateX(1.5rem); } }
 /* Back: slide back to feed */
 @keyframes vt-back-old { to   { opacity: 0; transform: translateX(1.5rem); } }
 @keyframes vt-back-new { from { opacity: 0; transform: translateX(-1.5rem); } }
