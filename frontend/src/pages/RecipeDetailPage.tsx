@@ -714,8 +714,6 @@ export function RecipeDetailPage() {
           <div className="mt-14 border-t border-[var(--mx-outline-variant)]/20 pt-8">
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
               {recipe.prep_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Vorbereitung</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.prep_time}</span></div>}
-              {recipe.cook_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kochzeit</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.cook_time}</span></div>}
-              {recipe.servings && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Portionen</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{actualServings}</span></div>}
               {recipe.category ? (
                 <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kategorie</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.category}</span></div>
               ) : null}
