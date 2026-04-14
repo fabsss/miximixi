@@ -11,11 +11,11 @@ const tileVariants = ['aspect-[4/3]', 'aspect-[3/2]', 'aspect-[16/10]']
 
 function categoryChipCls(cat: string): string {
   switch (cat.toLowerCase()) {
-    case 'vorspeisen':  return 'bg-[var(--mx-tertiary-container)]/90 text-[var(--mx-tertiary)]'
-    case 'hauptspeisen': return 'bg-[var(--mx-primary-container)]/90 text-[var(--mx-on-primary-container)]'
-    case 'nachspeisen': return 'bg-[var(--mx-secondary-container)]/90 text-[var(--mx-secondary)]'
-    case 'getränke':    return 'bg-white/20 text-white'
-    default:            return 'bg-white/20 text-white'
+    case 'vorspeisen':   return 'bg-amber-200/90 text-amber-900 dark:bg-amber-900/80 dark:text-amber-200'
+    case 'hauptspeisen': return 'bg-orange-200/90 text-orange-900 dark:bg-orange-900/80 dark:text-orange-200'
+    case 'nachspeisen':  return 'bg-green-200/90 text-green-900 dark:bg-green-900/80 dark:text-green-200'
+    case 'getränke':     return 'bg-sky-200/90 text-sky-900 dark:bg-sky-900/80 dark:text-sky-200'
+    default:             return 'bg-white/25 text-white dark:bg-black/40 dark:text-white'
   }
 }
 
