@@ -45,15 +45,15 @@ function shortIngName(name: string): string {
   return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
 }
 
-// Strip trailing "(IngredientName)" from a text chunk when it exactly matches
-// the canonical ingredient name — avoids "Rhabarber (Rhabarber) [btn]" duplication.
-function stripTrailingParen(text: string, ingredientName: string | undefined): string {
-  if (!ingredientName) return text
-  const canonical = shortIngName(ingredientName).trim().toLowerCase()
-  // Match a trailing " (X)" where X normalised equals the canonical name
-  return text.replace(/\s*\([^)]+\)\s*$/, (match) => {
-    const inner = match.replace(/^\s*\(|\)\s*$/g, '').trim().toLowerCase()
-    return inner === canonical ? '' : match
+// Remove "(X)" from text when X exactly matches a known ingredient name.
+// Keeps multi-item parentheticals like "(flour, sugar, eggs)" intact.
+function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
+  return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
+    const normalized = inner.trim().toLowerCase()
+    const isIngName = allIngredients.some(
+      (ing) => shortIngName(ing.name).toLowerCase() === normalized
+    )
+    return isIngName ? '' : match
   })
 }
 
@@ -678,13 +678,8 @@ export function RecipeDetailPage() {
                   <p className="font-body text-sm leading-relaxed text-[var(--mx-on-surface-variant)] md:text-base">
                     {parts.map((part, i) => {
                       if (part.type === 'text') {
-                        // If the next part is a ref, strip a trailing "(IngName)" that would duplicate the button label
-                        const nextPart = parts[i + 1]
-                        let content = part.content
-                        if (nextPart?.type === 'ref') {
-                          const nextIng = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === nextPart.content)
-                          content = stripTrailingParen(content, nextIng?.name)
-                        }
+                        const allIngs = Array.from(groupedIngredients.values()).flat()
+                        const content = stripIngredientParens(part.content, allIngs)
                         return <span key={i}>{content}</span>
                       }
                       const sortOrder = part.content

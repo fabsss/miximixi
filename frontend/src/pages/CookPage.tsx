@@ -25,6 +25,16 @@ function shortIngName(name: string): string {
   return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
 }
 
+function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
+  return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
+    const normalized = inner.trim().toLowerCase()
+    const isIngName = allIngredients.some(
+      (ing) => shortIngName(ing.name).toLowerCase() === normalized
+    )
+    return isIngName ? '' : match
+  })
+}
+
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
@@ -89,8 +99,9 @@ export function CookPage() {
   const step = recipe.steps[currentStep]
 
   const renderStepText = (text: string) => {
+    const allIngs = Array.from(ingredientBySortOrder.values())
     return parseIngredientReference(text).map((part, i) => {
-      if (part.type === 'text') return <span key={i}>{part.content}</span>
+      if (part.type === 'text') return <span key={i}>{stripIngredientParens(part.content, allIngs)}</span>
       const sortOrder = part.content
       const ing = ingredientBySortOrder.get(sortOrder)
       const isHighlighted = highlightedRef === sortOrder
