@@ -9,6 +9,16 @@ interface RecipeCardProps {
 
 const tileVariants = ['aspect-[4/3]', 'aspect-[3/2]', 'aspect-[16/10]']
 
+function categoryChipCls(cat: string): string {
+  switch (cat.toLowerCase()) {
+    case 'vorspeisen':  return 'bg-[var(--mx-tertiary-container)]/90 text-[var(--mx-tertiary)]'
+    case 'hauptspeisen': return 'bg-[var(--mx-primary-container)]/90 text-[var(--mx-on-primary-container)]'
+    case 'nachspeisen': return 'bg-[var(--mx-secondary-container)]/90 text-[var(--mx-secondary)]'
+    case 'getränke':    return 'bg-white/20 text-white'
+    default:            return 'bg-white/20 text-white'
+  }
+}
+
 function HeartIcon({ filled, className }: { filled: boolean; className?: string }) {
   return (
     <svg
@@ -35,7 +45,6 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
   const imageUrl = getImageUrl(recipe.id)
   const tileClass = tileVariants[index % tileVariants.length]
   const isFavorite = recipe.rating === 1
-  // A recipe may have multiple categories stored as comma-separated string
   const categories = recipe.category
     ? recipe.category.split(',').map((c) => c.trim()).filter(Boolean)
     : []
@@ -56,7 +65,16 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
               <HeartIcon filled className="h-4 w-4" />
             </span>
           )}
-
+          {/* Category chips – bottom left inside image */}
+          {categories.length > 0 && (
+            <div className="absolute bottom-2.5 left-2.5 flex flex-wrap gap-1">
+              {categories.map((cat) => (
+                <span key={cat} className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${categoryChipCls(cat)}`}>
+                  {cat}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="px-2 pb-1 pt-3">
@@ -64,14 +82,6 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             {recipe.title}
           </h3>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {categories.map((cat) => (
-              <span
-                key={cat}
-                className="inline-block rounded-full bg-[var(--mx-secondary-container)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mx-secondary)]"
-              >
-                {cat}
-              </span>
-            ))}
             {recipe.tags?.slice(0, 3).map((tag) => (
               <span
                 key={tag}
