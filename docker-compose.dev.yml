@@ -17,7 +17,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-miximixi}
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - ./data/db-data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
@@ -33,7 +33,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama-models:/root/.ollama
+      - ./data/ollama-models:/root/.ollama
 
   # ── n8n ───────────────────────────────────────────────────
   n8n:
@@ -52,13 +52,12 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BACKEND_URL=http://host.docker.internal:8000  # Backend läuft lokal
       - WEBHOOK_TUNNEL_URL=   # Optional: ngrok URL für Telegram Webhooks
+      - DB_TYPE=sqlite
+      - DB_SQLITE_PATH=/home/node/.n8n/database.sqlite
     volumes:
-      - n8n-data:/home/node/.n8n
+      - ./data/n8n-data:/home/node/.n8n
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-volumes:
-  db-data:
-  ollama-models:
-  n8n-data:
-  recipe-images:
+# Using bind mounts for persistent development data
+# All paths relative to this docker-compose.yml file location
