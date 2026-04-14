@@ -58,7 +58,7 @@ export function AppLayout() {
               <h1 className="m-0 font-headline text-3xl leading-none text-[var(--mx-primary)]">
                 Miximixi
               </h1>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">
+              <p className="w-full text-[11px] uppercase text-[var(--mx-on-surface-variant)]" style={{ textAlign: 'justify', textAlignLast: 'justify', textJustify: 'inter-character' }}>
                 Die Rezepte App
               </p>
             </Link>
