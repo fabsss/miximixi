@@ -34,7 +34,7 @@ applyTo: ["backend/**", "pyproject.toml", "docs/architecture.md"]
 - `backend/app/main.py` — Router setup, startup tasks
 - `backend/app/models.py` — Pydantic models for API contracts
 - `backend/app/llm_provider.py` — LLM abstraction (Gemini/Claude/Ollama)
-- `backend/app/media_processor.py` — ffmpeg, yt-dlp, Playwright handling
+- `backend/app/media_processor.py` — Media download handlers (yt-dlp for Instagram/YouTube, HTML parsing for websites)
 - `backend/app/queue_worker.py` — Async job processor for imports
 - `backend/app/instagram_service.py` — Instagram polling (instagrapi)
 - `supabase/migrations/` — SQL schema files
