@@ -33,10 +33,15 @@ class Settings(BaseSettings):
     gemma3n_base_url: str = "http://ollama:11434"
     gemma3n_model: str = "gemma3n:e4b"
 
-    # Supabase
-    supabase_url: str = "http://supabase-api:8000"
-    supabase_service_key: str = ""
-    supabase_anon_key: str = ""
+    # PostgreSQL Database
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_user: str = "postgres"
+    db_password: str = "postgres"
+    db_name: str = "miximixi"
+
+    # Image Storage
+    images_dir: str = "/data/recipe-images"
 
     # Telegram
     telegram_bot_token: str = ""

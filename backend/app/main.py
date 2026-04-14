@@ -4,9 +4,11 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from supabase import create_client
+from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.models import ImportRequest, ImportResponse
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Temp-Verzeichnis anlegen
     os.makedirs(settings.tmp_dir, exist_ok=True)
+    os.makedirs(settings.images_dir, exist_ok=True)
 
     # Queue-Worker als Background-Task starten
     worker_task = asyncio.create_task(run_worker(poll_interval=5))
@@ -49,102 +52,139 @@ app.add_middleware(
 )
 
 
-def get_supabase():
-    return create_client(settings.supabase_url, settings.supabase_service_key)
+def get_db():
+    """Erstellt eine PostgreSQL-Verbindung."""
+    return psycopg2.connect(
+        host=settings.db_host,
+        port=settings.db_port,
+        user=settings.db_user,
+        password=settings.db_password,
+        database=settings.db_name,
+    )
 
 
 # ── Healthcheck ──────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return {"status": "ok", "llm_provider": settings.llm_provider}
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT 1")
+        db.close()
+        return {"status": "ok", "llm_provider": settings.llm_provider}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail="Database not available")
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────
 @app.post("/import", response_model=ImportResponse)
 async def create_import(req: ImportRequest):
-    """
-    URL in die Import-Queue legen.
-    Wird von n8n aufgerufen (Telegram-Bot oder Instagram-Poller).
-    """
-    supabase = get_supabase()
+    """URL in die Import-Queue legen."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
 
-    # Duplikat-Check
-    existing = supabase.table("import_queue") \
-        .select("id, status") \
-        .eq("source_url", req.url) \
-        .in_("status", ["pending", "processing", "done"]) \
-        .execute()
+    try:
+        # Duplikat-Check
+        cursor.execute(
+            "SELECT id, status FROM import_queue WHERE source_url = %s AND status IN (%s, %s, %s)",
+            (req.url, "pending", "processing", "done"),
+        )
+        existing = cursor.fetchone()
 
-    if existing.data:
-        existing_job = existing.data[0]
+        if existing:
+            db.close()
+            return ImportResponse(
+                queue_id=existing["id"],
+                status=existing["status"],
+                message=f"URL bereits in Queue (status: {existing['status']})",
+            )
+
+        queue_id = str(uuid.uuid4())
+        cursor.execute(
+            """
+            INSERT INTO import_queue (id, source_url, source_type, status, caption)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (queue_id, req.url, req.source_type, "pending", req.caption or None),
+        )
+        db.commit()
+        db.close()
+
+        logger.info(f"Import-Job erstellt: {queue_id} für {req.url}")
+
         return ImportResponse(
-            queue_id=existing_job["id"],
-            status=existing_job["status"],
-            message=f"URL bereits in Queue (status: {existing_job['status']})",
+            queue_id=queue_id,
+            status="pending",
+            message="✅ Rezept wird verarbeitet…",
         )
 
-    queue_id = str(uuid.uuid4())
-    supabase.table("import_queue").insert({
-        "id": queue_id,
-        "source_url": req.url,
-        "source_type": req.source_type,
-        "status": "pending",
-        "caption": req.caption or None,  # Caption/Beschreibung für Worker-Fallback
-    }).execute()
-
-    logger.info(f"Import-Job erstellt: {queue_id} für {req.url}")
-
-    return ImportResponse(
-        queue_id=queue_id,
-        status="pending",
-        message="✅ Rezept wird verarbeitet…",
-    )
+    except Exception as e:
+        db.close()
+        logger.error(f"Import creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/import/{queue_id}")
 async def get_import_status(queue_id: str):
     """Status eines Import-Jobs abfragen."""
-    supabase = get_supabase()
-    result = supabase.table("import_queue").select("*").eq("id", queue_id).execute()
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
 
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+    try:
+        cursor.execute("SELECT * FROM import_queue WHERE id = %s", (queue_id,))
+        job = cursor.fetchone()
+        db.close()
 
-    job = result.data[0]
-    response = {"queue_id": queue_id, "status": job["status"]}
+        if not job:
+            raise HTTPException(status_code=404, detail="Job nicht gefunden")
 
-    if job.get("recipe_id"):
-        response["recipe_id"] = job["recipe_id"]
-    if job.get("error_msg"):
-        response["error"] = job["error_msg"]
+        response = {"queue_id": queue_id, "status": job["status"]}
 
-    return response
+        if job.get("recipe_id"):
+            response["recipe_id"] = job["recipe_id"]
+        if job.get("error_msg"):
+            response["error"] = job["error_msg"]
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.close()
+        logger.error(f"Import status lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/import")
 async def list_imports(limit: int = 20):
-    """Letzte Import-Jobs auflisten (für Verifikations-Seite)."""
-    supabase = get_supabase()
-    result = supabase.table("import_queue") \
-        .select("*") \
-        .order("created_at", desc=True) \
-        .limit(limit) \
-        .execute()
-    return result.data
+    """Letzte Import-Jobs auflisten."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute(
+            "SELECT * FROM import_queue ORDER BY created_at DESC LIMIT %s",
+            (limit,),
+        )
+        jobs = cursor.fetchall()
+        db.close()
+        return [dict(job) for job in jobs]
+
+    except Exception as e:
+        db.close()
+        logger.error(f"Import list failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Instagram Auth Endpoints ────────────────────────────────────────
+# ── Instagram Endpoints ───────────────────────────────────────────────
 
-# Shared state for pending 2FA challenge
 _instagram_challenge_client = None
 
 
 @app.post("/instagram/login")
 async def instagram_login():
-    """
-    Einmalig aufrufen nach Deployment um die Instagram-Session zu initialisieren.
-    Falls Instagram einen Verification Code schickt → /instagram/challenge aufrufen.
-    """
+    """Instagram-Session initialisieren."""
     global _instagram_challenge_client
     import asyncio
     from instagrapi import Client
@@ -173,22 +213,26 @@ async def instagram_login():
         return {"status": "ok", "message": f"Login erfolgreich ({mode} session)"}
     except ChallengeRequired:
         from instagrapi import Client
+
         cl = Client()
         if os.path.exists(settings.instagram_session_file):
             cl.load_settings(settings.instagram_session_file)
         cl.challenge_resolve(cl.last_json)
         _instagram_challenge_client = cl
-        return {"status": "challenge_required", "message": "Verification Code wurde an E-Mail/SMS geschickt. POST /instagram/challenge mit {\"code\": \"123456\"}"}
+        return {
+            "status": "challenge_required",
+            "message": 'Verification Code: POST /instagram/challenge mit {"code": "123456"}',
+        }
     except TwoFactorRequired:
         _instagram_challenge_client = None
-        raise HTTPException(status_code=400, detail="2FA aktiv – bitte App-Passwort verwenden")
+        raise HTTPException(status_code=400, detail="2FA aktiv – App-Passwort verwenden")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/instagram/challenge")
 async def instagram_challenge(body: dict):
-    """Verification Code nach Instagram Login-Challenge einreichen."""
+    """Verification Code einreichen."""
     global _instagram_challenge_client
     import asyncio
 
@@ -196,7 +240,7 @@ async def instagram_challenge(body: dict):
     if not code:
         raise HTTPException(status_code=400, detail="'code' fehlt")
     if not _instagram_challenge_client:
-        raise HTTPException(status_code=400, detail="Kein aktiver Challenge-Login. Zuerst /instagram/login aufrufen.")
+        raise HTTPException(status_code=400, detail="Kein aktiver Challenge-Login")
 
     def _verify():
         _instagram_challenge_client.challenge_resolve(_instagram_challenge_client.last_json, code)
@@ -205,19 +249,15 @@ async def instagram_challenge(body: dict):
     try:
         await asyncio.to_thread(_verify)
         _instagram_challenge_client = None
-        logger.info("Instagram Challenge erfolgreich, Session gespeichert")
-        return {"status": "ok", "message": "Login abgeschlossen, Session gespeichert"}
+        logger.info("Instagram Challenge erfolgreich")
+        return {"status": "ok", "message": "Login abgeschlossen"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Challenge fehlgeschlagen: {e}")
 
 
-# ── Instagram Sync Endpoint ─────────────────────────────────────────
 @app.post("/instagram/sync")
 async def instagram_sync():
-    """
-    Wird von n8n (Schedule, alle 15 Min) aufgerufen.
-    Holt neue Items aus der Instagram Collection und legt sie in die Queue.
-    """
+    """Instagram Collection-Sync."""
     from app.instagram_service import get_collection_media_urls
 
     try:
@@ -225,59 +265,114 @@ async def instagram_sync():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Instagram-Fehler: {e}")
 
-    supabase = get_supabase()
+    db = get_db()
+    cursor = db.cursor()
     queued = 0
 
-    for item in items:
-        # Duplikat-Check
-        existing = supabase.table("import_queue") \
-            .select("id") \
-            .eq("source_url", item["url"]) \
-            .execute()
+    try:
+        for item in items:
+            # Duplikat-Check
+            cursor.execute(
+                "SELECT id FROM import_queue WHERE source_url = %s",
+                (item["url"],),
+            )
+            if cursor.fetchone():
+                continue
 
-        if existing.data:
-            continue
+            cursor.execute(
+                """
+                INSERT INTO import_queue (id, source_url, source_type, status)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (str(uuid.uuid4()), item["url"], "instagram", "pending"),
+            )
+            queued += 1
 
-        supabase.table("import_queue").insert({
-            "id": str(uuid.uuid4()),
-            "source_url": item["url"],
-            "source_type": "instagram",
-            "status": "pending",
-        }).execute()
-        queued += 1
+        db.commit()
+        db.close()
+        logger.info(f"Instagram Sync: {queued} neue Jobs")
+        return {"queued": queued, "total_checked": len(items)}
 
-    logger.info(f"Instagram Sync: {queued} neue Jobs erstellt")
-    return {"queued": queued, "total_checked": len(items)}
+    except Exception as e:
+        db.close()
+        logger.error(f"Instagram sync failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Recipes Endpoint (für Verifikations-Seite) ───────────────────────
+# ── Recipes Endpoints ───────────────────────────────────────────────
 @app.get("/recipes")
 async def list_recipes(limit: int = 50):
-    supabase = get_supabase()
-    result = supabase.table("recipes") \
-        .select("id, title, category, image_url, source_url, source_label, rating, created_at") \
-        .order("created_at", desc=True) \
-        .limit(limit) \
-        .execute()
-    return result.data
+    """Alle Rezepte auflisten."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute(
+            """
+            SELECT id, title, category, image_filename, source_url, source_label, rating, created_at
+            FROM recipes ORDER BY created_at DESC LIMIT %s
+            """,
+            (limit,),
+        )
+        recipes = cursor.fetchall()
+        db.close()
+        return [dict(r) for r in recipes]
+
+    except Exception as e:
+        db.close()
+        logger.error(f"Recipes list failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/recipes/{recipe_id}")
 async def get_recipe(recipe_id: str):
-    supabase = get_supabase()
+    """Rezept mit Zutaten und Schritten abrufen."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
 
-    recipe = supabase.table("recipes").select("*").eq("id", recipe_id).execute()
-    if not recipe.data:
-        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+    try:
+        cursor.execute("SELECT * FROM recipes WHERE id = %s", (recipe_id,))
+        recipe = cursor.fetchone()
 
-    ingredients = supabase.table("ingredients") \
-        .select("*").eq("recipe_id", recipe_id).order("sort_order").execute()
+        if not recipe:
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
 
-    steps = supabase.table("steps") \
-        .select("*").eq("recipe_id", recipe_id).order("sort_order").execute()
+        cursor.execute(
+            "SELECT * FROM ingredients WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,),
+        )
+        ingredients = cursor.fetchall()
 
-    return {
-        **recipe.data[0],
-        "ingredients": ingredients.data,
-        "steps": steps.data,
-    }
+        cursor.execute(
+            "SELECT * FROM steps WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,),
+        )
+        steps = cursor.fetchall()
+
+        db.close()
+
+        return {
+            **dict(recipe),
+            "ingredients": [dict(i) for i in ingredients],
+            "steps": [dict(s) for s in steps],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.close()
+        logger.error(f"Recipe lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Image Serving ───────────────────────────────────────────────────
+@app.get("/images/{recipe_id}")
+async def get_recipe_image(recipe_id: str):
+    """Serve recipe cover image."""
+    image_path = os.path.join(settings.images_dir, f"{recipe_id}.jpg")
+
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return FileResponse(image_path, media_type="image/jpeg")

@@ -120,10 +120,11 @@ Directory structure:
 ~/miximixi/
 ├── docker-compose.yml
 ├── .env
+├── .env.example
 ├── backend/
 ├── frontend/
 ├── n8n/
-├── supabase/
+├── supabase/migrations/  # Contains SQL migrations
 └── docs/
 ```
 
@@ -169,17 +170,14 @@ CLAUDE_MODEL=claude-sonnet-4-6
 # GEMMA3N_MODEL=gemma3n:e4b
 
 # ============================================
-# Database Configuration
+# PostgreSQL Database Configuration
 # ============================================
 # Use strong, random passwords (32+ chars)
-POSTGRES_PASSWORD=<use $(openssl rand -base64 32)>
-JWT_SECRET=<use $(openssl rand -base64 32)>
-ANON_KEY=<generate with Supabase CLI or copy from studio>
-SERVICE_ROLE_KEY=<generate with Supabase CLI or copy from studio>
-
-SUPABASE_URL=https://api.rezepte.example.com
-SUPABASE_SERVICE_KEY=$SERVICE_ROLE_KEY
-SUPABASE_ANON_KEY=$ANON_KEY
+DB_USER=postgres
+DB_PASSWORD=<use $(openssl rand -base64 32)>
+DB_NAME=miximixi
+DB_HOST=db
+DB_PORT=5432
 
 # ============================================
 # Telegram Integration (Error Notifications)
@@ -201,8 +199,6 @@ INSTAGRAM_COLLECTION_ID=<collection numeric ID>
 # ============================================
 # Frontend Configuration
 # ============================================
-VITE_SUPABASE_URL=https://api.rezepte.example.com
-VITE_SUPABASE_ANON_KEY=$ANON_KEY
 VITE_API_BASE_URL=https://api.rezepte.example.com
 
 # ============================================
@@ -225,10 +221,7 @@ DOMAIN_NAME=rezepte.example.com
 
 **Generate secure random values:**
 ```bash
-# POSTGRES_PASSWORD
-openssl rand -base64 32
-
-# JWT_SECRET
+# DB_PASSWORD
 openssl rand -base64 32
 
 # N8N_BASIC_AUTH_PASSWORD
@@ -316,55 +309,27 @@ docker compose down
 docker compose up -d
 ```
 
-### Step 6: Verify Database Connectivity
+### Step 6: Verify Database Migrations
+
+Migrations are automatically applied on first start. Verify they ran:
 
 ```bash
 # Check PostgreSQL is running
-docker compose ps postgres
+docker compose ps db
 
-# Run database migration
-docker exec -it miximixi-supabase-db psql \
-  -U postgres -d postgres \
-  -c "SELECT version();"
+# Connect to database and verify tables
+docker exec -it miximixi-db psql -U postgres -d miximixi -c "SELECT tablename FROM pg_tables WHERE schemaname='public';"
 
-# Expected output: PostgreSQL 15.x running
+# Expected output:
+# recipes
+# ingredients
+# steps
+# import_queue
+# translations
+# users
 ```
 
-### Step 7: Get Supabase API Keys
-
-**Option A: Via Supabase Studio UI (Recommended)**
-
-1. Open Supabase Studio: https://rezepte.example.com:3000 (if using Zoraxy)
-   OR http://<server-ip>:54323 (direct access)
-
-2. Navigate to **Settings → API**
-
-3. Copy:
-   - **anon_key** → set `SUPABASE_ANON_KEY` in `.env`
-   - **service_role key** → set `SUPABASE_SERVICE_KEY` in `.env`
-
-4. Restart backend to pick up keys:
-   ```bash
-   docker compose restart backend
-   ```
-
-**Option B: Via Supabase CLI**
-
-```bash
-# Install Supabase CLI
-npm install -g @supabase/cli
-
-# Initialize project
-supabase init
-
-# Link to self-hosted instance
-supabase link --project-ref postgres://user:pass@host:5432/postgres
-
-# Get keys
-supabase status
-```
-
-### Step 8: Configure Reverse Proxy (Zoraxy)
+### Step 7: Configure Reverse Proxy (Zoraxy)
 
 **Access Zoraxy UI:** https://zoraxy-server:9302
 
@@ -375,7 +340,6 @@ Add proxy rules for all Miximixi services:
 | `rezepte.example.com` | `miximixi-frontend` | 80 | HTTP | React PWA (Nginx) |
 | `api.rezepte.example.com` | `miximixi-backend` | 8000 | HTTP | FastAPI |
 | `n8n.rezepte.example.com` | `miximixi-n8n` | 5678 | HTTP | n8n workflows |
-| `db.rezepte.example.com` | `miximixi-supabase-studio` | 54323 | HTTP | Database UI (admin only) |
 
 **Configure HTTPS:**
 - Zoraxy → Proxy Rules → select rule → Enable HTTPS
@@ -387,10 +351,10 @@ curl https://rezepte.example.com
 # Should return React HTML
 
 curl https://api.rezepte.example.com/health
-# Should return {"status":"ok"}
+# Should return {"status":"ok","llm_provider":"gemini"}
 ```
 
-### Step 9: Pull LLM Models (if using Ollama)
+### Step 8: Pull LLM Models (if using Ollama)
 
 Skip if using Gemini/Claude.
 
@@ -409,7 +373,7 @@ This downloads ~4-8 GB. Can take 10-30 minutes depending on internet.
 docker exec -it miximixi-ollama ollama list
 ```
 
-### Step 10: Import n8n Workflows
+### Step 9: Import n8n Workflows
 
 These automate recipe imports from Telegram and Instagram:
 
@@ -431,7 +395,11 @@ These automate recipe imports from Telegram and Instagram:
 
 8. Test:
    - Send message to Telegram bot with Instagram URL
-   - Check import_queue in Supabase Studio
+   - Check import_queue in PostgreSQL:
+   ```bash
+   docker exec -it miximixi-db psql -U postgres -d miximixi \
+     -c "SELECT id, source_url, status FROM import_queue ORDER BY created_at DESC LIMIT 5;"
+   ```
 
 ---
 
@@ -443,51 +411,56 @@ All containers communicate via internal Docker network:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Docker Network (miximixi_default)                       │
+│ Docker Network (miximixi)                               │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  ┌─────────┐  ┌─────────┐  ┌──────────┐  ┌─────────┐  │
-│  │frontend │  │backend  │  │supabase- │  │  n8n    │  │
-│  │(React)  │  │(FastAPI)│  │ studio   │  │(workflow)  │
-│  └────┬────┘  └────┬────┘  └────┬─────┘  └────┬────┘  │
-│       │            │            │             │       │
-│  ┌────┴────────────┴────────────┴─────────────┴────┐   │
-│  │ supabase-api (PostgREST)                      │   │
-│  │ ├─ Role-based access control                 │   │
-│  │ └─ Row-level security policies               │   │
-│  └────┬─────────────────────────────────────────┘   │
-│       │                                           │
-│  ┌────┴──────────────────────────────────────┐   │
-│  │ supabase-db (PostgreSQL 15)                │   │
-│  │ ├─ recipes table                           │   │
-│  │ ├─ ingredients table                       │   │
-│  │ ├─ steps table                             │   │
-│  │ ├─ import_queue table                      │   │
-│  │ └─ supabase internal tables                │   │
-│  └───────────────────────────────────────────┘   │
-│       │                    │                      │
-│  ┌────┴──────┐        ┌────┴────────────┐        │
-│  │  ollama    │        │  redis (optional)        │
-│  │(LLM cache) │        │  (session cache)         │
-│  └───────────┘        └─────────────────┘        │
-│                                                   │
-└─────────────────────────────────────────────────────┘
-        │                  │
-        └──────────────────┴────────────────┬──────┐
-                                            │      │
-                                    ┌───────▼────┐ │
-                                    │ Storage    │ │
-                                    │ (volumes)  │ │
-                                    │ recipes/   │ │
-                                    │ uploads/   │ │
-                                    │ backups/   │ │
-                                    └────────────┘ │
-                                                   │
-                                         ┌─────────▼──┐
-                                         │Reverse Proxy
-                                         │(Zoraxy/Traefik)
-                                         │  Port 80/443
-                                         └─────────────┘
+│  ┌─────────┐  ┌─────────┐  ┌────────┐  ┌─────────┐    │
+│  │frontend │  │backend  │  │ ollama │  │  n8n    │    │
+│  │(React)  │  │(FastAPI)│  │(LLM)   │  │(workflow)   │
+│  └────┬────┘  └────┬────┘  └───┬────┘  └────┬────┘    │
+│       │            │            │            │        │
+│       └────────────┼────────────┼────────────┘        │
+│                    │            │                      │
+│              ┌─────▼────────────┴─────┐                │
+│              │ PostgreSQL 15           │                │
+│              │ ├─ recipes              │                │
+│              │ ├─ ingredients          │                │
+│              │ ├─ steps                │                │
+│              │ ├─ import_queue         │                │
+│              │ ├─ translations         │                │
+│              │ └─ users                │                │
+│              └─────┬────────────────────┘                │
+│                    │                                    │
+│       ┌────────────┴─────────────┬──────────┐           │
+│       │                          │          │           │
+│  ┌────▼──────┐         ┌────────▼─┐  ┌────▼──────┐    │
+│  │db-data    │         │ollama-   │  │recipe-    │    │
+│  │(database) │         │models    │  │images     │    │
+│  └───────────┘         └──────────┘  │(local     │    │
+│                                       │storage)   │    │
+│                                       └───────────┘    │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+        │                     │
+        └─────────────────────┴────────────────┬──────┐
+                                               │      │
+                                       ┌───────▼────┐ │
+                                       │Volumes:    │ │
+                                       │- db-data   │ │
+                                       │- recipe-   │ │
+                                       │  images    │ │
+                                       │- n8n-data  │ │
+                                       │- backend-  │ │
+                                       │  tmp       │ │
+                                       │- ollama-   │ │
+                                       │  models    │ │
+                                       └────────────┘ │
+                                                      │
+                                        ┌─────────────▼──┐
+                                        │Reverse Proxy   │
+                                        │(Zoraxy/Traefik)│
+                                        │ Port 80/443    │
+                                        └────────────────┘
 ```
 
 ### Container Configuration
@@ -517,20 +490,23 @@ Memory: 2 GB
 Restart: always
 Environment:
   - LLM_PROVIDER (from .env)
-  - SUPABASE_URL
-  - SUPABASE_SERVICE_KEY
+  - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
   - TELEGRAM_BOT_TOKEN (optional)
+Volumes:
+  - recipe-images: /data/recipe-images/
+  - backend-tmp: /tmp/miximixi/
 ```
 
-**Role:** API endpoint for recipe imports, orchestrates LLM extraction, uploads images.
+**Role:** API endpoint for recipe imports, orchestrates LLM extraction, manages local file storage.
 
-**Key environment variables:**
-```python
-# Set in docker-compose.yml from .env
-env_file: .env
-```
+**Key endpoints:**
+- `POST /import` – Queue recipe import from URL
+- `GET /recipes` – List all recipes
+- `GET /recipes/{recipe_id}` – Get recipe with ingredients and steps
+- `GET /images/{recipe_id}` – Serve recipe cover image
+- `GET /health` – Health check
 
-#### PostgreSQL (Supabase)
+#### PostgreSQL
 
 ```yaml
 Image: postgres:15-alpine
@@ -538,30 +514,40 @@ Port: 5432 (internal only)
 CPU: 2 cores
 Memory: 4 GB
 Restart: always
-Mounts:
-  - postgres_data: /var/lib/postgresql/data
+Environment:
+  - POSTGRES_USER (from .env DB_USER)
+  - POSTGRES_PASSWORD (from .env DB_PASSWORD)
+  - POSTGRES_DB (from .env DB_NAME)
+Volumes:
+  - db-data: /var/lib/postgresql/data
   - migrations: /docker-entrypoint-initdb.d/
 ```
 
-**Role:** Persistent database for recipes, ingredients, users, settings.
+**Role:** Persistent database for recipes, ingredients, steps, import queue, translations, users.
 
 **Auto-runs migrations** on first start from `docker-entrypoint-initdb.d/*.sql`.
 
-#### PostgREST (Supabase API)
-
-```yaml
-Image: postgrest/postgrest:latest
-Port: 3000
-CPU: 0.5 cores
-Memory: 512 MB
-Restart: always
-Environment:
-  - PGRST_DB_URI (postgres connection string)
-  - PGRST_DB_ANON_ROLE=anon
-  - PGRST_JWT_SECRET (from .env)
+**Schema:**
+```
+recipes           – Recipe metadata (title, category, source_url, etc.)
+ingredients       – Recipe ingredients with amounts and grouping
+steps             – Cooking instructions with timing
+import_queue      – Pending/processing/done imports from URLs
+translations      – Translated content + stale tracking
+users             – For future multi-user support
 ```
 
-**Role:** Auto-generated REST API from PostgreSQL schema. Handles JWT auth + RLS.
+**Access from backend:**
+```python
+import psycopg2
+conn = psycopg2.connect(
+    host=os.environ['DB_HOST'],
+    port=os.environ['DB_PORT'],
+    user=os.environ['DB_USER'],
+    password=os.environ['DB_PASSWORD'],
+    database=os.environ['DB_NAME']
+)
+```
 
 #### Ollama (LLM Runtime)
 
@@ -630,35 +616,29 @@ docker compose logs n8n
 docker stats
 
 # Database size
-docker exec miximixi-supabase-db \
-  du -sh /var/lib/postgresql/data
+docker exec miximixi-db du -sh /var/lib/postgresql/data
 
-# Storage usage
+# Image storage usage
+du -sh /var/lib/docker/volumes/miximixi_recipe-images/_data
+
+# Overall Docker volume usage
 df -h /var/lib/docker/volumes
 ```
 
 #### Check Import Queue Status
 
 ```bash
-# Connect to database
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres
-
 # View pending imports
-SELECT id, source_url, status, created_at 
-FROM import_queue 
-WHERE status = 'pending' 
-ORDER BY created_at DESC 
-LIMIT 10;
+docker exec -it miximixi-db psql -U postgres -d miximixi -c \
+  "SELECT id, source_url, status, created_at FROM import_queue WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10;"
 
 # View failed imports
-SELECT id, source_url, error_msg, created_at 
-FROM import_queue 
-WHERE status = 'needs_review' 
-ORDER BY created_at DESC 
-LIMIT 10;
+docker exec -it miximixi-db psql -U postgres -d miximixi -c \
+  "SELECT id, source_url, error_msg, created_at FROM import_queue WHERE status = 'needs_review' ORDER BY created_at DESC LIMIT 10;"
 
-# Exit
-\q
+# View completed recipes
+docker exec -it miximixi-db psql -U postgres -d miximixi -c \
+  "SELECT id, title, extraction_status, created_at FROM recipes ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ### Weekly Maintenance
@@ -668,12 +648,16 @@ LIMIT 10;
 Automated daily backups are recommended. Manual backup:
 
 ```bash
-# Backup database
-docker exec miximixi-supabase-db pg_dump -U postgres postgres \
-  > ~/backups/miximixi_$(date +%Y%m%d).sql
+# Create backups directory
+mkdir -p ~/backups
 
-# Compress
-gzip ~/backups/miximixi_*.sql
+# Backup database
+docker exec miximixi-db pg_dump -U postgres miximixi \
+  > ~/backups/miximixi_$(date +%Y%m%d_%H%M%S).sql
+
+# Backup images
+tar -czf ~/backups/recipe-images_$(date +%Y%m%d_%H%M%S).tar.gz \
+  /var/lib/docker/volumes/miximixi_recipe-images/_data
 
 # List backups
 ls -lh ~/backups/
@@ -752,27 +736,47 @@ du -sh /var/lib/docker/volumes/*/
 #### Database Disaster (Corrupted/Lost Data)
 
 ```bash
-# Restore from backup
+# Stop all services
 docker compose down
-docker volume rm miximixi_postgres_data  # Warning: destroys current data
-docker compose up -d supabase-db
 
-# Wait for DB to start
+# Remove corrupted database volume (WARNING: destroys current data)
+docker volume rm miximixi_db-data
+
+# Start database service
+docker compose up -d db
+
+# Wait for DB to be ready
 sleep 30
 
 # Restore backup
-docker exec -i miximixi-supabase-db psql -U postgres postgres < ~/backups/miximixi_20260414.sql
+docker exec -i miximixi-db psql -U postgres miximixi < ~/backups/miximixi_20260414.sql
 
 # Verify restoration
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres -c "SELECT COUNT(*) FROM recipes;"
+docker exec -it miximixi-db psql -U postgres -d miximixi -c "SELECT COUNT(*) FROM recipes;"
 
 # Restart all services
 docker compose up -d
 ```
 
+#### Image Storage Disaster
+
+```bash
+# If recipe images are lost or corrupted:
+
+# Stop backend to prevent new writes
+docker compose stop backend
+
+# Restore images from backup
+mkdir -p /var/lib/docker/volumes/miximixi_recipe-images/_data
+tar -xzf ~/backups/recipe-images_20260414.tar.gz -C /var/lib/docker/volumes/miximixi_recipe-images/_data
+
+# Restart backend
+docker compose up -d backend
+```
+
 #### Full Server Failure (Hardware/Corruption)
 
-**Assuming you've backed up `.env` and backups/:**
+**Assuming you've backed up `.env` and `~/backups/`:**
 
 ```bash
 # On new server:
@@ -786,14 +790,19 @@ cp ~/backup/.env .env
 # Start stack
 docker compose up -d
 
-# Restore database
-docker exec -i miximixi-supabase-db psql -U postgres postgres < ~/backup/miximixi_20260414.sql
+# Wait for database to start
+sleep 30
 
-# Restore images (if using Supabase Storage)
-docker cp ~/backup/storage/* miximixi-supabase-storage:/var/lib/storage/
+# Restore database
+docker exec -i miximixi-db psql -U postgres miximixi < ~/backup/miximixi_20260414.sql
+
+# Restore images
+mkdir -p /var/lib/docker/volumes/miximixi_recipe-images/_data
+tar -xzf ~/backup/recipe-images_20260414.tar.gz -C /var/lib/docker/volumes/miximixi_recipe-images/_data
 
 # Verify everything works
 curl https://rezepte.example.com
+curl https://api.rezepte.example.com/health
 ```
 
 #### Service Won't Start (Dependency Issue)
@@ -802,12 +811,13 @@ curl https://rezepte.example.com
 # Check which service is failing
 docker compose logs backend
 
-# If dependent service is down, start in order
-docker compose up -d supabase-db
+# If database is down, start it first
+docker compose up -d db
 sleep 30
-docker compose up -d supabase-api
-sleep 10
+
+# Then start dependent services
 docker compose up -d backend
+docker compose up -d n8n
 
 # Or fully restart
 docker compose down
@@ -820,10 +830,11 @@ docker compose up -d
 
 ### Optimize PostgreSQL for Recipe Workload
 
-Edit `docker-compose.yml` supabase-db section:
+Edit `docker-compose.yml` db service section to add environment variables:
 
 ```yaml
-supabase-db:
+db:
+  image: postgres:15-alpine
   environment:
     POSTGRES_INITDB_ARGS: >
       -c max_connections=200
@@ -837,7 +848,7 @@ supabase-db:
 Then restart:
 ```bash
 docker compose down
-docker compose up -d supabase-db
+docker compose up -d db
 ```
 
 ### Add Database Indices
@@ -845,10 +856,11 @@ docker compose up -d supabase-db
 Accelerate queries on frequently filtered columns:
 
 ```bash
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres << 'EOF'
+docker exec -it miximixi-db psql -U postgres -d miximixi << 'EOF'
 CREATE INDEX idx_import_queue_status ON import_queue(status);
 CREATE INDEX idx_recipes_extraction_status ON recipes(extraction_status);
 CREATE INDEX idx_recipes_created_at ON recipes(created_at DESC);
+CREATE INDEX idx_ingredients_recipe_id ON ingredients(recipe_id);
 VACUUM ANALYZE;
 EOF
 ```
@@ -856,14 +868,14 @@ EOF
 ### Enable Query Logging (for troubleshooting)
 
 ```bash
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres << 'EOF'
+docker exec -it miximixi-db psql -U postgres -d miximixi << 'EOF'
 ALTER SYSTEM SET log_min_duration_statement = 1000;  -- Log queries > 1s
 ALTER SYSTEM SET log_statement = 'all';               -- Log all queries
 SELECT pg_reload_conf();
 EOF
 
 # View logs
-docker compose logs -f supabase-db | grep -i slow
+docker compose logs -f db | grep -i slow
 ```
 
 ### Optimize LLM Extraction (if using Ollama)
@@ -935,16 +947,16 @@ find /var/lib/docker/volumes/storage-volume/_data -type f -mtime +180 -delete
 **Solution:**
 ```bash
 # Check volume status
-docker volume ls | grep postgres
+docker volume ls | grep db-data
 
 # Reset volume (WARNING: loses data if not backed up)
-docker volume rm miximixi_postgres_data
+docker volume rm miximixi_db-data
 
 # Restart
-docker compose up -d supabase-db
+docker compose up -d db
 
 # Restore from backup
-docker exec -i miximixi-supabase-db psql -U postgres postgres < backup.sql
+docker exec -i miximixi-db psql -U postgres miximixi < backup.sql
 ```
 
 ### Ollama model keeps redownloading
@@ -1027,17 +1039,36 @@ curl https://api.telegram.org/bot<TOKEN>/getWebhookInfo
 
 ### Scale to Multiple Users (Multi-Tenant)
 
-**Add user authentication:**
+**Add user authentication and isolation:**
 
-1. Configure Supabase Auth in frontend
-2. Add `user_id` foreign key to recipes table
-3. Enable row-level security policies:
+1. Add JWT token validation in backend (FastAPI middleware)
+2. Add `created_by` foreign key to recipes table:
    ```sql
-   CREATE POLICY recipes_user_isolation ON recipes
-   FOR SELECT USING (user_id = auth.uid());
+   ALTER TABLE recipes ADD COLUMN created_by UUID REFERENCES users(id);
    ```
 
-4. Deploy multi-instance frontend with Kubernetes or Docker Swarm
+3. Update backend endpoints to enforce user isolation:
+   ```python
+   # In each endpoint, check:
+   # SELECT * FROM recipes WHERE id = %s AND created_by = current_user_id
+   ```
+
+4. Add user registration/login endpoints to backend
+
+5. Deploy multi-instance backend with load balancer:
+   ```yaml
+   backend:
+     deploy:
+       replicas: 3  # Run 3 backend instances
+   ```
+
+6. Add Redis for session caching (optional):
+   ```yaml
+   redis:
+     image: redis:7-alpine
+     ports:
+       - "6379:6379"
+   ```
 
 ---
 
@@ -1092,25 +1123,31 @@ Create `scripts/backup.sh`:
 
 ```bash
 #!/bin/bash
-BACKUP_DIR="/home/miximixi/backups/$(date +%Y%m%d)"
+BACKUP_DIR="/home/miximixi/backups/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 
 # Database backup
-docker exec miximixi-supabase-db pg_dump -U postgres postgres \
+docker exec miximixi-db pg_dump -U postgres miximixi \
   | gzip > "$BACKUP_DIR/database.sql.gz"
 
-# Image storage backup (if using local storage)
-cp -r /var/lib/docker/volumes/storage-volume/_data \
-  "$BACKUP_DIR/storage"
+# Recipe images backup
+tar -czf "$BACKUP_DIR/recipe-images.tar.gz" \
+  /var/lib/docker/volumes/miximixi_recipe-images/_data
 
-# Compress all
-tar -czf "/home/miximixi/backups/miximixi_$(date +%Y%m%d_%H%M%S).tar.gz" \
-  -C "$BACKUP_DIR" .
+# Backup .env file (for disaster recovery)
+cp /home/miximixi/miximixi/.env "$BACKUP_DIR/.env"
 
-# Keep only last 30 days
-find /home/miximixi/backups -maxdepth 1 -type d -mtime +30 -exec rm -rf {} \;
+# Compress everything together
+tar -czf "/home/miximixi/backups/miximixi_full_$(date +%Y%m%d_%H%M%S).tar.gz" \
+  -C "/home/miximixi/backups" "$(basename $BACKUP_DIR)"
 
-echo "Backup completed: $BACKUP_DIR" | mail -s "Miximixi Backup" admin@example.com
+# Clean up temp directory
+rm -rf "$BACKUP_DIR"
+
+# Keep only last 30 days of backups
+find /home/miximixi/backups -maxdepth 1 -name "*.tar.gz" -mtime +30 -delete
+
+echo "Backup completed: $(date)" >> /var/log/miximixi-backup.log
 ```
 
 Make executable and add to crontab:
@@ -1170,13 +1207,18 @@ services:
 ### Database Access Control
 
 ```bash
-# Restrict database access
-docker exec -it miximixi-supabase-db psql -U postgres << 'EOF'
--- Only allow local connections
+# Create restricted database role for backend (optional)
+docker exec -it miximixi-db psql -U postgres << 'EOF'
+-- Create role for backend application
 CREATE ROLE app_user WITH PASSWORD 'secure_password';
-GRANT CONNECT ON DATABASE postgres TO app_user;
-ALTER ROLE app_user SET search_path = public;
+GRANT CONNECT ON DATABASE miximixi TO app_user;
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
 EOF
+
+# Update backend to use app_user instead of postgres (optional, for least privilege)
+# Edit docker-compose.yml backend environment: DB_USER=app_user
 ```
 
 ### Environment Secrets
@@ -1235,4 +1277,5 @@ If using cloud LLM (Gemini/Claude): **$40-100/month** (plus API costs for extrac
 ---
 
 **Last updated:** 2026-04-14  
+**Migration note:** This guide has been updated to use plain PostgreSQL instead of Supabase. Key changes: direct psycopg2 connections instead of REST API, local filesystem image storage instead of Supabase Storage, and application-level permission checking instead of row-level security.  
 **Related docs:** [`docs/deployment-local.md`](deployment-local.md) | [`docs/architecture.md`](architecture.md) | [`docs/QUICK-START.md`](QUICK-START.md)

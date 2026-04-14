@@ -6,7 +6,7 @@ applyTo: ["Dockerfile", "docker-compose*.yml", ".env*", "docs/deployment.md"]
 
 # DevOps Engineer Agent
 
-**Role:** Container orchestration, deployment configuration, infrastructure as code, environment management
+**Role:** Container orchestration, deployment configuration, infrastructure as code, environment management, PostgreSQL setup
 
 **When to use:**
 - ✅ Building/debugging Dockerfiles
@@ -15,6 +15,7 @@ applyTo: ["Dockerfile", "docker-compose*.yml", ".env*", "docs/deployment.md"]
 - ✅ Setting up development vs production deploys
 - ✅ Troubleshooting container startup failures
 - ✅ Configuring healthchecks and resource limits
+- ✅ PostgreSQL database setup and migration
 - ❌ Application code logic (use `@backend-developer`)
 - ❌ LLM prompt tuning (use `@llm-engineer`)
 
@@ -25,17 +26,17 @@ applyTo: ["Dockerfile", "docker-compose*.yml", ".env*", "docs/deployment.md"]
 ### Services Overview
 ```
 docker-compose.dev.yml:
-  ├─ supabase-db (PostgreSQL 15.1)
-  ├─ supabase-rest (PostgREST)
-  ├─ supabase-studio (Admin UI)
-  ├─ supabase-meta (Metadata API)
+  ├─ db (PostgreSQL 15-alpine)
+  ├─ backend (FastAPI) - local machine, not containerized in dev
   ├─ ollama (LLM inference, CPU-only)
   └─ n8n (Workflow automation)
 
-docker-compose.yml (self-hosted):
-  ├─ [all above]
-  ├─ frontend (React PWA, Nginx)
+docker-compose.yml (self-hosted / production):
+  ├─ db (PostgreSQL 15-alpine)
   ├─ backend (FastAPI)
+  ├─ frontend (React PWA, Nginx) - optional
+  ├─ ollama (LLM inference, CPU-only)
+  ├─ n8n (Workflow automation)
   └─ [Zoraxy reverse proxy - external]
 ```
 
@@ -57,31 +58,28 @@ docker-compose.yml (self-hosted):
 ```bash
 # Collect env vars
 cp .env.example .env
-# Edit .env with your values (Telegram token, API keys, etc.)
+# Edit .env with your values (Telegram token, API keys, LLM provider, etc.)
 
-# Start stack
+# Start stack (db, ollama, n8n)
 docker compose -f docker-compose.dev.yml up -d
 
 # Monitor startup
 docker compose -f docker-compose.dev.yml ps
 
-# Wait ~60s for DB and services to be ready
-docker compose -f docker-compose.dev.yml logs -f supabase-db
+# Wait ~30s for DB to be ready
+docker compose -f docker-compose.dev.yml logs -f db
 
-# Run migrations (one-time)
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
-  -f /docker-entrypoint-initdb.d/001_initial.sql
+# Verify migrations ran automatically
+docker exec miximixi-db psql -U postgres -d miximixi -c "SELECT tablename FROM pg_tables WHERE schemaname='public';"
 ```
 
 **URLs:**
-| Service | URL |
-|---------|-----|
-| Supabase Studio | http://localhost:54323 |
-| PostgREST API | http://localhost:54321 |
-| n8n | http://localhost:5678 |
-| Ollama | http://localhost:11434 |
-| Backend (local) | http://localhost:8000 |
-| Frontend (local) | http://localhost:5173 |
+| Service | URL | Notes |
+|---------|-----|-------|
+| n8n | http://localhost:5678 | Workflow automation |
+| Ollama | http://localhost:11434 | LLM inference API |
+| Backend (dev) | http://localhost:8000 | Run locally: `cd backend && poetry run uvicorn app.main:app --reload` |
+| PostgreSQL | localhost:5432 | psql command-line: `psql postgresql://postgres:password@localhost:5432/miximixi` |
 
 ### 2. Build Custom Service Image
 
@@ -116,38 +114,42 @@ docker compose logs n8n
 
 **Template (.env.example):**
 ```bash
-# LLM Provider
+# LLM Provider (choose ONE)
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-2.0-flash
 
-# Supabase (internal networking)
-SUPABASE_URL=http://supabase-api:8000  # Docker network
-SUPABASE_SERVICE_KEY=...               # From Supabase Studio
+# Alternative LLM providers
+# LLM_PROVIDER=claude
+# CLAUDE_API_KEY=sk-ant-...
+# CLAUDE_MODEL=claude-sonnet-4-6
 
-# Frontend sees different URL (localhost)
-VITE_SUPABASE_URL=http://localhost:54321
-VITE_API_BASE_URL=http://localhost:8000
+# Database (direct PostgreSQL connection)
+DB_HOST=db              # Docker: 'db', prod: hostname or IP
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=your-strong-password
+DB_NAME=miximixi
 
 # n8n
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=your-password
 N8N_ENCRYPTION_KEY=your-32-char-key
 
-# Instagram
+# Instagram (optional)
 INSTAGRAM_USERNAME=
 INSTAGRAM_PASSWORD=
 INSTAGRAM_COLLECTION_ID=
 
-# Database
-POSTGRES_PASSWORD=your-password
-JWT_SECRET=your-32-char-secret
+# Telegram (optional)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_NOTIFY_CHAT_ID=
 ```
 
 **Key differences:**
-- Docker services use internal hostnames: `http://supabase-db:5432`
-- Host machine uses localhost: `http://localhost:5432`
-- Frontend needs `VITE_` prefix for client-side variables
+- Docker services use internal hostnames: `DB_HOST=db` (from docker-compose service name)
+- Host machine uses localhost or IP: `DB_HOST=localhost` or `DB_HOST=192.168.1.100`
+- No Supabase API keys needed (direct PostgreSQL connection)
 
 ### 4. Debugging Container Issues
 
@@ -175,11 +177,14 @@ netstat -ano | findstr :5678  # Windows
 **Network issues?**
 ```bash
 # Test DNS within Docker
-docker exec miximixi-backend ping supabase-db
+docker exec miximixi-n8n ping db
 
 # Check network
 docker network ls
-docker network inspect miximixi_default
+docker network inspect miximixi_miximixi
+
+# Verify database is reachable
+docker exec miximixi-db pg_isready -h localhost
 ```
 
 ---
@@ -192,9 +197,10 @@ devops/<feature-or-fix>
 ```
 
 **Examples:**
-- `devops/update-supabase-version`
+- `devops/update-postgres-config`
 - `devops/add-redis-cache-service`
 - `devops/fix-n8n-healthcheck`
+- `devops/upgrade-ollama-image`
 
 ### Commit Message Format
 ```
@@ -262,7 +268,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0"]
 services:
   backend:
     depends_on:
-      supabase-db:
+      db:
         condition: service_healthy
 ```
 
@@ -271,8 +277,13 @@ services:
 services:
   backend:
     environment:
-      - SUPABASE_URL=http://supabase-db:5432
-      - SUPABASE_KEY=${SUPABASE_KEY}  # From .env
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}         # From .env
+      - DB_PASSWORD=${DB_PASSWORD} # From .env
+      - DB_NAME=miximixi
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     env_file:
       - .env
 ```
@@ -340,9 +351,12 @@ n8n.home.local      → 127.0.0.1:5678 (n8n admin)
 - Rebuild without cache to clear old layers
 
 ### Database won't connect
-- Check `POSTGRES_PASSWORD` matches in docker-compose
-- Ensure DB port 5432 exposed only to docker network
-- Verify `supabase-db` healthcheck passed before starting other services
+- Check `DB_PASSWORD` matches in both `.env` and `docker-compose.yml` postgres service
+- Verify `db` service is running: `docker compose ps db`
+- Check logs: `docker compose logs db`
+- Test connection: `docker exec miximixi-db pg_isready -h localhost -U postgres`
+- Verify DB port 5432 is accessible only internally (via docker network)
+- Ensure `db` healthcheck passes before starting backend: `docker compose ps` should show "healthy"
 
 ### n8n stuck on startup
 - Check logs: `docker compose logs n8n | tail -50`
