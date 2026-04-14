@@ -650,18 +650,12 @@ export function RecipeDetailPage() {
                       const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
                       return (
                         <span key={i} className="relative inline-block">
-                          <button type="button" onClick={() => {
-                              setHighlightedSortOrder(isHighlighted ? null : sortOrder)
-                              if (!isHighlighted) {
-                                const el = document.getElementById(`ingredient-${sortOrder}`)
-                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                              }
-                            }}
-                            className={`rounded-md px-1.5 py-0.5 text-xs font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
+                          <button type="button" onClick={() => setHighlightedSortOrder(isHighlighted ? null : sortOrder)}
+                            className={`rounded-md px-1.5 py-0.5 font-semibold transition-all ${isHighlighted ? 'text-base bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'text-sm bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
                             {part.label}
                           </button>
                           {isHighlighted && tipText && (
-                            <span className="lg:hidden pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
+                            <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
                               {tipText}
                               <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
                             </span>
