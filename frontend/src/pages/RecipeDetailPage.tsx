@@ -74,10 +74,25 @@ function parseIngredientReference(
     // The text before the match (including the captured label word, which we strip)
     const beforeLabel = match[1] ?? ''
     const matchStart = match.index
-    const textChunk = text.slice(lastIndex, matchStart)
+    let textChunk = text.slice(lastIndex, matchStart)
+    let advance = 0
+    // Detect single-ref wrapped in parens: "...(Label{N})" - textChunk ends with "(" and next char is ")"
+    if (/\(\s*$/.test(textChunk) && text[regex.lastIndex] === ')') {
+      // Strip only the "(" (keep preceding space for readability)
+      textChunk = textChunk.replace(/\(\s*$/, '')
+      advance = 1 // skip the closing ")"
+      // If the last word of textChunk duplicates the chip label, strip it
+      if (beforeLabel) {
+        const trimmed = textChunk.trimEnd()
+        const lastWord = trimmed.split(/\s+/).pop() ?? ''
+        if (lastWord.toLowerCase() === beforeLabel.toLowerCase())
+          textChunk = trimmed.slice(0, trimmed.length - lastWord.length)
+      }
+    }
     if (textChunk) parts.push({ type: 'text', content: textChunk, label: '' })
     parts.push({ type: 'ref', content: match[2], label: beforeLabel })
-    lastIndex = regex.lastIndex
+    lastIndex = regex.lastIndex + advance
+    regex.lastIndex = lastIndex
   }
   if (lastIndex < text.length)
     parts.push({ type: 'text', content: text.slice(lastIndex), label: '' })
@@ -211,12 +226,10 @@ export function RecipeDetailPage() {
   useEffect(() => {
     const el = ingredientsRef.current
     if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setIngredientsVisible(entry.isIntersecting),
-      { threshold: 0.1 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+    const check = () => setIngredientsVisible(el.getBoundingClientRect().bottom > 0)
+    check()
+    window.addEventListener('scroll', check, { passive: true, capture: true })
+    return () => window.removeEventListener('scroll', check, { capture: true })
   }, [])
 
   const recipeQuery = useQuery({
@@ -684,7 +697,19 @@ export function RecipeDetailPage() {
                     {parts.map((part, i) => {
                       if (part.type === 'text') {
                         const allIngs = Array.from(groupedIngredients.values()).flat()
-                        const content = stripIngredientParens(part.content, allIngs)
+                        let content = stripIngredientParens(part.content, allIngs)
+                        // If next part is a ref chip, strip trailing word that duplicates the chip label
+                        const nextPart = parts[i + 1]
+                        if (nextPart?.type === 'ref') {
+                          const nextIng = allIngs.find((ing) => String(ing.sort_order) === nextPart.content)
+                          if (nextIng) {
+                            const chipLabel = shortIngName(nextIng.name).toLowerCase()
+                            const trimmed = content.trimEnd()
+                            const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() ?? ''
+                            if (lastWord === chipLabel)
+                              content = trimmed.slice(0, trimmed.length - lastWord.length)
+                          }
+                        }
                         return <span key={i}>{content}</span>
                       }
                       const sortOrder = part.content
