@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2-vision:11b"
 
     # Google Gemini (bevorzugter Cloud-Provider, native Video-Unterstützung)
-    gemini_api_key: str = ""
+    google_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
     claude_api_key: str = ""
