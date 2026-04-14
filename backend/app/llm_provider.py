@@ -166,7 +166,7 @@ class LLMProvider:
         """
         import google.generativeai as genai
 
-        genai.configure(api_key=settings.gemini_api_key)
+        genai.configure(api_key=settings.google_api_key)
         model = genai.GenerativeModel(settings.gemini_model)
 
         parts = []
