@@ -47,19 +47,16 @@ function shortIngName(name: string): string {
 
 // Remove "(X)" from text when X exactly matches a known ingredient name.
 // Keeps multi-item parentheticals like "(flour, sugar, eggs)" intact.
-// Strip "Word (Word)" → "Word" repetitions and also "(IngName)" standalone parens.
+// Strip "Word (Word)" → "Word" repetitions and standalone "(IngName)" parens.
 function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
-  // 1. Direct backreference: strip when a word is immediately followed by itself in parens
-  //    e.g. "Rhabarber (Rhabarber)" → "Rhabarber"
-  let result = text.replace(/(\p{L}[\p{L}\p{N}\s]*)\s*\(\1\)/giu, '$1')
-  // 2. Strip (X) when X matches a known ingredient name (single-word parens only)
-  result = result.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
+  // 1. Remove (X) when the word immediately before it is the same word (case-insensitive)
+  let result = text.replace(/(\p{L}[\p{L}\p{N}]*)\s*\((\p{L}[\p{L}\p{N}]*)\)/gu, (match, word, paren) =>
+    word.toLowerCase() === paren.toLowerCase() ? word : match
+  )
+  // 2. Remove (X) when X exactly matches a known ingredient name (no commas = not a list)
+  result = result.replace(/\s*\(([^),]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
-    if (normalized.includes(',')) return match
-    const isIngName = allIngredients.some((ing) => {
-      const canonical = shortIngName(ing.name).toLowerCase()
-      return canonical === normalized
-    })
+    const isIngName = allIngredients.some((ing) => shortIngName(ing.name).toLowerCase() === normalized)
     return isIngName ? '' : match
   })
   return result
