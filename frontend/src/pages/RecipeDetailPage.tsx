@@ -184,6 +184,7 @@ export function RecipeDetailPage() {
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesDraft, setNotesDraft] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false)
   const [ingredientsVisible, setIngredientsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ingredientsRef = useRef<HTMLDivElement>(null)
@@ -353,7 +354,8 @@ export function RecipeDetailPage() {
           <img
             src={imagePreviewUrl ?? getImageUrl(recipe.id)}
             alt={recipe.title ?? 'Rezeptbild'}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            className="h-full w-full cursor-zoom-in object-cover transition-transform duration-700 group-hover:scale-105"
+            onClick={() => setShowFullscreenImage(true)}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
           <div className="absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
@@ -391,12 +393,7 @@ export function RecipeDetailPage() {
                   <span className="text-xs font-medium">{actualServings} Portionen</span>
                 </div>
               )}
-              {recipe.source_url && (
-                <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-white transition-colors">
-                  <span className="material-symbols-outlined text-[15px]">link</span>
-                  <span className="text-xs font-medium">{recipe.source_label ? recipe.source_label.replace(/^@/, '@') : 'Originalquelle'}</span>
-                </a>
-              )}
+
             </div>
           </div>
         </div>
@@ -714,14 +711,24 @@ export function RecipeDetailPage() {
               {recipe.prep_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Vorbereitung</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.prep_time}</span></div>}
               {recipe.cook_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kochzeit</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.cook_time}</span></div>}
               {recipe.servings && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Portionen</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{actualServings}</span></div>}
-              {recipe.source_url ? (
-                <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Quelle</span><a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-[var(--mx-primary)] hover:underline">{recipe.source_label || 'Instagram'}</a></div>
-              ) : recipe.category ? (
+              {recipe.category ? (
                 <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kategorie</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.category}</span></div>
               ) : null}
             </div>
           </div>
         </section>
+      </div>
+
+      {/* FULLSCREEN IMAGE */}
+      <div
+        onClick={() => setShowFullscreenImage(false)}
+        className={`fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300 ${showFullscreenImage ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      >
+        <img
+          src={getImageUrl(recipe.id)}
+          alt={recipe.title ?? 'Rezeptbild'}
+          className={`max-h-[90dvh] max-w-[90dvw] rounded-2xl object-contain shadow-2xl transition-all duration-300 ${showFullscreenImage ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}
+        />
       </div>
 
       {/* DELETE CONFIRMATION */}
