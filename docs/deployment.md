@@ -1,248 +1,280 @@
-# Miximixi – Deployment
+# Miximixi – Deployment Guide (Overview)
 
-## Dev-Rechner (Windows 11 / WSL2)
+Quick reference for deploying Miximixi. Choose your deployment target below for detailed setup instructions.
 
-### Voraussetzungen
+---
 
-- Docker Desktop (mit WSL2-Backend)
-- Node.js 20+
-- Python 3.12+ + Poetry (`pip install poetry`)
-- Git
-- Playwright Chromium (für Website-Import): `playwright install chromium`
+## 🚀 Quick Start
 
-### Erstmaliges Setup
+### Local Development (Windows 11 / WSL2 / macOS / Linux)
 
+**→ [Full Local Setup Guide](deployment-local.md)**
+
+**Best for:** Rapid iteration, testing features, learning the codebase
+
+**Prerequisites:**
+- Docker Desktop
+- Node.js 20+, Python 3.12+, Poetry
+- ~5 GB disk space
+- 30-60 minutes
+
+**Quick summary:**
 ```bash
-# 1. Repo klonen
-git clone <repo-url> ~/git/miximixi
+git clone <repo> ~/git/miximixi
 cd ~/git/miximixi
-
-# 2. ENV anlegen
 cp .env.example .env
-# .env öffnen und Werte eintragen (mind. TELEGRAM_BOT_TOKEN + LLM_PROVIDER)
-
-# 3. Docker-Stack starten (Supabase + n8n + Ollama)
+# Edit .env (add Gemini API key for fastest setup)
 docker compose -f docker-compose.dev.yml up -d
-
-# Warten bis alle Services healthy sind (~60s)
-docker compose -f docker-compose.dev.yml ps
-
-# 4. Migrations ausführen (einmalig)
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
-  -f /docker-entrypoint-initdb.d/001_initial.sql \
-  -f /docker-entrypoint-initdb.d/002_translations.sql \
-  -f /docker-entrypoint-initdb.d/003_schema_updates.sql
-
-# 5. Supabase Keys auslesen
-# → http://localhost:54323 (Supabase Studio) öffnen
-# → Settings → API → anon key + service_role key in .env eintragen
-
-# 6. Ollama Modell laden (einmalig, ~4 GB Download, dauert je nach Internet)
-docker exec -it miximixi-ollama ollama pull llama3.2-vision:11b
-
-# 7. Backend starten
-cd backend
-poetry install
-poetry run uvicorn app.main:app --reload --port 8000
-
-# 8. Frontend starten (ab Story 6)
-cd frontend
-npm install
-npm run dev
+cd backend && poetry install && poetry run uvicorn app.main:app --reload --port 8000
 ```
 
-### URLs (Dev)
-
+**Access points:**
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8000 |
-| Backend Docs | http://localhost:8000/docs |
+| Backend | http://localhost:8000 |
+| Swagger API docs | http://localhost:8000/docs |
 | Supabase Studio | http://localhost:54323 |
-| n8n | http://localhost:5678 |
 | Ollama | http://localhost:11434 |
 
-### Dev-Tipps
+---
 
-- **Schnellste LLM-Tests:** `LLM_PROVIDER=gemini` in `.env` setzen – Gemini API ist sofort verfügbar, verarbeitet Videos nativ (kein ffmpeg Frame-Splitting), extrahiert Rezept + Foto in einem API-Call, kein Modell-Download nötig. API-Key: https://aistudio.google.com/apikey
-- **Supabase zurücksetzen:** `docker compose -f docker-compose.dev.yml down -v` (löscht alle Daten!)
-- **n8n Workflows laden:** n8n UI → Workflows → Import from File → `n8n/*.json`
-- **Logs:** `docker compose -f docker-compose.dev.yml logs -f backend`
+### Production Deployment (Home Server / VPS)
 
-### ENV für Dev (Minimum)
+**→ [Full Production Setup Guide](deployment-production.md)**
 
-```env
-# .env (Dev)
-# Empfohlen: Gemini (native Video-Analyse, kein Modell-Download, sofort verfügbar)
-LLM_PROVIDER=gemini
+**Best for:** Self-hosted, privacy-first, long-term operation
 
-GEMINI_API_KEY=AIza...
-GEMINI_MODEL=gemini-2.0-flash
+**Prerequisites:**
+- Linux server (Ubuntu 22.04+ recommended) or Windows Server with Docker
+- 16 GB RAM, 4+ CPU cores, 50 GB storage
+- Static IP or stable domain name
+- 2-3 hours for initial setup
 
-# Alternative Cloud-Optionen
-# CLAUDE_API_KEY=sk-ant-...
-# CLAUDE_MODEL=claude-sonnet-4-6
+**Quick summary:**
+```bash
+git clone <repo> /opt/miximixi
+cd /opt/miximixi
+cp .env.example .env
+# Edit .env with strong passwords and Gemini/Claude API keys
+docker compose up -d
+# Configure reverse proxy (Zoraxy/Traefik/nginx)
+# Set up backups and monitoring
+```
 
-SUPABASE_URL=http://localhost:54321
-SUPABASE_ANON_KEY=<aus Supabase Studio>
-SUPABASE_SERVICE_KEY=<aus Supabase Studio>
+**Service endpoints (via reverse proxy):**
+| Service | Subdomain |
+|---------|-----------|
+| Frontend (React PWA) | rezepte.example.com |
+| Backend API | api.rezepte.example.com |
+| n8n Workflows | n8n.rezepte.example.com |
+| Database Admin | db.rezepte.example.com |
 
-TELEGRAM_BOT_TOKEN=<von @BotFather>
+---
 
-INSTAGRAM_USERNAME=fabian.rezepte
-INSTAGRAM_PASSWORD=<Passwort>
-INSTAGRAM_COLLECTION_ID=<Collection-ID>
+## Architecture Overview
+
+### Component Stack
+
+```
+Frontend (React PWA)
+    ↓ HTTPS
+Backend (FastAPI) ←→ Supabase Database (PostgreSQL)
+    ↓                      ↓
+LLM Provider            PostgREST API
+(Gemini/Claude/Ollama)     ↓
+                      Row-Level Security
+    
+Additional:
+    n8n: Webhook automation (Telegram/Instagram)
+    Ollama: Local LLM runtime (optional)
+    Zoraxy: Reverse proxy & HTTPS termination
+```
+
+### Storage & Data Flow
+
+```
+Instagram/YouTube/Website URL
+    ↓
+yt-dlp (Instagram/YouTube) OR Playwright (Website)
+    ↓
+Media Files (MP4, JPG, PNG)
+    ↓
+LLM Extraction (Gemini/Claude/Ollama)
+    ↓
+Recipe JSON + Image
+    ↓
+PostgreSQL Database + Supabase Storage
+    ↓
+React Frontend (Display)
 ```
 
 ---
 
-## Home Server (Self-Hosted, Docker Compose)
+## LLM Provider Comparison
 
-### Voraussetzungen
+Choose the best provider for your use case:
 
-- Linux (Ubuntu 22.04+ empfohlen) oder Windows Server mit Docker
-- Docker + Docker Compose Plugin (`docker compose` – nicht `docker-compose`)
-- Zoraxy (bereits vorhanden als Reverse Proxy)
-- Mindestens 8 GB RAM (Ollama CPU-Inferenz braucht ~6 GB)
-- Mindestens 20 GB freier Speicher (Modell ~4 GB + Daten)
+| Provider | Speed | Cost | Setup | Notes |
+|----------|-------|------|-------|-------|
+| **Gemini 2.0 Flash** (Cloud) | ⚡ 3-5s | Free (50/day) | 5 min | **Recommended for dev** |
+| **Claude 3.5** (Cloud) | ⚡ 5-10s | $0.003/recipe | 5 min | Best extraction quality |
+| **Ollama + Gemma3n** (Local) | 🐢 2-5 min | Free | 30 min | Privacy-first, requires 8-12GB VRAM |
+| **Ollama + Llama 3.2** (Local) | 🐢 3-10 min | Free | 30 min | Lower quality, more CPU intensive |
 
-### Erstmaliges Deployment
+**For development:** Use Gemini (instant, no setup)  
+**For production:** Use Claude (highest quality) or Gemini (fast + cheap)  
+**For privacy:** Use Ollama + Gemma3n (fully local)
 
-```bash
-# 1. Repo klonen
-git clone <repo-url> /opt/miximixi
-cd /opt/miximixi
+---
 
-# 2. ENV befüllen
-cp .env.example .env
-nano .env   # Alle Keys eintragen
+## Key Differences: Local vs. Production
 
-# 3. Stack starten
-docker compose up -d
+| Aspect | Local Dev | Production |
+|--------|-----------|------------|
+| **OS** | Windows/macOS/Linux | Linux (Ubuntu 22.04+) |
+| **Docker Compose** | `docker-compose.dev.yml` | `docker-compose.yml` |
+| **Backend Runtime** | Local Python (uvicorn --reload) | Containerized (Docker) |
+| **Database** | Supabase container | Supabase container |
+| **HTTPS/TLS** | Not configured (HTTP only) | Required (Let's Encrypt/Zoraxy) |
+| **Reverse Proxy** | nginx (simple) | Zoraxy/Traefik (with SSL) |
+| **Backups** | Manual | Automated daily |
+| **Monitoring** | Manual logs | Health checks + alerts |
+| **Secrets** | `.env` file (version control ok) | `.env` file (NOT in version control) |
+| **Scale** | Single instance | Can scale to multiple instances |
 
-# 4. Warten bis healthy
-docker compose ps
-# Alle Services sollten "healthy" oder "running" sein
+---
 
-# 5. Migrations ausführen (einmalig)
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
-  -f /docker-entrypoint-initdb.d/001_initial.sql \
-  -f /docker-entrypoint-initdb.d/002_translations.sql \
-  -f /docker-entrypoint-initdb.d/003_schema_updates.sql
+## Common Setup Questions
 
-# 6. Supabase Keys auslesen
-# → Supabase Studio öffnen (Port 3000 oder via Zoraxy)
-# → Settings → API → Keys in .env eintragen
-# → docker compose up -d (neu starten mit Keys)
+### "What's the fastest way to test locally?"
 
-# 7. Ollama Modell laden (einmalig – dauert auf CPU lange!)
-docker exec -it miximixi-ollama ollama pull llama3.2-vision:11b
+1. Get a free Gemini API key: https://aistudio.google.com/apikey
+2. Follow [Local Setup Guide](deployment-local.md) (30 min total)
+3. Use Postman/curl to test `/import` endpoint
 
-# 8. n8n Workflows importieren
-# → n8n UI öffnen → Workflows → Import from File
-# → n8n/telegram_import.json importieren + aktivieren
-# → n8n/instagram_poller.json importieren + aktivieren
+### "Can I run this on Windows 11?"
 
-# 9. Zwei Supabase-User anlegen
-# → Supabase Studio → Authentication → Users → Invite User
-# → fabian@... und freundin@... einladen
-```
+Yes, use WSL2 with Docker Desktop. Follow [Local Setup Guide](deployment-local.md).
 
-### Zoraxy konfigurieren
+### "How much does it cost to run monthly?"
 
-Zoraxy UI öffnen → Proxy Rules hinzufügen:
+- **Gemini API only:** $3-10/month (100-300 imports)
+- **Home server (electricity):** $30-50/month
+- **Total:** $35-60/month (or less with free tiers)
 
-| Hostname | Backend | Hinweis |
-|----------|---------|---------|
-| `rezepte.beispiel.local` | `127.0.0.1:80` | React PWA |
-| `api.rezepte.beispiel.local` | `127.0.0.1:8000` | FastAPI |
-| `n8n.rezepte.beispiel.local` | `127.0.0.1:5678` | n8n Admin |
-| `supabase.rezepte.beispiel.local` | `127.0.0.1:3000` | Supabase Studio |
+### "Can I self-host everything locally?"
 
-> Hostnamen anpassen auf deine lokale Domain.
+Yes. Use Ollama + Gemma3n model (free, no API calls). Requires:
+- 8-12 GB RAM (for LLM)
+- 4+ CPU cores
+- ~10 min wait per recipe (CPU inference)
 
-### Services-Übersicht
+See [Production Guide](deployment-production.md) for full setup.
 
-| Container | Port (Host) | Beschreibung |
-|-----------|-------------|--------------|
-| miximixi-frontend | 80 | React PWA (Nginx) |
-| miximixi-backend | 8000 | FastAPI |
-| miximixi-ollama | 11434 | LLM CPU-Inferenz |
-| miximixi-n8n | 5678 | Import-Workflows |
-| miximixi-supabase-db | 5432 | PostgreSQL (intern) |
-| miximixi-supabase-api | 54321 | PostgREST + GoTrue |
-| miximixi-supabase-studio | 54323 | Supabase Admin UI |
+### "How do I set up Instagram automation?"
 
-### Updates einspielen
+Use n8n workflows (included in repo):
+1. Deploy stack
+2. Open n8n UI
+3. Import `n8n/instagram_poller.json`
+4. Configure with your Instagram credentials
 
-```bash
-cd /opt/miximixi
-git pull
+See [Production Guide](deployment-production.md) → n8n section.
 
-# Nur geänderte Services neu bauen
-docker compose build frontend backend
-docker compose up -d --no-deps frontend backend
+### "What if I want to add more features?"
 
-# Bei Schema-Änderungen: neue Migration ausführen
-docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
-  -f /docker-entrypoint-initdb.d/003_new_migration.sql
-```
-
-### Backup
-
-```bash
-# Tägliches Backup-Skript (als Cronjob einrichten)
-#!/bin/bash
-BACKUP_DIR="/opt/miximixi-backups/$(date +%Y%m%d)"
-mkdir -p "$BACKUP_DIR"
-
-# Datenbank
-docker exec miximixi-supabase-db pg_dump -U postgres postgres \
-  > "$BACKUP_DIR/database.sql"
-
-# Bilder (Supabase Storage)
-docker cp miximixi-supabase-storage:/var/lib/storage "$BACKUP_DIR/storage"
-
-# Alte Backups löschen (älter als 30 Tage)
-find /opt/miximixi-backups -maxdepth 1 -mtime +30 -exec rm -rf {} \;
-
-echo "Backup abgeschlossen: $BACKUP_DIR"
-```
-
-Cronjob einrichten:
-```bash
-crontab -e
-# Täglich um 3:00 Uhr
-0 3 * * * /opt/miximixi/scripts/backup.sh >> /var/log/miximixi-backup.log 2>&1
-```
-
-### Restore
-
-```bash
-# Datenbank wiederherstellen
-docker exec -i miximixi-supabase-db psql -U postgres postgres < backup/database.sql
-
-# Bilder wiederherstellen
-docker cp backup/storage/. miximixi-supabase-storage:/var/lib/storage/
-```
+1. Read [Architecture Docs](architecture.md) for codebase overview
+2. Follow contribution guidelines in [CLAUDE.md](../CLAUDE.md)
+3. Test locally with dev setup
+4. Deploy to production when ready
 
 ---
 
 ## Troubleshooting
 
-### Ollama zu langsam
-- CPU-Inferenz mit `llama3.2-vision:11b` dauert 2–10 Min pro Rezept – das ist normal
-- Für schnellere Extraktion: `LLM_PROVIDER=claude` in `.env` (kostenpflichtig, aber sofort)
+### "My imports are slow"
 
-### Instagram-Login schlägt fehl
-- Einmalig manuell einloggen: `docker exec -it miximixi-backend python -m app.instagram_login`
-- Session wird gecacht, danach funktioniert Polling automatisch
+**Cause:** Using Ollama (CPU inference)  
+**Solution:** Switch to Gemini/Claude API (5-10x faster)
+```bash
+LLM_PROVIDER=gemini poetry run uvicorn app.main:app --reload
+```
 
-### n8n Workflow startet nicht
-- Webhook-URL muss von außen erreichbar sein (für Telegram-Bot)
-- Zoraxy SSL für `n8n.domain.local` konfigurieren
-- In n8n: Settings → Webhook URL auf externe URL setzen
+### "Docker services won't start"
 
-### Supabase Studio nicht erreichbar
-- `docker compose logs supabase-studio` prüfen
-- Oft: Studio startet erst nach DB-Healthcheck (60s warten)
+**Solution:** Restart Docker, check logs:
+```bash
+docker compose logs supabase-db
+docker compose up -d  # Try again
+```
+
+### "I can't access the API on production"
+
+**Solution:** Check firewall and reverse proxy config
+```bash
+curl https://api.rezepte.example.com/health
+# If fails, check Zoraxy/nginx logs
+```
+
+### "Database migration failed"
+
+**Solution:** Run migrations manually:
+```bash
+docker exec -it miximixi-supabase-db psql -U postgres -d postgres \
+  -f /docker-entrypoint-initdb.d/001_initial.sql
+```
+
+**For more troubleshooting:** See detailed guides:
+- [Local Dev Troubleshooting](deployment-local.md#troubleshooting)
+- [Production Troubleshooting](deployment-production.md#troubleshooting-production-issues)
+
+---
+
+## Next Steps
+
+### For Local Development
+1. Read [deployment-local.md](deployment-local.md) fully
+2. Complete setup (should take 30-60 min)
+3. Test with `curl http://localhost:8000/health`
+4. Import a recipe to verify end-to-end flow
+
+### For Production Deployment
+1. Read [deployment-production.md](deployment-production.md) fully
+2. Plan your infrastructure (server specs, domain, LLM provider)
+3. Complete setup (should take 2-3 hours)
+4. Test importing recipes from Telegram bot
+5. Set up automated backups
+6. Configure monitoring & alerts
+
+### For Feature Development
+1. Read [architecture.md](architecture.md)
+2. Review [CLAUDE.md](../CLAUDE.md) for development workflow
+3. Follow test guidelines in [testing-guide.md](testing-guide.md)
+4. Create feature branch and submit PR
+
+---
+
+## Related Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [deployment-local.md](deployment-local.md) | Complete local dev setup guide |
+| [deployment-production.md](deployment-production.md) | Complete production deployment guide |
+| [architecture.md](architecture.md) | System architecture & codebase overview |
+| [QUICK-START.md](QUICK-START.md) | 5-minute quick start for testing |
+| [testing-guide.md](testing-guide.md) | How to write and run tests |
+| [plan.md](plan.md) | Project roadmap & feature plans |
+
+---
+
+## Support
+
+- **Local dev issues:** See [deployment-local.md troubleshooting](deployment-local.md#troubleshooting)
+- **Production issues:** See [deployment-production.md troubleshooting](deployment-production.md#troubleshooting-production-issues)
+- **Architecture questions:** Read [architecture.md](architecture.md)
+- **Bugs/Features:** Check [GitHub Issues](https://github.com/username/miximixi/issues)
+
+---
+
+**Last updated:** 2026-04-14
