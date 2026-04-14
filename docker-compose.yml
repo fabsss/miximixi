@@ -85,7 +85,7 @@ services:
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BACKEND_URL=http://backend:8000
-      - WEBHOOK_URL=http://n8n:5678  # Anpassen auf externe URL in Produktion
+      - WEBHOOK_URL=https://miximixi-n8n.sektbirne.fun
     volumes:
       - /mnt/data/backup/miximixi/n8n-data:/home/node/.n8n
     depends_on:
