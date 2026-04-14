@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-CATEGORY_VALUES = Literal["Vorspeisen", "Hauptspeisen", "Nachspeisen", "Getränke"]
+CATEGORY_VALUES = Literal["Vorspeisen", "Hauptspeisen", "Dessert", "Frühstück", "Snack", "Getränke"]
 
 
 class Ingredient(BaseModel):
