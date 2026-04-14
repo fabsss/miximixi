@@ -107,9 +107,9 @@ export function CookPage() {
           >
             {ing?.name ?? `Zutat #${sortOrder}`}
           </button>
-          {isHighlighted && amtText && (
+          {isHighlighted && (
             <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-3 py-1.5 text-sm font-bold text-[var(--mx-surface)] shadow-lg z-10">
-              {amtText}
+              {ing?.name ?? `Zutat #${sortOrder}`}{amtText ? ` · ${amtText}` : ''}
               <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
             </span>
           )}
