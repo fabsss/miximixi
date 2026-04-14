@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     )
 
     # LLM
-    llm_provider: str = "ollama"  # ollama | gemini | claude | openai | openai_compat
+    llm_provider: str = "ollama"  # ollama | gemini | claude | openai | openai_compat | gemma3n
 
     ollama_base_url: str = "http://ollama:11434"
     ollama_model: str = "llama3.2-vision:11b"
@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     openai_compat_base_url: str = ""
     openai_compat_api_key: str = ""
     openai_compat_model: str = ""
+
+    # Gemma 3n (lokal via Ollama, Frame-basiert)
+    gemma3n_base_url: str = "http://ollama:11434"
+    gemma3n_model: str = "gemma3n:e4b"
 
     # Supabase
     supabase_url: str = "http://supabase-api:8000"

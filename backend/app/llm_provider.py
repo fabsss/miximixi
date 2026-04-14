@@ -153,6 +153,8 @@ class LLMProvider:
                 return self._openai_extract(media_paths, caption)
             case "openai_compat":
                 return self._openai_compat_extract(media_paths, caption)
+            case "gemma3n":
+                return self._gemma3n_extract(media_paths, caption)
             case _:
                 return self._ollama_extract(media_paths, caption)
 
@@ -263,6 +265,35 @@ class LLMProvider:
             max_tokens=2048,
         )
         return _parse_llm_response(response.choices[0].message.content)
+
+    # ── Gemma 3n (lokal via Ollama, Frame-basiert) ────────────────────────
+    def _gemma3n_extract(self, image_paths: list[str], caption: str) -> ExtractionResult:
+        """
+        Gemma 3n über Ollama – Frame-basierte Extraktion (wie Ollama, aber mit Gemma 3n Modell).
+        Wenn Ollama in Zukunft natives Video-Support für Gemma 3n hinzufügt,
+        können wir hier einfach auf Video-Upload umschalten ohne den Aufruf zu ändern.
+        """
+        images_b64 = [_image_to_base64(p) for p in image_paths[:5]]
+
+        prompt = FRAMES_PROMPT
+        if caption:
+            prompt = f"Caption / Beschreibung:\n{caption}\n\n{FRAMES_PROMPT}"
+
+        payload = {
+            "model": settings.gemma3n_model,
+            "prompt": prompt,
+            "images": images_b64,
+            "stream": False,
+            "format": "json",
+        }
+
+        response = httpx.post(
+            f"{settings.gemma3n_base_url}/api/generate",
+            json=payload,
+            timeout=300.0,
+        )
+        response.raise_for_status()
+        return _parse_llm_response(response.json()["response"])
 
     # ── Ollama ────────────────────────────────────────────────────────────
     def _ollama_extract(self, image_paths: list[str], caption: str) -> ExtractionResult:
