@@ -54,6 +54,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
   const handleClick = () => {
     const target = `/recipes/${recipe.id}`
     if ('startViewTransition' in document) {
+      document.documentElement.dataset.navdir = 'forward'
       ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
         flushSync(() => navigate(target))
       })
@@ -71,7 +72,6 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             alt={recipe.title}
             loading="lazy"
             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-            style={{ viewTransitionName: `recipe-img-${recipe.id}` }}
           />
           {/* Favorite heart – top left */}
           {isFavorite && (

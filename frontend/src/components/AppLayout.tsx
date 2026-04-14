@@ -25,7 +25,8 @@ export function AppLayout() {
               <button
                 onClick={() => {
                   if ('startViewTransition' in document) {
-                    (document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+                    document.documentElement.dataset.navdir = 'back'
+                    ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
                       flushSync(() => navigate('/'))
                     })
                   } else {

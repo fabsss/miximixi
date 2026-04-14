@@ -126,32 +126,22 @@ a {
   margin: 0 auto;
 }
 
-/* Page transition (back button) */
-@keyframes vt-slide-out {
-  to { opacity: 0; transform: translateX(-1.5rem); }
-}
-@keyframes vt-slide-in {
-  from { opacity: 0; transform: translateX(1.5rem); }
-}
-@keyframes vt-forward-out {
-  to { opacity: 0; transform: scale(0.97); }
-}
-@keyframes vt-forward-in {
-  from { opacity: 0; transform: scale(1.02); }
-}
-::view-transition-old(root) {
-  animation: 220ms ease-in both vt-slide-out;
-}
-::view-transition-new(root) {
-  animation: 300ms ease-out both vt-slide-in;
-}
-/* Shared element (recipe image) – browser morphs it automatically */
-::view-transition-old(recipe-img) {
-  animation: 300ms ease-in-out both vt-forward-out;
-}
-::view-transition-new(recipe-img) {
-  animation: 350ms ease-out both vt-forward-in;
-}
+/* --- Page transitions --- */
+
+/* Forward: zoom into the recipe */
+@keyframes vt-fwd-old  { to   { opacity: 0; transform: scale(0.96); } }
+@keyframes vt-fwd-new  { from { opacity: 0; transform: scale(1.03); } }
+/* Back: slide back to feed */
+@keyframes vt-back-old { to   { opacity: 0; transform: translateX(1.5rem); } }
+@keyframes vt-back-new { from { opacity: 0; transform: translateX(-1.5rem); } }
+
+/* Default (forward) */
+::view-transition-old(root) { animation: 200ms ease-in  both vt-fwd-old; }
+::view-transition-new(root) { animation: 300ms ease-out both vt-fwd-new; }
+
+/* Back navigation override */
+[data-navdir="back"]::view-transition-old(root) { animation: 220ms ease-in  both vt-back-old; }
+[data-navdir="back"]::view-transition-new(root) { animation: 300ms ease-out both vt-back-new; }
 
 /* Hero image fade-in on rotation */
 @keyframes mx-fadein {
