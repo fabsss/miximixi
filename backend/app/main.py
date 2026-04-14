@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+import shutil
+from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -311,7 +312,7 @@ async def list_recipes(limit: int = 50):
     try:
         cursor.execute(
             """
-            SELECT id, title, category, image_filename, source_url, source_label, rating, created_at
+            SELECT id, title, category, image_filename, source_url, source_label, rating, tags, created_at
             FROM recipes ORDER BY created_at DESC LIMIT %s
             """,
             (limit,),
@@ -414,16 +415,38 @@ async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
             fields_to_update.append("rating = %s")
             params.append(req.rating)
 
-        # If no fields provided, return 400
-        if not fields_to_update:
+        # If no fields provided (metadata nor relations), return 400
+        if not fields_to_update and req.ingredients is None and req.steps is None:
             db.close()
             raise HTTPException(status_code=400, detail="Keine Felder zum Aktualisieren angegeben")
 
-        # Execute update
-        params.append(recipe_id)
-        query = f"UPDATE recipes SET {', '.join(fields_to_update)} WHERE id = %s RETURNING *"
-        cursor.execute(query, params)
+        # Execute metadata update (if any)
+        if fields_to_update:
+            params.append(recipe_id)
+            query = f"UPDATE recipes SET {', '.join(fields_to_update)} WHERE id = %s RETURNING *"
+            cursor.execute(query, params)
+        else:
+            cursor.execute("SELECT * FROM recipes WHERE id = %s", (recipe_id,))
         updated_recipe = cursor.fetchone()
+
+        # Replace ingredients if provided
+        if req.ingredients is not None:
+            cursor.execute("DELETE FROM ingredients WHERE recipe_id = %s", (recipe_id,))
+            for ing in req.ingredients:
+                cursor.execute(
+                    "INSERT INTO ingredients (id, recipe_id, sort_order, name, amount, unit, group_name) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (str(uuid.uuid4()), recipe_id, ing.sort_order, ing.name, ing.amount, ing.unit, ing.group_name),
+                )
+
+        # Replace steps if provided
+        if req.steps is not None:
+            cursor.execute("DELETE FROM steps WHERE recipe_id = %s", (recipe_id,))
+            for step in req.steps:
+                cursor.execute(
+                    "INSERT INTO steps (id, recipe_id, sort_order, text, time_minutes) VALUES (%s, %s, %s, %s, %s)",
+                    (str(uuid.uuid4()), recipe_id, step.sort_order, step.text, step.time_minutes),
+                )
+
         db.commit()
 
         # Fetch full recipe with ingredients and steps
@@ -574,6 +597,57 @@ async def translate_recipe(recipe_id: str, lang: str):
     except Exception as e:
         db.close()
         logger.error(f"Translation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Delete Recipe ───────────────────────────────────────────────────
+@app.delete("/recipes/{recipe_id}")
+async def delete_recipe(recipe_id: str):
+    """Delete a recipe (ingredients and steps cascade automatically)."""
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM recipes WHERE id = %s", (recipe_id,))
+        if not cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+        cursor.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
+        db.commit()
+        db.close()
+        # Remove image if it exists
+        image_path = os.path.join(settings.images_dir, f"{recipe_id}.jpg")
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        return {"message": "Rezept geloescht"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        db.close()
+        logger.error(f"Recipe delete failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Image Upload ─────────────────────────────────────────────────────
+@app.post("/recipes/{recipe_id}/image")
+async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
+    """Upload or replace the cover image for a recipe."""
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM recipes WHERE id = %s", (recipe_id,))
+        if not cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+        db.close()
+        image_path = os.path.join(settings.images_dir, f"{recipe_id}.jpg")
+        with open(image_path, "wb") as out:
+            shutil.copyfileobj(file.file, out)
+        return {"message": "Bild hochgeladen", "image_url": f"/images/{recipe_id}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Image upload failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

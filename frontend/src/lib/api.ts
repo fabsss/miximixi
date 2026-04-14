@@ -38,6 +38,18 @@ export interface RecipeUpdateRequest {
   tags?: string[]
   notes?: string
   rating?: -1 | 0 | 1 | null
+  ingredients?: Array<{
+    name: string
+    amount: number | null
+    unit: string | null
+    group_name: string | null
+    sort_order: number
+  }>
+  steps?: Array<{
+    text: string
+    time_minutes: number | null
+    sort_order: number
+  }>
 }
 
 export async function updateRecipe(
@@ -65,4 +77,19 @@ export async function translateRecipe(
     `/recipes/${recipeId}/translate?lang=${encodeURIComponent(lang)}`,
     { method: 'POST' },
   )
+}
+
+export async function deleteRecipe(recipeId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`, { method: 'DELETE' })
+  if (!response.ok) throw new Error(`Delete failed: ${response.status}`)
+}
+
+export async function uploadRecipeImage(recipeId: string, file: File): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/image`, {
+    method: 'POST',
+    body: form,
+  })
+  if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
 }

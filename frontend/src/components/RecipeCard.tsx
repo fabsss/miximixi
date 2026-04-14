@@ -7,7 +7,7 @@ interface RecipeCardProps {
   index: number
 }
 
-const tileVariants = ['aspect-[4/5]', 'aspect-[3/4]', 'aspect-[1/1]']
+const tileVariants = ['aspect-[4/3]', 'aspect-[3/2]', 'aspect-[16/10]']
 
 function HeartIcon({ filled, className }: { filled: boolean; className?: string }) {
   return (
@@ -62,23 +62,23 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           </span>
         </div>
 
-        <div className="px-2 pb-1 pt-5">
-          <h3 className="text-xl font-bold text-[var(--mx-on-surface)] transition group-hover:text-[var(--mx-primary)]">
+        <div className="px-2 pb-1 pt-3">
+          <h3 className="text-base font-bold text-[var(--mx-on-surface)] transition group-hover:text-[var(--mx-primary)]">
             {recipe.title}
           </h3>
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-1.5 flex flex-wrap gap-1">
             {categories.map((cat) => (
               <span
                 key={cat}
-                className="inline-block rounded-full bg-[var(--mx-secondary-container)] px-3 py-1 text-xs font-semibold text-[var(--mx-secondary)]"
+                className="inline-block rounded-full bg-[var(--mx-secondary-container)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mx-secondary)]"
               >
                 {cat}
               </span>
             ))}
-            {recipe.tags?.map((tag) => (
+            {recipe.tags?.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="inline-block rounded-full bg-[var(--mx-surface-high)] px-3 py-1 text-xs font-semibold text-[var(--mx-on-surface-variant)]"
+                className="inline-block rounded-full bg-[var(--mx-surface-high)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mx-on-surface-variant)]"
               >
                 {tag}
               </span>
