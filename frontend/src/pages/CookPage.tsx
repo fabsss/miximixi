@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { getRecipe } from '../lib/api'
@@ -29,6 +29,7 @@ export function CookPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null)
   const [highlightedRef, setHighlightedRef] = useState<string | null>(null)
+  const bubbleTimerRef = useRef<number | null>(null)
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', recipeId, 'cook'],
@@ -92,7 +93,16 @@ export function CookPage() {
         <span key={i} className="relative inline-block">
           <button
             type="button"
-            onClick={() => setHighlightedRef(isHighlighted ? null : sortOrder)}
+            onClick={() => {
+            if (isHighlighted) {
+              setHighlightedRef(null)
+              if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current)
+            } else {
+              setHighlightedRef(sortOrder)
+              if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current)
+              bubbleTimerRef.current = window.setTimeout(() => setHighlightedRef(null), 3000)
+            }
+          }}
             className={`rounded-md px-1.5 py-0.5 text-inherit font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/30 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/60'}`}
           >
             {ing?.name ?? `Zutat #${sortOrder}`}
@@ -109,19 +119,20 @@ export function CookPage() {
   }
 
   return (
-    <div className="mx-shell py-4">
+    <>
+    <div className="mx-shell py-4 pb-28">
       <div className="rounded-[2.5rem] bg-[var(--mx-surface-container)] p-4 md:p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-4 flex items-center gap-3">
+          <Link
+            to={`/recipes/${recipe.id}`}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]"
+          >
+            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          </Link>
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kochmodus</p>
             <h1 className="m-0 text-lg font-bold text-[var(--mx-on-surface)] md:text-2xl">{recipe.title}</h1>
           </div>
-          <Link
-            to={`/recipes/${recipe.id}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]"
-          >
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-          </Link>
         </div>
 
         <div className="mb-4 rounded-[2rem] bg-[var(--mx-surface-low)] p-4 md:p-6">
@@ -133,8 +144,20 @@ export function CookPage() {
 
         <div className="mx-glass mb-4 flex flex-col items-center gap-3 rounded-[2rem] p-4 md:flex-row md:justify-between md:p-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-[var(--mx-primary)]">Zeitgeber</p>
-            <p className="text-3xl font-bold text-[var(--mx-primary)] md:text-4xl">{formatTime(seconds)}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--mx-primary)]">Timer</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSecondsOverride((s) => Math.max(0, (s ?? stepDuration) - 60))}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-lg font-bold text-[var(--mx-on-surface)]"
+              >−</button>
+              <p className="text-3xl font-bold text-[var(--mx-primary)] md:text-4xl">{formatTime(seconds)}</p>
+              <button
+                type="button"
+                onClick={() => setSecondsOverride((s) => (s ?? stepDuration) + 60)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-lg font-bold text-[var(--mx-on-surface)]"
+              >+</button>
+            </div>
           </div>
           <div className="flex gap-3">
             <button
@@ -157,35 +180,38 @@ export function CookPage() {
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentStep((prev) => Math.max(prev - 1, 0))
-              setIsRunning(false)
-              setSecondsOverride(null)
-              setHighlightedRef(null)
-            }}
-            disabled={currentStep === 0}
-            className="flex-1 rounded-full bg-[var(--mx-surface-high)] px-6 py-4 text-sm font-bold text-[var(--mx-on-surface)] disabled:opacity-40"
-          >
-            Zurück
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentStep((prev) => Math.min(prev + 1, recipe.steps.length - 1))
-              setIsRunning(false)
-              setSecondsOverride(null)
-              setHighlightedRef(null)
-            }}
-            disabled={currentStep === recipe.steps.length - 1}
-            className="flex-[2] rounded-full bg-gradient-to-r from-[var(--mx-primary)] to-[var(--mx-primary-dim)] px-6 py-4 text-sm font-bold text-[var(--mx-on-primary)] disabled:opacity-40"
-          >
-            Nächster Schritt
-          </button>
-        </div>
       </div>
     </div>
+
+    {/* Fixed bottom navigation */}
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex gap-3 bg-[var(--mx-surface-container)]/90 px-4 py-4 backdrop-blur-md">
+      <button
+        type="button"
+        onClick={() => {
+          setCurrentStep((prev) => Math.max(prev - 1, 0))
+          setIsRunning(false)
+          setSecondsOverride(null)
+          setHighlightedRef(null)
+        }}
+        disabled={currentStep === 0}
+        className="flex-1 rounded-full bg-[var(--mx-surface-high)] px-6 py-4 text-sm font-bold text-[var(--mx-on-surface)] disabled:opacity-40"
+      >
+        Zurück
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setCurrentStep((prev) => Math.min(prev + 1, recipe.steps.length - 1))
+          setIsRunning(false)
+          setSecondsOverride(null)
+          setHighlightedRef(null)
+        }}
+        disabled={currentStep === recipe.steps.length - 1}
+        className="flex-[2] rounded-full bg-gradient-to-r from-[var(--mx-primary)] to-[var(--mx-primary-dim)] px-6 py-4 text-sm font-bold text-[var(--mx-on-primary)] disabled:opacity-40"
+      >
+        Nächster Schritt
+      </button>
+    </div>
+    </>
   )
 }
