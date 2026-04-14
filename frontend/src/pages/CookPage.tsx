@@ -12,10 +12,24 @@ function parseIngredientReference(text: string): Array<{ type: 'text' | 'ref'; c
   while ((match = regex.exec(text)) !== null) {
     const beforeLabel = match[1] ?? ''
     const matchStart = match.index
-    const textChunk = text.slice(lastIndex, matchStart)
+    let textChunk = text.slice(lastIndex, matchStart)
+    let advance = 0
+    // Detect single-ref wrapped in parens: "...(Label{N})" - textChunk ends with "(" and next char is ")"
+    if (/\(\s*$/.test(textChunk) && text[regex.lastIndex] === ')') {
+      textChunk = textChunk.replace(/\(\s*$/, '')
+      advance = 1
+      // If the last word of textChunk duplicates the chip label, strip it
+      if (beforeLabel) {
+        const trimmed = textChunk.trimEnd()
+        const lastWord = trimmed.split(/\s+/).pop() ?? ''
+        if (lastWord.toLowerCase() === beforeLabel.toLowerCase())
+          textChunk = trimmed.slice(0, trimmed.length - lastWord.length)
+      }
+    }
     if (textChunk) parts.push({ type: 'text', content: textChunk, label: '' })
     parts.push({ type: 'ref', content: match[2], label: beforeLabel })
-    lastIndex = regex.lastIndex
+    lastIndex = regex.lastIndex + advance
+    regex.lastIndex = lastIndex
   }
   if (lastIndex < text.length) parts.push({ type: 'text', content: text.slice(lastIndex), label: '' })
   return parts.length > 0 ? parts : [{ type: 'text', content: text, label: '' }]
@@ -102,8 +116,24 @@ export function CookPage() {
 
   const renderStepText = (text: string) => {
     const allIngs = Array.from(ingredientBySortOrder.values())
-    return parseIngredientReference(text).map((part, i) => {
-      if (part.type === 'text') return <span key={i}>{stripIngredientParens(part.content, allIngs)}</span>
+    const parts = parseIngredientReference(text)
+    return parts.map((part, i) => {
+      if (part.type === 'text') {
+        let content = stripIngredientParens(part.content, allIngs)
+        // If next part is a ref chip, strip trailing word that duplicates the chip label
+        const nextPart = parts[i + 1]
+        if (nextPart?.type === 'ref') {
+          const nextIng = ingredientBySortOrder.get(nextPart.content)
+          if (nextIng) {
+            const chipLabel = shortIngName(nextIng.name).toLowerCase()
+            const trimmed = content.trimEnd()
+            const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() ?? ''
+            if (lastWord === chipLabel)
+              content = trimmed.slice(0, trimmed.length - lastWord.length)
+          }
+        }
+        return <span key={i}>{content}</span>
+      }
       const sortOrder = part.content
       const ing = ingredientBySortOrder.get(sortOrder)
       const isHighlighted = highlightedRef === sortOrder
