@@ -41,6 +41,10 @@ function formatAmount(n: number): string {
   return String(Math.round(n * 10) / 10)
 }
 
+function shortIngName(name: string): string {
+  return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
+}
+
 function parseIngredientReference(
   text: string,
 ): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
@@ -680,7 +684,7 @@ export function RecipeDetailPage() {
                                 }
                               }                            }}
                             className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                            {part.label || ingredient?.name || `Zutat ${sortOrder}`}
+                            {shortIngName(ingredient?.name ?? `Zutat ${sortOrder}`)}
                           </button>
                           {isHighlighted && tipText && !ingredientsVisible && (
                             <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">

@@ -21,6 +21,10 @@ function parseIngredientReference(text: string): Array<{ type: 'text' | 'ref'; c
   return parts.length > 0 ? parts : [{ type: 'text', content: text, label: '' }]
 }
 
+function shortIngName(name: string): string {
+  return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
+}
+
 function formatTime(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
@@ -109,7 +113,7 @@ export function CookPage() {
           }}
             className={`rounded-md px-1.5 py-0.5 text-inherit font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/30 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/60'}`}
           >
-            {part.label || ing?.name || `Zutat ${sortOrder}`}
+            {shortIngName(ing?.name ?? `Zutat ${sortOrder}`)}
           </button>
           {isHighlighted && amtText && (
             <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-3 py-1.5 text-sm font-bold text-[var(--mx-surface)] shadow-lg z-10">
