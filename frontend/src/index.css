@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Thin styled scrollbars (Webkit + Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mx-outline-variant) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--mx-outline-variant);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--mx-on-surface-variant); }
+
 /* Light mode (Heirloom Hearth) */
 :root,
 [data-theme="light"] {
