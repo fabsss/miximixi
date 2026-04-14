@@ -26,14 +26,12 @@ function shortIngName(name: string): string {
 }
 
 function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
-  let result = text.replace(/(\p{L}[\p{L}\p{N}\s]*)\s*\(\1\)/giu, '$1')
-  result = result.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
+  let result = text.replace(/(\p{L}[\p{L}\p{N}]*)\s*\((\p{L}[\p{L}\p{N}]*)\)/gu, (match, word, paren) =>
+    word.toLowerCase() === paren.toLowerCase() ? word : match
+  )
+  result = result.replace(/\s*\(([^),]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
-    if (normalized.includes(',')) return match
-    const isIngName = allIngredients.some((ing) => {
-      const canonical = shortIngName(ing.name).toLowerCase()
-      return canonical === normalized
-    })
+    const isIngName = allIngredients.some((ing) => shortIngName(ing.name).toLowerCase() === normalized)
     return isIngName ? '' : match
   })
   return result
