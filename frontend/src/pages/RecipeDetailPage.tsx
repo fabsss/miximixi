@@ -614,6 +614,42 @@ export function RecipeDetailPage() {
               })}
             </div>
           </div>
+
+          {/* Chef's Note */}
+          <div className="mt-4 rounded-[1.5rem] border border-[var(--mx-primary-container)]/30 bg-[var(--mx-primary-container)]/20 p-4">
+            <div className="flex gap-3">
+              <span className="material-symbols-outlined flex-shrink-0 text-[20px] text-[var(--mx-primary)]">lightbulb</span>
+              <div className="min-w-0 flex-1">
+                <strong className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-primary)]">Chef's Note</strong>
+                {editingNotes ? (
+                  <div className="space-y-2">
+                    <textarea value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} rows={4} autoFocus
+                      placeholder="Persönliche Notizen, Variationen, Tipps …"
+                      className="block w-full resize-none rounded-lg bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30" />
+                    <div className="flex gap-2">
+                      <button onClick={() => notesMutation.mutate({ id: recipeId!, notes: notesDraft })} disabled={notesMutation.isPending}
+                        className="rounded-full bg-[var(--mx-primary)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] disabled:opacity-50">
+                        {notesMutation.isPending ? 'Speichert …' : 'Speichern'}
+                      </button>
+                      <button onClick={() => setEditingNotes(false)} className="rounded-full bg-[var(--mx-surface-high)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-surface)]">Abbrechen</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {recipe.notes ? (
+                      <p className="whitespace-pre-wrap font-body text-sm leading-relaxed text-[var(--mx-on-surface)]">{recipe.notes}</p>
+                    ) : (
+                      <p className="font-body text-sm italic text-[var(--mx-on-surface-variant)]">Noch keine Notizen …</p>
+                    )}
+                    <button onClick={() => { setNotesDraft(recipe.notes ?? ''); setEditingNotes(true) }}
+                      className="mt-2 text-xs font-semibold text-[var(--mx-primary)] hover:underline">
+                      {recipe.notes ? 'Bearbeiten' : 'Notiz hinzufügen'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </aside>
 
         {/* INSTRUCTIONS */}
@@ -686,42 +722,6 @@ export function RecipeDetailPage() {
             </div>
           </div>
         </section>
-      </div>
-
-      {/* Chef's Note */}
-      <div className="mt-6 rounded-[1.5rem] border border-[var(--mx-primary-container)]/30 bg-[var(--mx-primary-container)]/20 p-4">
-        <div className="flex gap-3">
-          <span className="material-symbols-outlined flex-shrink-0 text-[20px] text-[var(--mx-primary)]">lightbulb</span>
-          <div className="min-w-0 flex-1">
-            <strong className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-primary)]">Chef's Note</strong>
-            {editingNotes ? (
-              <div className="space-y-2">
-                <textarea value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} rows={4} autoFocus
-                  placeholder="Persönliche Notizen, Variationen, Tipps …"
-                  className="block w-full resize-none rounded-lg bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30" />
-                <div className="flex gap-2">
-                  <button onClick={() => notesMutation.mutate({ id: recipeId!, notes: notesDraft })} disabled={notesMutation.isPending}
-                    className="rounded-full bg-[var(--mx-primary)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] disabled:opacity-50">
-                    {notesMutation.isPending ? 'Speichert …' : 'Speichern'}
-                  </button>
-                  <button onClick={() => setEditingNotes(false)} className="rounded-full bg-[var(--mx-surface-high)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-surface)]">Abbrechen</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {recipe.notes ? (
-                  <p className="whitespace-pre-wrap font-body text-sm leading-relaxed text-[var(--mx-on-surface)]">{recipe.notes}</p>
-                ) : (
-                  <p className="font-body text-sm italic text-[var(--mx-on-surface-variant)]">Noch keine Notizen …</p>
-                )}
-                <button onClick={() => { setNotesDraft(recipe.notes ?? ''); setEditingNotes(true) }}
-                  className="mt-2 text-xs font-semibold text-[var(--mx-primary)] hover:underline">
-                  {recipe.notes ? 'Bearbeiten' : 'Notiz hinzufügen'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* DELETE CONFIRMATION */}
