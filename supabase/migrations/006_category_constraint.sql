@@ -9,4 +9,4 @@ ALTER TABLE recipes
 
 ALTER TABLE recipes
   ADD CONSTRAINT recipes_category_check
-    CHECK (category IS NULL OR category IN ('Vorspeisen', 'Hauptspeisen', 'Nachspeisen', 'Getränke'));
+    CHECK (category IS NULL OR category IN ('Vorspeisen', 'Hauptspeisen', 'Dessert', 'Frühstück', 'Snack', 'Getränke'));
