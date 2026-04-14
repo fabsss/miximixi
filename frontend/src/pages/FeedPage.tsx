@@ -188,7 +188,7 @@ export function FeedPage() {
                 </div>
                 <Link
                   to={`/recipes/${heroRecipe.id}`}
-                  className="flex shrink-0 items-center gap-2 self-start rounded-full bg-white px-5 py-2.5 text-sm font-bold text-[var(--mx-primary)] shadow-xl transition-all hover:bg-[var(--mx-surface)] active:scale-95 md:self-auto"
+                  className="flex shrink-0 items-center gap-2 self-end rounded-full bg-gradient-to-r from-[var(--mx-primary)] to-[var(--mx-primary-dim)] px-5 py-2.5 text-sm font-bold text-[var(--mx-on-primary)] shadow-xl transition-all active:scale-95"
                 >
                   Zum Rezept
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>

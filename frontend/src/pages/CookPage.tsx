@@ -109,32 +109,32 @@ export function CookPage() {
   }
 
   return (
-    <div className="mx-shell py-8">
-      <div className="rounded-[2.5rem] bg-[var(--mx-surface-container)] p-6 md:p-10">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-shell py-4">
+      <div className="rounded-[2.5rem] bg-[var(--mx-surface-container)] p-4 md:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kochmodus</p>
-            <h1 className="m-0 text-3xl text-[var(--mx-on-surface)] md:text-5xl">{recipe.title}</h1>
+            <h1 className="m-0 text-lg font-bold text-[var(--mx-on-surface)] md:text-2xl">{recipe.title}</h1>
           </div>
           <Link
             to={`/recipes/${recipe.id}`}
-            className="rounded-full bg-[var(--mx-surface-high)] px-5 py-2 text-sm font-semibold text-[var(--mx-on-surface)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]"
           >
-            Zurück zum Rezept
+            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
           </Link>
         </div>
 
-        <div className="mb-8 rounded-[2rem] bg-[var(--mx-surface-low)] p-8">
+        <div className="mb-4 rounded-[2rem] bg-[var(--mx-surface-low)] p-4 md:p-6">
           <p className="text-xs font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">
             Schritt {currentStep + 1} von {recipe.steps.length}
           </p>
-          <p className="mt-5 text-xl leading-relaxed text-[var(--mx-on-surface)] md:text-3xl">{renderStepText(step.text)}</p>
+          <p className="mt-3 text-base leading-relaxed text-[var(--mx-on-surface)] md:text-lg">{renderStepText(step.text)}</p>
         </div>
 
-        <div className="mx-glass mb-8 flex flex-col items-center gap-5 rounded-[2rem] p-6 md:flex-row md:justify-between">
+        <div className="mx-glass mb-4 flex flex-col items-center gap-3 rounded-[2rem] p-4 md:flex-row md:justify-between md:p-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-[var(--mx-primary)]">Zeitgeber</p>
-            <p className="text-5xl font-bold text-[var(--mx-primary)] md:text-6xl">{formatTime(seconds)}</p>
+            <p className="text-3xl font-bold text-[var(--mx-primary)] md:text-4xl">{formatTime(seconds)}</p>
           </div>
           <div className="flex gap-3">
             <button
