@@ -45,13 +45,17 @@ function parseIngredientReference(
   text: string,
 ): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
   const parts: Array<{ type: 'text' | 'ref'; content: string; label: string }> = []
-  const regex = /(\S+)\s*\{(\d+)\}/g
+  // Match an optional real word (letters/digits) immediately before {N}
+  const regex = /(?:(\p{L}[\p{L}\p{N}]*)\s*)?\{(\d+)\}/gu
   let lastIndex = 0
   let match
   while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex)
-      parts.push({ type: 'text', content: text.slice(lastIndex, match.index), label: '' })
-    parts.push({ type: 'ref', content: match[2], label: match[1] })
+    // The text before the match (including the captured label word, which we strip)
+    const beforeLabel = match[1] ?? ''
+    const matchStart = match.index
+    const textChunk = text.slice(lastIndex, matchStart)
+    if (textChunk) parts.push({ type: 'text', content: textChunk, label: '' })
+    parts.push({ type: 'ref', content: match[2], label: beforeLabel })
     lastIndex = regex.lastIndex
   }
   if (lastIndex < text.length)
@@ -676,7 +680,7 @@ export function RecipeDetailPage() {
                                 }
                               }                            }}
                             className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                            {part.label}
+                            {part.label || ingredient?.name || `Zutat ${sortOrder}`}
                           </button>
                           {isHighlighted && tipText && !ingredientsVisible && (
                             <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
