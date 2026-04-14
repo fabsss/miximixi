@@ -23,8 +23,6 @@ const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
   tassen:   { factor: 236.588, unit: 'ml' },
   tbsp:     { factor: 15,      unit: 'ml' },
   tsp:      { factor: 5,       unit: 'ml' },
-  el:       { factor: 15,      unit: 'ml' },
-  tl:       { factor: 5,       unit: 'ml' },
   oz:       { factor: 28.35,   unit: 'g'  },
   lb:       { factor: 453.592, unit: 'g'  },
   lbs:      { factor: 453.592, unit: 'g'  },
@@ -178,7 +176,21 @@ export function RecipeDetailPage() {
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesDraft, setNotesDraft] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [ingredientsVisible, setIngredientsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const ingredientsRef = useRef<HTMLElement>(null)
+  const ingredientsPanelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = ingredientsRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setIngredientsVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', recipeId],
@@ -531,8 +543,8 @@ export function RecipeDetailPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         {/* INGREDIENTS SIDEBAR */}
-        <aside className="w-full flex-shrink-0 lg:w-[350px]">
-          <div className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6 lg:sticky lg:top-24">
+        <aside ref={ingredientsRef} className="w-full flex-shrink-0 lg:w-[350px]">
+          <div ref={ingredientsPanelRef} className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-headline text-xl font-bold text-[var(--mx-on-surface)]">Zutaten</h3>
               <div className="flex rounded-full bg-[var(--mx-surface-variant)] p-0.5">
@@ -561,7 +573,7 @@ export function RecipeDetailPage() {
 
             <div className="space-y-5">
               {[...groupedIngredients.entries()].map(([group, items]) => {
-                const showHeader = groupedIngredients.size > 1 || group !== 'Zutaten'
+                const showHeader = group !== 'Zutaten' && group !== ''
                 return (
                   <div key={group}>
                     {showHeader && <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">{group}</p>}
@@ -650,11 +662,24 @@ export function RecipeDetailPage() {
                       const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
                       return (
                         <span key={i} className="relative inline-block">
-                          <button type="button" onClick={() => setHighlightedSortOrder(isHighlighted ? null : sortOrder)}
-                            className={`rounded-md px-1.5 py-0.5 font-semibold transition-all ${isHighlighted ? 'text-base bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'text-sm bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
+                          <button type="button" onClick={() => {
+                              const next = isHighlighted ? null : sortOrder
+                              setHighlightedSortOrder(next)
+                              if (next && ingredientsPanelRef.current) {
+                                const el = document.getElementById(`ingredient-${next}`)
+                                if (el) {
+                                  const panelRect = ingredientsPanelRef.current.getBoundingClientRect()
+                                  const elRect = el.getBoundingClientRect()
+                                  if (elRect.top < panelRect.top || elRect.bottom > panelRect.bottom) {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                                  }
+                                }
+                              }
+                            }}
+                            className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
                             {part.label}
                           </button>
-                          {isHighlighted && tipText && (
+                          {isHighlighted && tipText && !ingredientsVisible && (
                             <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
                               {tipText}
                               <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
