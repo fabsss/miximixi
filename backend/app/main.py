@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import uuid
@@ -11,8 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.models import ImportRequest, ImportResponse
+from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse
 from app.queue_worker import run_worker
+from app.llm_provider import LLMProvider
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -363,6 +365,215 @@ async def get_recipe(recipe_id: str):
     except Exception as e:
         db.close()
         logger.error(f"Recipe lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Recipe Update Endpoint ──────────────────────────────────────────
+@app.patch("/recipes/{recipe_id}")
+async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
+    """Update recipe metadata (title, servings, notes, rating, category, tags, prep_time, cook_time)."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        # Check if recipe exists
+        cursor.execute("SELECT id FROM recipes WHERE id = %s", (recipe_id,))
+        if not cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        # Build update query dynamically (sparse update)
+        fields_to_update = []
+        params = []
+
+        if req.title is not None:
+            fields_to_update.append("title = %s")
+            params.append(req.title)
+        if req.servings is not None:
+            fields_to_update.append("servings = %s")
+            params.append(req.servings)
+        if req.prep_time is not None:
+            fields_to_update.append("prep_time = %s")
+            params.append(req.prep_time)
+        if req.cook_time is not None:
+            fields_to_update.append("cook_time = %s")
+            params.append(req.cook_time)
+        if req.category is not None:
+            fields_to_update.append("category = %s")
+            params.append(req.category)
+        if req.tags is not None:
+            fields_to_update.append("tags = %s")
+            params.append(req.tags)
+        if req.notes is not None:
+            fields_to_update.append("notes = %s")
+            params.append(req.notes)
+        if req.rating is not None:
+            if req.rating not in (-1, 0, 1):
+                db.close()
+                raise HTTPException(status_code=400, detail="Rating muss -1, 0 oder 1 sein")
+            fields_to_update.append("rating = %s")
+            params.append(req.rating)
+
+        # If no fields provided, return 400
+        if not fields_to_update:
+            db.close()
+            raise HTTPException(status_code=400, detail="Keine Felder zum Aktualisieren angegeben")
+
+        # Execute update
+        params.append(recipe_id)
+        query = f"UPDATE recipes SET {', '.join(fields_to_update)} WHERE id = %s RETURNING *"
+        cursor.execute(query, params)
+        updated_recipe = cursor.fetchone()
+        db.commit()
+
+        # Fetch full recipe with ingredients and steps
+        cursor.execute(
+            "SELECT * FROM ingredients WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,),
+        )
+        ingredients = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT * FROM steps WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,),
+        )
+        steps = cursor.fetchall()
+
+        db.close()
+
+        logger.info(f"Recipe updated: {recipe_id}")
+
+        return {
+            **dict(updated_recipe),
+            "ingredients": [dict(i) for i in ingredients],
+            "steps": [dict(s) for s in steps],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.close()
+        logger.error(f"Recipe update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Recipe Translation Endpoint ─────────────────────────────────────
+@app.post("/recipes/{recipe_id}/translate", response_model=TranslationResponse)
+async def translate_recipe(recipe_id: str, lang: str):
+    """
+    Fetch or generate translations for a recipe in target language.
+    
+    Query param: lang (e.g., "de", "en", "it", "fr")
+    
+    Logic:
+    1. Check translations table for (recipe_id, lang) entry
+    2. If found AND is_stale = false: return cached result immediately
+    3. If found AND is_stale = true: call LLM to re-translate, update DB, return
+    4. If not found: call LLM, insert into translations table, return
+    """
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        # 1. Verify recipe exists and get its data
+        cursor.execute(
+            "SELECT id, title FROM recipes WHERE id = %s",
+            (recipe_id,),
+        )
+        recipe = cursor.fetchone()
+        if not recipe:
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        # Get ingredients and steps
+        cursor.execute(
+            "SELECT id, name FROM ingredients WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,),
+        )
+        ingredients = [{"id": str(i["id"]), "name": i["name"]} for i in cursor.fetchall()]
+
+        cursor.execute(
+            "SELECT id, text FROM steps WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,),
+        )
+        steps = [{"id": str(s["id"]), "text": s["text"]} for s in cursor.fetchall()]
+
+        # 2. Check if translation exists
+        cursor.execute(
+            "SELECT * FROM translations WHERE recipe_id = %s AND lang = %s",
+            (recipe_id, lang),
+        )
+        translation = cursor.fetchone()
+
+        # 3a. If found and NOT stale: return cached
+        if translation and not translation.get("is_stale", False):
+            db.close()
+            logger.info(f"Translation cache hit: {recipe_id} → {lang}")
+            return TranslationResponse(
+                title=translation["title"],
+                ingredients=translation.get("ingredients", []),
+                steps=translation.get("steps", []),
+            )
+
+        # 3b/4. Call LLM to translate
+        logger.info(f"Translating recipe {recipe_id} to {lang}")
+        llm_provider = LLMProvider()
+        translated_data = llm_provider.translate_recipe(
+            title=recipe["title"],
+            ingredients=ingredients,
+            steps=steps,
+            target_lang=lang,
+        )
+
+        # Update or insert into translations table
+        if translation:
+            # Update existing (mark as not stale)
+            cursor.execute(
+                """
+                UPDATE translations
+                SET title = %s, ingredients = %s, steps = %s, is_stale = false
+                WHERE recipe_id = %s AND lang = %s
+                """,
+                (
+                    translated_data.get("title"),
+                    translated_data.get("ingredients", []),
+                    translated_data.get("steps", []),
+                    recipe_id,
+                    lang,
+                ),
+            )
+        else:
+            # Insert new
+            cursor.execute(
+                """
+                INSERT INTO translations (recipe_id, lang, title, ingredients, steps, is_stale)
+                VALUES (%s, %s, %s, %s, %s, false)
+                """,
+                (
+                    recipe_id,
+                    lang,
+                    translated_data.get("title"),
+                    translated_data.get("ingredients", []),
+                    translated_data.get("steps", []),
+                ),
+            )
+
+        db.commit()
+        db.close()
+
+        logger.info(f"Translation completed: {recipe_id} → {lang}")
+
+        return TranslationResponse(
+            title=translated_data.get("title"),
+            ingredients=translated_data.get("ingredients", []),
+            steps=translated_data.get("steps", []),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.close()
+        logger.error(f"Translation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

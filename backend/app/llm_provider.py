@@ -81,6 +81,29 @@ Wichtig:
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
 
+# Translation Prompt: Translates recipe title, ingredient names, and steps
+TRANSLATION_PROMPT = """Du bist ein Rezept-Übersetzer. Übersetze das englischsprachige Rezept in die Zielsprache – nur Title, Zutatennamen und Schritte.
+
+Gib das Ergebnis AUSSCHLIESSLICH als JSON zurück – kein Markdown, keine Erklärungen.
+
+Zielsprache: {target_lang}
+
+JSON-Format:
+{
+  "title": "Übersetzter Rezeptname",
+  "ingredients": [
+    {"id": 1, "name": "Übersetzter Zutatennamen"}
+  ],
+  "steps": [
+    {"id": 1, "text": "Übersetzter Schritt-Text mit {{1}} Referenzen"}
+  ]
+}
+
+Wichtig:
+- Übersetze NUR den Text, nicht die IDs
+- Behalte {{ingredient_id}} Referenzen in den Steps bei (z.B. {{1}})
+- Behalte die gleiche Struktur und Reihenfolge"""
+
 
 def _image_to_base64(path: str) -> str:
     with open(path, "rb") as f:
@@ -318,3 +341,156 @@ class LLMProvider:
         )
         response.raise_for_status()
         return _parse_llm_response(response.json()["response"])
+
+    # ── Translation: Translate recipe title, ingredients, steps ──────────
+    def translate_recipe(
+        self,
+        title: str,
+        ingredients: list[dict],
+        steps: list[dict],
+        target_lang: str,
+    ) -> dict:
+        """
+        Translates recipe title, ingredient names, and step text to target language.
+        
+        Args:
+            title: Recipe title in original language
+            ingredients: List of dicts with {id, name}
+            steps: List of dicts with {id, text}
+            target_lang: Target language (e.g., "de", "en", "it", "fr")
+            
+        Returns:
+            dict with translated {title, ingredients, steps}
+        """
+        logger.info(f"Translating recipe to {target_lang}: provider={settings.llm_provider}")
+
+        recipe_json = {
+            "title": title,
+            "ingredients": [{"id": int(ing["id"]), "name": ing["name"]} for ing in ingredients],
+            "steps": [{"id": int(step["id"]), "text": step["text"]} for step in steps],
+        }
+
+        prompt = TRANSLATION_PROMPT.format(target_lang=target_lang)
+        message_content = f"Recipe to translate:\n{json.dumps(recipe_json, ensure_ascii=False)}\n\n{prompt}"
+
+        match settings.llm_provider:
+            case "gemini":
+                return self._gemini_translate(message_content)
+            case "claude":
+                return self._claude_translate(message_content)
+            case "openai":
+                return self._openai_translate(message_content)
+            case "openai_compat":
+                return self._openai_compat_translate(message_content)
+            case "gemma3n":
+                return self._gemma3n_translate(message_content)
+            case _:
+                return self._ollama_translate(message_content)
+
+    def _gemini_translate(self, message: str) -> dict:
+        """Translate using Gemini."""
+        import google.generativeai as genai
+
+        genai.configure(api_key=settings.google_api_key)
+        model = genai.GenerativeModel(settings.gemini_model)
+        response = model.generate_content(message)
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        data = json.loads(text.strip())
+        data = _fix_encoding(data)
+        return data
+
+    def _claude_translate(self, message: str) -> dict:
+        """Translate using Claude."""
+        client = anthropic.Anthropic(api_key=settings.claude_api_key)
+        response = client.messages.create(
+            model=settings.claude_model,
+            max_tokens=2048,
+            messages=[{"role": "user", "content": message}],
+        )
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        data = json.loads(text.strip())
+        data = _fix_encoding(data)
+        return data
+
+    def _openai_translate(self, message: str) -> dict:
+        """Translate using OpenAI."""
+        client = OpenAI(api_key=settings.openai_api_key)
+        return self._openai_compat_translate_impl(client, settings.openai_model, message)
+
+    def _openai_compat_translate(self, message: str) -> dict:
+        """Translate using OpenAI-compatible API."""
+        client = OpenAI(
+            api_key=settings.openai_compat_api_key,
+            base_url=settings.openai_compat_base_url,
+        )
+        return self._openai_compat_translate_impl(client, settings.openai_compat_model, message)
+
+    def _openai_compat_translate_impl(self, client: OpenAI, model: str, message: str) -> dict:
+        """Translate using OpenAI-compatible client."""
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": message}],
+            max_tokens=2048,
+        )
+        text = response.choices[0].message.content.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        data = json.loads(text.strip())
+        data = _fix_encoding(data)
+        return data
+
+    def _gemma3n_translate(self, message: str) -> dict:
+        """Translate using Gemma 3n via Ollama."""
+        payload = {
+            "model": settings.gemma3n_model,
+            "prompt": message,
+            "stream": False,
+            "format": "json",
+        }
+        response = httpx.post(
+            f"{settings.gemma3n_base_url}/api/generate",
+            json=payload,
+            timeout=300.0,
+        )
+        response.raise_for_status()
+        text = response.json()["response"].strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        data = json.loads(text.strip())
+        data = _fix_encoding(data)
+        return data
+
+    def _ollama_translate(self, message: str) -> dict:
+        """Translate using Ollama."""
+        payload = {
+            "model": settings.ollama_model,
+            "prompt": message,
+            "stream": False,
+            "format": "json",
+        }
+        response = httpx.post(
+            f"{settings.ollama_base_url}/api/generate",
+            json=payload,
+            timeout=300.0,
+        )
+        response.raise_for_status()
+        text = response.json()["response"].strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        data = json.loads(text.strip())
+        data = _fix_encoding(data)
+        return data

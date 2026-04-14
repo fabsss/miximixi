@@ -46,3 +46,20 @@ class ImportResponse(BaseModel):
     queue_id: str
     status: str
     message: str
+
+
+class RecipeUpdateRequest(BaseModel):
+    title: str | None = None
+    servings: int | None = None
+    prep_time: str | None = None
+    cook_time: str | None = None
+    category: str | None = None
+    tags: list[str] | None = None
+    notes: str | None = None
+    rating: int | None = None  # -1, 0, or 1
+
+
+class TranslationResponse(BaseModel):
+    title: str
+    ingredients: list[dict]  # [{id, name}, ...]
+    steps: list[dict]        # [{id, text}, ...]

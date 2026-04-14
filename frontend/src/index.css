@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Light mode (Heirloom Hearth) */
+:root,
+[data-theme="light"] {
+  --mx-primary: #a43f14;
+  --mx-primary-dim: #943308;
+  --mx-primary-container: #ffad90;
+  --mx-on-primary: #fff7f5;
+  --mx-secondary: #526448;
+  --mx-secondary-container: #e2f7d3;
+  --mx-surface: #fff8f4;
+  --mx-surface-low: #fdf1e9;
+  --mx-surface-container: #f8ece2;
+  --mx-surface-high: #f3e6db;
+  --mx-surface-variant: #eee0d5;
+  --mx-on-surface: #393129;
+  --mx-on-surface-variant: #675d54;
+  --mx-outline-variant: #bdb0a5;
+  --mx-glow: rgba(57, 49, 41, 0.08);
+}
+
+/* Dark mode (Midnight Kitchen) */
+[data-theme="dark"] {
+  --mx-primary: #ffb59c;
+  --mx-primary-dim: #e66d41;
+  --mx-primary-container: #e66d41;
+  --mx-on-primary: #5c1900;
+  --mx-secondary: #cfc5b6;
+  --mx-secondary-container: #4f483d;
+  --mx-surface: #161311;
+  --mx-surface-low: #1e1b19;
+  --mx-surface-container: #221f1d;
+  --mx-surface-high: #2d2927;
+  --mx-surface-variant: #383432;
+  --mx-on-surface: #e9e1dd;
+  --mx-on-surface-variant: #dec0b7;
+  --mx-outline-variant: #57423b;
+  --mx-glow: rgba(255, 181, 156, 0.1);
+}
+
+/* System preference (default) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --mx-primary: #ffb59c;
+    --mx-primary-dim: #e66d41;
+    --mx-primary-container: #e66d41;
+    --mx-on-primary: #5c1900;
+    --mx-secondary: #cfc5b6;
+    --mx-secondary-container: #4f483d;
+    --mx-surface: #161311;
+    --mx-surface-low: #1e1b19;
+    --mx-surface-container: #221f1d;
+    --mx-surface-high: #2d2927;
+    --mx-surface-variant: #383432;
+    --mx-on-surface: #e9e1dd;
+    --mx-on-surface-variant: #dec0b7;
+    --mx-outline-variant: #57423b;
+    --mx-glow: rgba(255, 181, 156, 0.1);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--mx-on-surface);
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(255, 173, 144, 0.26), transparent 40%),
+    radial-gradient(circle at 90% 5%, rgba(82, 100, 72, 0.22), transparent 35%),
+    var(--mx-surface);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Noto Serif", Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mx-glass {
+  background: color-mix(in srgb, var(--mx-surface-variant) 74%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.mx-shell {
+  width: min(1240px, 100% - 2rem);
+  margin: 0 auto;
+}
