@@ -350,15 +350,14 @@ export function RecipeDetailPage() {
 
       {/* HERO */}
       <section className="pb-6 pt-2">
-        <div className="group relative h-[360px] w-full overflow-hidden rounded-[2rem]">
+        <div className="group relative h-[360px] w-full cursor-zoom-in overflow-hidden rounded-[2rem]" onClick={() => setShowFullscreenImage(true)}>
           <img
             src={imagePreviewUrl ?? getImageUrl(recipe.id)}
             alt={recipe.title ?? 'Rezeptbild'}
-            className="h-full w-full cursor-zoom-in object-cover transition-transform duration-700 group-hover:scale-105"
-            onClick={() => setShowFullscreenImage(true)}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-          <div className="absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+          <div className="pointer-events-none absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
             <div className="mb-2 flex flex-wrap gap-1.5">
               {categories.length > 0 ? categories.map((cat, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-[var(--mx-secondary-container)] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--mx-secondary)]">
