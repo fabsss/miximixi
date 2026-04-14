@@ -89,22 +89,27 @@ export function FeedPage() {
     setDrawerOpen(false)
   }
 
-  const sidebarBtnCls = (active: boolean) =>
-    `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-      active
-        ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
-        : 'text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-container)]'
-    }`
+  const catBtnCls = (cat: MainCategory | null, active: boolean) => {
+    if (!active) return 'flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-container)]'
+    const colors: Record<string, string> = {
+      'Vorspeisen':   'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200',
+      'Hauptspeisen': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200',
+      'Nachspeisen':  'bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-200',
+      'Getränke':     'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-200',
+    }
+    const color = cat ? (colors[cat] ?? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]') : 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
+    return `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${color}`
+  }
 
   const CategoryNav = () => (
     <>
       <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
-      <button onClick={() => handleMainCat(null)} className={sidebarBtnCls(!selectedMainCategory)}>
+      <button onClick={() => handleMainCat(null)} className={catBtnCls(null, !selectedMainCategory)}>
         <span>Alle</span>
         <span className="text-xs opacity-60">{recipesQuery.data?.length ?? 0}</span>
       </button>
       {MAIN_CATEGORIES.map((cat) => (
-        <button key={cat} onClick={() => handleMainCat(cat)} className={sidebarBtnCls(selectedMainCategory === cat)}>
+        <button key={cat} onClick={() => handleMainCat(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
           <span>{cat}</span>
           {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
         </button>
