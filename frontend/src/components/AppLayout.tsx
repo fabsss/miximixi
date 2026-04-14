@@ -1,17 +1,9 @@
 import { flushSync } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
-import { getHealth } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/NavDrawerContext'
 
 export function AppLayout() {
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: getHealth,
-    staleTime: 60_000,
-  })
-
   const { theme, setTheme } = useTheme()
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
@@ -110,14 +102,6 @@ export function AppLayout() {
       <main className="mx-shell mt-8">
         <Outlet />
       </main>
-
-      <footer className="mx-shell mt-12 text-xs text-[var(--mx-on-surface-variant)]">
-        {healthQuery.data?.status === 'ok' ? (
-          <p>Backend online · LLM: {healthQuery.data.llm_provider}</p>
-        ) : (
-          <p>Backend wird überprüft …</p>
-        )}
-      </footer>
     </div>
   )
 }
