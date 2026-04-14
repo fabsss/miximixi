@@ -16,7 +16,7 @@ export function AppLayout() {
   const recipeId = detailMatch?.params?.recipeId
 
   return (
-    <div className="pb-12">
+    <div>
       <header className="sticky top-0 z-20 border-none bg-[color:color-mix(in_srgb,var(--mx-surface)_84%,transparent)] backdrop-blur-xl">
         <div className="mx-shell flex items-center justify-between py-4">
           {/* Left: hamburger (feed, mobile) OR back arrow (detail pages) + logo */}
