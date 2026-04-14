@@ -40,6 +40,8 @@ JSON-Format:
 
 Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
+- "category" = GENAU EINER dieser vier Werte: Vorspeisen, Hauptspeisen, Nachspeisen, Getränke
+- "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
@@ -57,11 +59,11 @@ JSON-Format:
 {
   "title": "Rezeptname",
   "lang": "de",
-  "category": "Pasta|Salat|Suppe|Fleisch|Fisch|Dessert|Frühstück|Snack|Sonstiges",
+  "category": "Vorspeisen|Hauptspeisen|Nachspeisen|Getränke",
   "servings": 2,
   "prep_time": "10 min",
   "cook_time": "20 min",
-  "tags": ["vegetarisch", "schnell"],
+  "tags": ["Vegetarisch", "Italienisch"],
   "ingredients": [
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
@@ -73,6 +75,8 @@ JSON-Format:
 
 Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
+- "category" = GENAU EINER dieser vier Werte: Vorspeisen, Hauptspeisen, Nachspeisen, Getränke
+- "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
