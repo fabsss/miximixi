@@ -11,7 +11,7 @@ type MainCategory = (typeof MAIN_CATEGORIES)[number]
 export function FeedPage() {
   const [search, setSearch] = useState('')
   const [selectedMainCategory, setSelectedMainCategory] = useState<MainCategory | null>(null)
-  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
@@ -76,15 +76,15 @@ export function FeedPage() {
       const categoryMatch = recipe.category?.toLowerCase().includes(value)
       const searchOk = !value || titleMatch || tagMatch || categoryMatch
       const mainCatOk = !selectedMainCategory || recipe.category === selectedMainCategory
-      const tagOk = !selectedTag || recipe.tags?.includes(selectedTag)
+      const tagOk = selectedTags.size === 0 || recipe.tags?.some((t) => selectedTags.has(t))
       const favoriteOk = !showFavoritesOnly || recipe.rating === 1
       return searchOk && mainCatOk && tagOk && favoriteOk
     })
-  }, [recipesQuery.data, search, selectedMainCategory, selectedTag, showFavoritesOnly])
+  }, [recipesQuery.data, search, selectedMainCategory, selectedTags, showFavoritesOnly])
 
   const handleMainCat = (cat: MainCategory | null) => {
     setSelectedMainCategory(cat)
-    setSelectedTag(null)
+    setSelectedTags(new Set())
     setShowFavoritesOnly(false)
     setDrawerOpen(false)
   }
@@ -230,7 +230,7 @@ export function FeedPage() {
           <div className="flex flex-wrap gap-2">
             {/* Favorites filter */}
             <button
-              onClick={() => { setShowFavoritesOnly(!showFavoritesOnly); setSelectedTag(null) }}
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
                 showFavoritesOnly
                   ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
@@ -241,21 +241,16 @@ export function FeedPage() {
               Favoriten
             </button>
 
-            {selectedTag && (
-              <button
-                onClick={() => setSelectedTag(null)}
-                className="rounded-full bg-[var(--mx-surface-container)] px-3 py-1 text-xs font-semibold text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)]"
-              >
-                \u2715 Alle Tags
-              </button>
-            )}
-
             {availableTags.map((tag) => (
               <button
                 key={tag}
-                onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                onClick={() => setSelectedTags((prev) => {
+                  const next = new Set(prev)
+                  next.has(tag) ? next.delete(tag) : next.add(tag)
+                  return next
+                })}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  selectedTag === tag
+                  selectedTags.has(tag)
                     ? 'bg-[var(--mx-secondary-container)] text-[var(--mx-secondary)]'
                     : 'bg-[var(--mx-surface-container)] text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)]'
                 }`}
