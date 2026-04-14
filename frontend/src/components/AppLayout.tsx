@@ -1,5 +1,6 @@
+import { flushSync } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { getHealth } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
 
@@ -11,30 +12,88 @@ export function AppLayout() {
   })
 
   const { theme, setTheme } = useTheme()
+  const navigate = useNavigate()
 
   const themeIcon = theme === 'system' ? '🖥️' : theme === 'dark' ? '🌙' : '☀️'
   const nextTheme: 'light' | 'dark' | 'system' =
     theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
 
+  const detailMatch = useMatch('/recipes/:recipeId')
+  const recipeId = detailMatch?.params?.recipeId
+
   return (
     <div className="pb-12">
       <header className="sticky top-0 z-20 border-none bg-[color:color-mix(in_srgb,var(--mx-surface)_84%,transparent)] backdrop-blur-xl">
-        <div className="mx-shell flex items-center justify-between py-5">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">
-              Miximixi
-            </p>
-            <h1 className="m-0 text-2xl text-[var(--mx-primary)]">Das moderne Erbe</h1>
+        <div className="mx-shell flex items-center justify-between py-4">
+          {/* Left: back arrow (detail pages) + logo */}
+          <div className="flex items-center gap-3">
+            {recipeId && (
+              <button
+                onClick={() => {
+                  if ('startViewTransition' in document) {
+                    (document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+                      flushSync(() => navigate('/'))
+                    })
+                  } else {
+                    navigate('/')
+                  }
+                }}
+                aria-label="Zurück"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
+              >
+                <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+              </button>
+            )}
+            <Link to="/" className="block">
+              <h1 className="m-0 font-headline text-3xl leading-none text-[var(--mx-primary)]">
+                Miximixi
+              </h1>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">
+                Die Rezepte App
+              </p>
+            </Link>
           </div>
-          <nav className="mx-glass flex items-center rounded-full p-1 text-sm font-semibold">
-            <button
-              onClick={() => setTheme(nextTheme)}
-              title={`Theme: ${theme} → ${nextTheme}`}
-              className="rounded-full px-3 py-2 text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
-            >
-              {themeIcon}
-            </button>
-          </nav>
+
+          {/* Right: cook mode (detail pages) + theme pill */}
+          <div className="flex items-center gap-3">
+            {recipeId && (
+              <Link
+                to={`/cook/${recipeId}`}
+                className="hidden sm:flex items-center gap-2 rounded-xl bg-[var(--mx-primary)] px-4 py-2 text-sm font-semibold text-[var(--mx-on-primary)] shadow-md shadow-[var(--mx-primary)]/20 transition-all hover:bg-[var(--mx-primary-dim)] active:scale-95"
+              >
+                <span
+                  className="material-symbols-outlined text-[17px]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  restaurant
+                </span>
+                Kochmodus
+              </Link>
+            )}
+            <nav className="mx-glass flex items-center rounded-full p-1 text-sm font-semibold">
+              {recipeId && (
+                <Link
+                  to={`/cook/${recipeId}`}
+                  className="sm:hidden flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-primary)] hover:bg-[var(--mx-surface-container)] transition-colors"
+                  title="Kochmodus"
+                >
+                  <span
+                    className="material-symbols-outlined text-[20px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    restaurant
+                  </span>
+                </Link>
+              )}
+              <button
+                onClick={() => setTheme(nextTheme)}
+                title={`Theme: ${theme} → ${nextTheme}`}
+                className="rounded-full px-3 py-2 text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
+              >
+                {themeIcon}
+              </button>
+            </nav>
+          </div>
         </div>
       </header>
 
@@ -52,3 +111,4 @@ export function AppLayout() {
     </div>
   )
 }
+

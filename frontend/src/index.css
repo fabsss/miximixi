@@ -60,6 +60,29 @@
   }
 }
 
+/* Tailwind v4 font theme tokens */
+@theme {
+  --font-headline: "Noto Serif", Georgia, serif;
+  --font-body: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --font-label: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  user-select: none;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -101,4 +124,24 @@ a {
 .mx-shell {
   width: min(1240px, 100% - 2rem);
   margin: 0 auto;
+}
+
+/* Page transition (back button) */
+@keyframes vt-slide-out {
+  to { opacity: 0; transform: translateX(-1.5rem); }
+}
+@keyframes vt-slide-in {
+  from { opacity: 0; transform: translateX(1.5rem); }
+}
+::view-transition-old(root) {
+  animation: 250ms ease-in both vt-slide-out;
+}
+::view-transition-new(root) {
+  animation: 300ms ease-out both vt-slide-in;
+}
+
+/* Hero image fade-in on rotation */
+@keyframes mx-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

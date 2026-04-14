@@ -52,6 +52,20 @@ class ImportResponse(BaseModel):
     message: str
 
 
+class IngredientInput(BaseModel):
+    name: str
+    amount: float | None = None
+    unit: str | None = None
+    group_name: str | None = None
+    sort_order: int = 0
+
+
+class StepInput(BaseModel):
+    text: str
+    time_minutes: int | None = None
+    sort_order: int = 0
+
+
 class RecipeUpdateRequest(BaseModel):
     title: str | None = None
     servings: int | None = None
@@ -61,6 +75,8 @@ class RecipeUpdateRequest(BaseModel):
     tags: list[str] | None = None
     notes: str | None = None
     rating: int | None = None  # -1, 0, or 1
+    ingredients: list[IngredientInput] | None = None
+    steps: list[StepInput] | None = None
 
 
 class TranslationResponse(BaseModel):
