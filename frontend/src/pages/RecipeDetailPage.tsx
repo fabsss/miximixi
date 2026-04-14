@@ -45,6 +45,18 @@ function shortIngName(name: string): string {
   return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
 }
 
+// Strip trailing "(IngredientName)" from a text chunk when it exactly matches
+// the canonical ingredient name — avoids "Rhabarber (Rhabarber) [btn]" duplication.
+function stripTrailingParen(text: string, ingredientName: string | undefined): string {
+  if (!ingredientName) return text
+  const canonical = shortIngName(ingredientName).trim().toLowerCase()
+  // Match a trailing " (X)" where X normalised equals the canonical name
+  return text.replace(/\s*\([^)]+\)\s*$/, (match) => {
+    const inner = match.replace(/^\s*\(|\)\s*$/g, '').trim().toLowerCase()
+    return inner === canonical ? '' : match
+  })
+}
+
 function parseIngredientReference(
   text: string,
 ): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
@@ -665,7 +677,16 @@ export function RecipeDetailPage() {
                   <div className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-primary)] text-sm font-bold text-[var(--mx-on-primary)]">{index + 1}</div>
                   <p className="font-body text-sm leading-relaxed text-[var(--mx-on-surface-variant)] md:text-base">
                     {parts.map((part, i) => {
-                      if (part.type === 'text') return <span key={i}>{part.content}</span>
+                      if (part.type === 'text') {
+                        // If the next part is a ref, strip a trailing "(IngName)" that would duplicate the button label
+                        const nextPart = parts[i + 1]
+                        let content = part.content
+                        if (nextPart?.type === 'ref') {
+                          const nextIng = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === nextPart.content)
+                          content = stripTrailingParen(content, nextIng?.name)
+                        }
+                        return <span key={i}>{content}</span>
+                      }
                       const sortOrder = part.content
                       const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
                       const isHighlighted = highlightedSortOrder === sortOrder
