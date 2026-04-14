@@ -170,7 +170,7 @@ Edit with production values:
 # Free tier: 50 calls/day, $0.075 per 1M tokens
 # Cost: ~$0.003 per recipe
 LLM_PROVIDER=gemini
-GEMINI_API_KEY=AIza...
+GOOGLE_API_KEY=AIza...
 GEMINI_MODEL=gemini-2.0-flash
 
 # Option B: Claude (Cloud, Recommended for quality)
