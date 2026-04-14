@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { getHealth } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
+import { useNavDrawer } from '../context/NavDrawerContext'
 
 export function AppLayout() {
   const healthQuery = useQuery({
@@ -12,6 +13,7 @@ export function AppLayout() {
   })
 
   const { theme, setTheme } = useTheme()
+  const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
 
   const themeIcon = theme === 'system' ? '🖥️' : theme === 'dark' ? '🌙' : '☀️'
@@ -25,9 +27,9 @@ export function AppLayout() {
     <div className="pb-12">
       <header className="sticky top-0 z-20 border-none bg-[color:color-mix(in_srgb,var(--mx-surface)_84%,transparent)] backdrop-blur-xl">
         <div className="mx-shell flex items-center justify-between py-4">
-          {/* Left: back arrow (detail pages) + logo */}
+          {/* Left: hamburger (feed, mobile) OR back arrow (detail pages) + logo */}
           <div className="flex items-center gap-3">
-            {recipeId && (
+            {recipeId ? (
               <button
                 onClick={() => {
                   if ('startViewTransition' in document) {
@@ -42,6 +44,14 @@ export function AppLayout() {
                 className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
               >
                 <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => openDrawer(true)}
+                aria-label="Kategorien öffnen"
+                className="lg:hidden flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
+              >
+                <span className="material-symbols-outlined text-[22px]">menu</span>
               </button>
             )}
             <Link to="/" className="block">
