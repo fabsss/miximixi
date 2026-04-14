@@ -50,8 +50,12 @@ function shortIngName(name: string): string {
 function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
   return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
-    // Only strip single-ingredient parentheticals (no commas → not a useful list)
+    // Keep multi-ingredient lists (have commas)
     if (normalized.includes(',')) return match
+    // Strategy 1: strip if the word immediately before the paren is the same word
+    const precedingWordMatch = text.slice(0, text.indexOf(match)).match(/(\S+)\s*$/)
+    if (precedingWordMatch && precedingWordMatch[1].toLowerCase() === normalized) return ''
+    // Strategy 2: strip if it matches a known ingredient name
     const isIngName = allIngredients.some((ing) => {
       const canonical = shortIngName(ing.name).toLowerCase()
       return canonical === normalized || normalized.startsWith(canonical) || canonical.startsWith(normalized)
