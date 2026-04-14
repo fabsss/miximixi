@@ -128,6 +128,46 @@ def _fix_encoding(obj):
     return obj
 
 
+def _normalize_category(category: str | None) -> str | None:
+    """Normalisiert LLM-Kategorien auf erlaubte Werte."""
+    if not category:
+        return None
+
+    # Mapping von häufigen LLM-Outputs auf erlaubte Kategorien
+    mapping = {
+        "dessert": "Nachspeisen",
+        "desserts": "Nachspeisen",
+        "nachtisch": "Nachspeisen",
+        "süßspeisen": "Nachspeisen",
+        "frühstück": "Hauptspeisen",
+        "breakfast": "Hauptspeisen",
+        "brunch": "Hauptspeisen",
+        "snack": "Vorspeisen",
+        "snacks": "Vorspeisen",
+        "getränk": "Getränke",
+        "drinks": "Getränke",
+        "suppe": "Vorspeisen",
+        "salat": "Vorspeisen",
+        "pasta": "Hauptspeisen",
+        "fleisch": "Hauptspeisen",
+        "fisch": "Hauptspeisen",
+    }
+
+    normalized = category.lower().strip()
+
+    # Exakte Treffer in erlaubten Kategorien
+    if normalized in ["vorspeisen", "hauptspeisen", "nachspeisen", "getränke"]:
+        return category  # Original-Capitalization behalten
+
+    # Versuche Mapping
+    if normalized in mapping:
+        return mapping[normalized]
+
+    # Kein Match: Kategorie auf None setzen (import nicht ablehnen)
+    logger.warning(f"Unbekannte Kategorie '{category}' → None gesetzt")
+    return None
+
+
 def _parse_llm_response(text: str, is_gemini: bool = False) -> ExtractionResult:
     """JSON aus LLM-Antwort parsen und in ExtractionResult umwandeln."""
     text = text.strip()
@@ -142,6 +182,10 @@ def _parse_llm_response(text: str, is_gemini: bool = False) -> ExtractionResult:
 
     cover_timestamp = data.pop("cover_timestamp", None)
     cover_frame_index = data.pop("cover_frame_index", None)
+
+    # Kategorie normalisieren, bevor Pydantic validiert
+    if "category" in data:
+        data["category"] = _normalize_category(data["category"])
 
     recipe = ExtractedRecipe(**data)
     return ExtractionResult(
