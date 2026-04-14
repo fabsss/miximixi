@@ -92,6 +92,7 @@ services:
       - backend
     networks:
       - miximixi
+      - proxy
 
   # ── PostgreSQL Database ────────────────────────────────────
   db:
