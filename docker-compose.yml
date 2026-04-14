@@ -47,8 +47,8 @@ services:
       - INSTAGRAM_COLLECTION_ID=${INSTAGRAM_COLLECTION_ID}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     volumes:
-      - backend-tmp:/tmp/miximixi
-      - recipe-images:/data/recipe-images
+      - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
+      - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images
       - ./backend/instagram_session.json:/app/instagram_session.json
     depends_on:
       db:
@@ -64,7 +64,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama-models:/root/.ollama
+      - /mnt/data/nobackup/miximixi/ollama-models:/root/.ollama
     networks:
       - miximixi
 
@@ -86,7 +86,7 @@ services:
       - BACKEND_URL=http://backend:8000
       - WEBHOOK_URL=http://n8n:5678  # Anpassen auf externe URL in Produktion
     volumes:
-      - n8n-data:/home/node/.n8n
+      - /mnt/data/backup/miximixi/n8n-data:/home/node/.n8n
     depends_on:
       - backend
     networks:
@@ -104,7 +104,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME:-miximixi}
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - /mnt/data/backup/miximixi/db-data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
@@ -114,13 +114,11 @@ services:
     networks:
       - miximixi
 
-volumes:
-  db-data:
-  ollama-models:
-  n8n-data:
-  backend-tmp:
-  recipe-images:
+# Volumes are now bind-mounted to /mnt/data/nobackup/miximixi/
+# Named volumes section removed - see docker-compose.yml volumes configuration
 
 networks:
   miximixi:
     driver: bridge
+  proxy:
+    external: true
