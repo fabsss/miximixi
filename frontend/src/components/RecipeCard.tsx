@@ -33,7 +33,6 @@ function HeartIcon({ filled, className }: { filled: boolean; className?: string 
 
 export function RecipeCard({ recipe, index }: RecipeCardProps) {
   const imageUrl = getImageUrl(recipe.id)
-  const source = recipe.source_label || 'Sammlung'
   const tileClass = tileVariants[index % tileVariants.length]
   const isFavorite = recipe.rating === 1
   // A recipe may have multiple categories stored as comma-separated string
@@ -57,9 +56,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
               <HeartIcon filled className="h-4 w-4" />
             </span>
           )}
-          <span className="mx-glass absolute right-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--mx-primary)]">
-            {source}
-          </span>
+
         </div>
 
         <div className="px-2 pb-1 pt-3">

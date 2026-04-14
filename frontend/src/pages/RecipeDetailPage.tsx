@@ -393,6 +393,12 @@ export function RecipeDetailPage() {
                   <span className="text-xs font-medium">{actualServings} Portionen</span>
                 </div>
               )}
+              {recipe.source_url && (
+                <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-white transition-colors">
+                  <span className="material-symbols-outlined text-[15px]">link</span>
+                  <span className="text-xs font-medium">{recipe.source_label ? recipe.source_label.replace(/^@/, '@') : 'Originalquelle'}</span>
+                </a>
+              )}
 
             </div>
           </div>
