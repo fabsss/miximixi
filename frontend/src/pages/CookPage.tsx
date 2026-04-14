@@ -26,17 +26,17 @@ function shortIngName(name: string): string {
 }
 
 function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
-  return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
+  let result = text.replace(/(\p{L}[\p{L}\p{N}\s]*)\s*\(\1\)/giu, '$1')
+  result = result.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
     if (normalized.includes(',')) return match
-    const precedingWordMatch = text.slice(0, text.indexOf(match)).match(/(\S+)\s*$/)
-    if (precedingWordMatch && precedingWordMatch[1].toLowerCase() === normalized) return ''
     const isIngName = allIngredients.some((ing) => {
       const canonical = shortIngName(ing.name).toLowerCase()
-      return canonical === normalized || normalized.startsWith(canonical) || canonical.startsWith(normalized)
+      return canonical === normalized
     })
     return isIngName ? '' : match
   })
+  return result
 }
 
 function formatTime(totalSeconds: number): string {
