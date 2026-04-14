@@ -7,14 +7,19 @@ Complete guide for deploying Miximixi on a home server or Linux VPS using Docker
 ### Hardware Requirements
 
 - **CPU:** 4+ cores recommended (Ollama CPU inference uses multiple cores)
-- **RAM:** 16 GB minimum
-  - 8 GB for Ollama + LLM model (if using CPU inference)
-  - 4 GB for other services (PostgreSQL, n8n, nginx)
-  - 4 GB buffer for OS and overhead
+- **RAM:** 
+  - **With cloud LLM (Gemini/Claude):** 8 GB minimum
+    - 4 GB for PostgreSQL, n8n, backend
+    - 4 GB buffer for OS and overhead
+  - **With local Ollama (CPU):** 16 GB minimum
+    - 8 GB for Ollama + LLM model inference
+    - 4 GB for PostgreSQL, n8n, backend
+    - 4 GB buffer for OS and overhead
 - **Storage:** 50 GB minimum
-  - 10 GB for LLM models (Ollama)
+  - 10 GB for LLM models (Ollama) — *Optional, only if using local LLM*
   - 30 GB for recipes, images, and database
   - 10 GB buffer for backups
+  - *Tip: If using cloud LLM (Gemini/Claude), you can reduce this to ~30 GB total*
 - **Network:** Static IP or stable hostname recommended
 
 ### Software Requirements
@@ -95,17 +100,32 @@ sudo apt-get install nginx certbot python3-certbot-nginx
 
 ## Production Setup (First Deployment)
 
-### Step 1: Create Deployment User
+### Step 1: Create Deployment User (Optional)
 
-For security, run services as non-root user:
+**Skip this step if:** You're running Docker in an unprivileged LXC container (e.g., on Proxmox)
+- Docker root inside the container is already mapped to unprivileged UID on host
+- Extra user adds complexity without significant security benefit
 
+**Do this step if:** Running Docker directly on a host machine (physical server or privileged VM)
+- Prevents accidental root-level operations
+- Follows principle of least privilege
+
+**If creating the user:**
 ```bash
 sudo useradd -m -s /bin/bash miximixi
 sudo usermod -aG docker miximixi
 su - miximixi
 ```
 
-All commands below run as `miximixi` user.
+**If skipping:** Run all commands below as your current user (usually `root` in LXC container)
+```bash
+# Just run docker compose directly
+docker compose up -d
+```
+
+---
+
+**Security note:** Services inside Docker containers run as non-root regardless (see Dockerfiles). This user is only for host-level operations.
 
 ### Step 2: Clone Repository
 
@@ -141,10 +161,14 @@ Edit with production values:
 # ============================================
 # LLM Configuration (CRITICAL CHOICE)
 # ============================================
+# NOTE: Choose ONE provider. Ollama is OPTIONAL.
+# Recommended for production: Gemini or Claude
+# (No local LLM needed unless you want zero API costs)
 
-# Option A: Gemini (Cloud, Recommended)
-# Fastest, native video, but API calls are metered
+# Option A: Gemini (Cloud, Recommended for production)
+# Fastest, native video, API metered but cheap
 # Free tier: 50 calls/day, $0.075 per 1M tokens
+# Cost: ~$0.003 per recipe
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=AIza...
 GEMINI_MODEL=gemini-2.0-flash
@@ -156,15 +180,18 @@ LLM_PROVIDER=claude
 CLAUDE_API_KEY=sk-ant-...
 CLAUDE_MODEL=claude-sonnet-4-6
 
-# Option C: Ollama (Self-Hosted, CPU)
+# Option C: Ollama (Self-Hosted, CPU) — Optional
 # Free but SLOW (2-10 min per recipe on CPU)
-# Only use if you have GPU or high-end CPU
+# Only use if you have spare CPU capacity and want zero API costs
+# Requires Ollama service running (docker compose up -d ollama)
 # LLM_PROVIDER=ollama
 # OLLAMA_BASE_URL=http://ollama:11434
 # OLLAMA_MODEL=llama3.2-vision:11b
 
-# Option D: Gemma 3n (Self-Hosted, via Ollama)
-# Balanced speed/quality, requires 8-12GB VRAM
+# Option D: Gemma 3n (Self-Hosted, via Ollama) — Optional
+# Faster than llama3.2, balanced speed/quality
+# Requires 8-12GB VRAM available for inference
+# Requires Ollama service running (docker compose up -d ollama)
 # LLM_PROVIDER=gemma3n
 # GEMMA3N_BASE_URL=http://ollama:11434
 # GEMMA3N_MODEL=gemma3n:e4b
@@ -231,6 +258,17 @@ openssl rand -base64 16
 openssl rand -base64 32
 ```
 
+### LLM Provider Quick Decision Guide
+
+| Provider | Speed | Cost | Requires | Notes |
+|----------|-------|------|----------|-------|
+| **Gemini** ⭐ | 3-5s | $0.003/recipe | API key only | Best for production |
+| **Claude** | 5-10s | $0.003/recipe | API key only | High quality output |
+| **Ollama** (optional) | 2-10min | $0 | 8-16GB RAM | Local, slow, CPU-bound |
+| **OpenAI** | 5-10s | $0.01/recipe | API key only | Alternative cloud option |
+
+**Recommendation:** Start with Gemini API (cheap, fast, no local setup). Only use Ollama if you want zero API costs and have spare CPU capacity.
+
 ### Step 4: Configure TLS Certificates
 
 #### Option A: Zoraxy (Auto-Renews)
@@ -282,23 +320,25 @@ Wait for services to start (~60 seconds):
 docker compose ps
 ```
 
-All services should be `Up` or `healthy`:
+**Required services** should be `Up` or `healthy`:
 ```
-NAME                       STATUS
-miximixi-frontend          Up (healthy)
-miximixi-backend           Up
-miximixi-supabase-db       Up (healthy)
-miximixi-supabase-api      Up
-miximixi-supabase-studio   Up
-miximixi-n8n               Up
-miximixi-ollama            Up
-miximixi-postgres          Up (internal)
+NAME              STATUS
+miximixi-db       Up (healthy)
+miximixi-backend  Up
+miximixi-n8n      Up
+```
+
+**Optional services:**
+```
+NAME              STATUS
+miximixi-ollama   Up  (only if LLM_PROVIDER=ollama or gemma3n)
+miximixi-frontend Up  (only if frontend is enabled in docker-compose.yml)
 ```
 
 **If services fail to start:**
 ```bash
 # Check logs for specific service
-docker compose logs supabase-db
+docker compose logs db
 docker compose logs backend
 
 # Restart service
@@ -354,19 +394,30 @@ curl https://api.rezepte.example.com/health
 # Should return {"status":"ok","llm_provider":"gemini"}
 ```
 
-### Step 8: Pull LLM Models (if using Ollama)
+### Step 8: Pull LLM Models (Optional – only if using Ollama)
 
-Skip if using Gemini/Claude.
+**Skip this step if you're using:**
+- Gemini API (`LLM_PROVIDER=gemini`)
+- Claude API (`LLM_PROVIDER=claude`)
+- OpenAI API (`LLM_PROVIDER=openai`)
+- Any other cloud LLM provider
+
+**Only do this if using local Ollama** (`LLM_PROVIDER=ollama` or `LLM_PROVIDER=gemma3n`):
 
 ```bash
-# Pull default model
+# First, verify ollama container is running
+docker compose ps ollama
+
+# Pull default model (llama3.2-vision)
 docker exec -it miximixi-ollama ollama pull llama3.2-vision:11b
 
-# OR pull Gemma 3n (faster)
+# OR pull Gemma 3n (faster, smaller, better for limited hardware)
 docker exec -it miximixi-ollama ollama pull gemma3n:e4b
 ```
 
-This downloads ~4-8 GB. Can take 10-30 minutes depending on internet.
+**Expected behavior:**
+- First pull: downloads ~4-8 GB, takes 10-30 minutes depending on internet speed
+- Subsequent starts: model loads from local cache (~1 min)
 
 **Check progress:**
 ```bash
@@ -549,11 +600,15 @@ conn = psycopg2.connect(
 )
 ```
 
-#### Ollama (LLM Runtime)
+#### Ollama (LLM Runtime) — Optional
+
+**Only needed if:** `LLM_PROVIDER=ollama` or `LLM_PROVIDER=gemma3n`
+
+**Skip this service if using:** Gemini, Claude, OpenAI, or other cloud LLM providers
 
 ```yaml
 Image: ollama/ollama:latest
-Port: 11434
+Port: 11434 (internal only, not exposed to internet)
 CPU: 4 cores (all cores during inference)
 Memory: 8 GB (all free RAM during inference)
 Restart: always
@@ -561,12 +616,14 @@ Mounts:
   - ollama_data: /root/.ollama/
 ```
 
-**Role:** Runs open-source LLMs locally (CPU-bound, slow but free).
+**Role:** Runs open-source LLMs locally (CPU-bound, no API costs).
 
 **Performance:**
 - Model load: ~30s (first request after restart)
-- Inference: 2-10 minutes per recipe (depends on model size)
+- Inference: 2-10 minutes per recipe (depends on model size and CPU)
 - Max concurrent: 1 (single request queue)
+
+**Recommendation:** Use cloud LLM (Gemini/Claude) for production unless you have spare CPU capacity or want zero API costs.
 
 #### n8n (Workflow Orchestration)
 
@@ -878,18 +935,34 @@ EOF
 docker compose logs -f db | grep -i slow
 ```
 
-### Optimize LLM Extraction (if using Ollama)
+### Optimize LLM Extraction
+
+**Recommended: Use cloud LLM (Gemini/Claude)**
+- Fastest extraction (3-5 seconds per recipe)
+- No local resource usage
+- Costs $0.003-0.10 per recipe
+- No model download needed
+
+**If using local Ollama:**
 
 ```bash
-# Run only one recipe at a time (single GPU/CPU queue)
+# Verify Ollama is running
+docker compose ps ollama
+
+# Run only one recipe at a time (single CPU queue)
 # Parallel requests will queue behind each other
 
 # Monitor inference queue
 docker exec -it miximixi-ollama ollama list
 docker exec -it miximixi-ollama ps
 
-# If slow, reduce model size
-docker exec -it miximixi-ollama ollama pull gemma3n:e4b  # Smaller than llama3.2-vision
+# If slow, switch to smaller model
+docker exec -it miximixi-ollama ollama pull gemma3n:e4b  # Faster than llama3.2-vision
+
+# Check CPU/memory usage
+docker stats miximixi-ollama
+
+# Tip: If CPU is consistently >80%, consider switching to cloud LLM
 ```
 
 ---
@@ -959,7 +1032,7 @@ docker compose up -d db
 docker exec -i miximixi-db psql -U postgres miximixi < backup.sql
 ```
 
-### Ollama model keeps redownloading
+### Ollama model keeps redownloading (if using Ollama)
 
 **Symptom:** Each request redownloads model (slow extraction)
 
@@ -976,8 +1049,21 @@ docker exec -it miximixi-ollama ollama list
 # If missing, pull again
 docker exec -it miximixi-ollama ollama pull gemma3n:e4b
 
-# Persistent test
+# Check model storage
 docker exec -it miximixi-ollama ls -la /root/.ollama/models/
+```
+
+**Better solution: Switch to cloud LLM**
+```bash
+# Update .env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=AIza...
+
+# Restart backend
+docker compose restart backend
+
+# Optional: Stop Ollama to free up RAM
+docker compose stop ollama
 ```
 
 ### n8n webhook not receiving Telegram messages
@@ -1010,16 +1096,20 @@ curl https://api.telegram.org/bot<TOKEN>/getWebhookInfo
 
 ### Scale to Multiple Recipes/Day
 
-**Current capacity:** 10-20 recipes/day (single backend, CPU Ollama)
+**Current capacity:**
+- Cloud LLM (Gemini/Claude): 100+ recipes/day
+- CPU Ollama: 10-20 recipes/day
 
-**To scale:**
+**Recommended approach: Use cloud LLM provider**
 
-1. **Use cloud LLM provider** (Gemini/Claude)
-   - 100+ recipes/day
+1. **Switch to cloud LLM** (Gemini or Claude recommended for production)
+   - 100+ recipes/day capacity
    - Cost: $0.003-0.10 per recipe
-   - Implementation: Change `LLM_PROVIDER=claude`
+   - Implementation: Set `LLM_PROVIDER=gemini` or `LLM_PROVIDER=claude`
+   - Can disable Ollama service entirely (saves 8GB RAM)
+   - Fast extraction: 3-5 seconds per recipe
 
-2. **Add backend load balancing**
+2. **Add backend load balancing** (if needed)
    ```yaml
    # docker-compose.yml
    backend:
