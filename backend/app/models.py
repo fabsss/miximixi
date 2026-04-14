@@ -1,4 +1,8 @@
+from typing import Literal
+
 from pydantic import BaseModel
+
+CATEGORY_VALUES = Literal["Vorspeisen", "Hauptspeisen", "Nachspeisen", "Getränke"]
 
 
 class Ingredient(BaseModel):
@@ -18,7 +22,7 @@ class Step(BaseModel):
 class ExtractedRecipe(BaseModel):
     title: str
     lang: str = "de"
-    category: str | None = None
+    category: CATEGORY_VALUES | None = None
     servings: int | None = None
     prep_time: str | None = None
     cook_time: str | None = None
@@ -53,7 +57,7 @@ class RecipeUpdateRequest(BaseModel):
     servings: int | None = None
     prep_time: str | None = None
     cook_time: str | None = None
-    category: str | None = None
+    category: CATEGORY_VALUES | None = None
     tags: list[str] | None = None
     notes: str | None = None
     rating: int | None = None  # -1, 0, or 1

@@ -6,6 +6,7 @@ export interface RecipeListItem {
   source_url: string | null
   source_label: string | null
   rating: number | null
+  tags: string[] | null
   created_at: string
 }
 
@@ -33,7 +34,6 @@ export interface RecipeDetail extends RecipeListItem {
   servings: number | null
   prep_time: string | null
   cook_time: string | null
-  tags: string[] | null
   notes: string | null
   ingredients: Ingredient[]
   steps: Step[]
