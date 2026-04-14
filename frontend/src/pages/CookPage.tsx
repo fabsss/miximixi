@@ -29,6 +29,8 @@ function stripIngredientParens(text: string, allIngredients: Array<{ name: strin
   return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
     if (normalized.includes(',')) return match
+    const precedingWordMatch = text.slice(0, text.indexOf(match)).match(/(\S+)\s*$/)
+    if (precedingWordMatch && precedingWordMatch[1].toLowerCase() === normalized) return ''
     const isIngName = allIngredients.some((ing) => {
       const canonical = shortIngName(ing.name).toLowerCase()
       return canonical === normalized || normalized.startsWith(canonical) || canonical.startsWith(normalized)
