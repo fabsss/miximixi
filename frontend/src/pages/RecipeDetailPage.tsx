@@ -41,17 +41,25 @@ function formatAmount(n: number): string {
   return String(Math.round(n * 10) / 10)
 }
 
+function shortIngName(name: string): string {
+  return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
+}
+
 function parseIngredientReference(
   text: string,
 ): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
   const parts: Array<{ type: 'text' | 'ref'; content: string; label: string }> = []
-  const regex = /(\S+)\s*\{(\d+)\}/g
+  // Match an optional real word (letters/digits) immediately before {N}
+  const regex = /(?:(\p{L}[\p{L}\p{N}]*)\s*)?\{(\d+)\}/gu
   let lastIndex = 0
   let match
   while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex)
-      parts.push({ type: 'text', content: text.slice(lastIndex, match.index), label: '' })
-    parts.push({ type: 'ref', content: match[2], label: match[1] })
+    // The text before the match (including the captured label word, which we strip)
+    const beforeLabel = match[1] ?? ''
+    const matchStart = match.index
+    const textChunk = text.slice(lastIndex, matchStart)
+    if (textChunk) parts.push({ type: 'text', content: textChunk, label: '' })
+    parts.push({ type: 'ref', content: match[2], label: beforeLabel })
     lastIndex = regex.lastIndex
   }
   if (lastIndex < text.length)
@@ -178,8 +186,8 @@ export function RecipeDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [ingredientsVisible, setIngredientsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const ingredientsRef = useRef<HTMLElement>(null)
-  const ingredientsPanelRef = useRef<HTMLDivElement>(null)
+  const ingredientsRef = useRef<HTMLDivElement>(null)
+  const ingredientsPanelRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const el = ingredientsRef.current
@@ -543,8 +551,8 @@ export function RecipeDetailPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         {/* INGREDIENTS SIDEBAR */}
-        <aside ref={ingredientsRef} className="w-full flex-shrink-0 lg:w-[350px]">
-          <div ref={ingredientsPanelRef} className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+        <aside ref={ingredientsPanelRef} className="w-full flex-shrink-0 lg:sticky lg:top-24 lg:w-[350px] lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+          <div ref={ingredientsRef} className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-headline text-xl font-bold text-[var(--mx-on-surface)]">Zutaten</h3>
               <div className="flex rounded-full bg-[var(--mx-surface-variant)] p-0.5">
@@ -674,10 +682,9 @@ export function RecipeDetailPage() {
                                     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
                                   }
                                 }
-                              }
-                            }}
+                              }                            }}
                             className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                            {part.label}
+                            {shortIngName(ingredient?.name ?? `Zutat ${sortOrder}`)}
                           </button>
                           {isHighlighted && tipText && !ingredientsVisible && (
                             <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
