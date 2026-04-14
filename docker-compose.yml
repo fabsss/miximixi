@@ -49,12 +49,13 @@ services:
     volumes:
       - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
       - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images
-      - ./backend/instagram_session.json:/app/instagram_session.json
+      - /mnt/data/backup/miximixi/instagram_session.json:/app/instagram_session.json
     depends_on:
       db:
         condition: service_healthy
     networks:
       - miximixi
+      - proxy
 
   # ── Ollama (CPU-only LLM) ─────────────────────────────────
   ollama:
