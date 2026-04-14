@@ -8,9 +8,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://miximixi-api.sektbirne.fun}
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_API_BASE_URL: https://miximixi-api.sektbirne.fun
     container_name: miximixi-frontend
     restart: unless-stopped
     ports:
