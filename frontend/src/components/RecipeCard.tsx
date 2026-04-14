@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { flushSync } from 'react-dom'
 import { getImageUrl } from '../lib/api'
 import type { RecipeListItem } from '../types'
 
@@ -42,6 +43,7 @@ function HeartIcon({ filled, className }: { filled: boolean; className?: string 
 }
 
 export function RecipeCard({ recipe, index }: RecipeCardProps) {
+  const navigate = useNavigate()
   const imageUrl = getImageUrl(recipe.id)
   const tileClass = tileVariants[index % tileVariants.length]
   const isFavorite = recipe.rating === 1
@@ -49,8 +51,19 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
     ? recipe.category.split(',').map((c) => c.trim()).filter(Boolean)
     : []
 
+  const handleClick = () => {
+    const target = `/recipes/${recipe.id}`
+    if ('startViewTransition' in document) {
+      ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+        flushSync(() => navigate(target))
+      })
+    } else {
+      navigate(target)
+    }
+  }
+
   return (
-    <Link to={`/recipes/${recipe.id}`} className="group block">
+    <div role="link" tabIndex={0} onClick={handleClick} onKeyDown={(e) => e.key === 'Enter' && handleClick()} className="group block cursor-pointer">
       <article className="rounded-[2rem] bg-[var(--mx-surface-container)] p-3 transition duration-500 hover:translate-y-[-2px] hover:shadow-[0_24px_52px_var(--mx-glow)]">
         <div className={`relative overflow-hidden rounded-[1.6rem] ${tileClass}`}>
           <img
@@ -58,6 +71,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             alt={recipe.title}
             loading="lazy"
             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            style={{ viewTransitionName: `recipe-img-${recipe.id}` }}
           />
           {/* Favorite heart – top left */}
           {isFavorite && (
@@ -93,7 +107,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           </div>
         </div>
       </article>
-    </Link>
+    </div>
   )
 }
 
