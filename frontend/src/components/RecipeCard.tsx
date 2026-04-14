@@ -61,13 +61,13 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           />
           {/* Favorite heart – top left */}
           {isFavorite && (
-            <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
+            <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
               <HeartIcon filled className="h-4 w-4" />
             </span>
           )}
           {/* Category chips – bottom left inside image */}
           {categories.length > 0 && (
-            <div className="absolute bottom-2.5 left-2.5 flex flex-wrap gap-1">
+            <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
               {categories.map((cat) => (
                 <span key={cat} className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${categoryChipCls(cat)}`}>
                   {cat}
