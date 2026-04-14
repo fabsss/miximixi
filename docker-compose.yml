@@ -3,19 +3,23 @@ name: miximixi
 services:
 
   # ── Frontend ──────────────────────────────────────────────
-  # TODO: Uncomment when frontend Dockerfile is ready
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: miximixi-frontend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - miximixi
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://miximixi-api.sektbirne.fun}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+    container_name: miximixi-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - miximixi
+      - proxy
 
   # ── Backend ───────────────────────────────────────────────
   backend:
