@@ -45,20 +45,20 @@ function formatAmount(n: number): string {
 
 function parseIngredientReference(
   text: string,
-): Array<{ type: 'text' | 'ref'; content: string }> {
-  const parts: Array<{ type: 'text' | 'ref'; content: string }> = []
-  const regex = /\{(\d+)\}/g
+): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
+  const parts: Array<{ type: 'text' | 'ref'; content: string; label: string }> = []
+  const regex = /(\S+)\s*\{(\d+)\}/g
   let lastIndex = 0
   let match
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex)
-      parts.push({ type: 'text', content: text.slice(lastIndex, match.index) })
-    parts.push({ type: 'ref', content: match[1] })
+      parts.push({ type: 'text', content: text.slice(lastIndex, match.index), label: '' })
+    parts.push({ type: 'ref', content: match[2], label: match[1] })
     lastIndex = regex.lastIndex
   }
   if (lastIndex < text.length)
-    parts.push({ type: 'text', content: text.slice(lastIndex) })
-  return parts.length > 0 ? parts : [{ type: 'text', content: text }]
+    parts.push({ type: 'text', content: text.slice(lastIndex), label: '' })
+  return parts.length > 0 ? parts : [{ type: 'text', content: text, label: '' }]
 }
 
 function playBell() {
@@ -571,6 +571,7 @@ export function RecipeDetailPage() {
                         const isHighlighted = highlightedSortOrder === String(ingredient.sort_order)
                         return (
                           <li
+                            id={`ingredient-${ingredient.sort_order}`}
                             key={ingredient.id}
                             onClick={() => setHighlightedSortOrder(isHighlighted ? null : String(ingredient.sort_order))}
                             className="group flex cursor-pointer items-start justify-between py-1 transition-all duration-150"
@@ -649,13 +650,19 @@ export function RecipeDetailPage() {
                       const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
                       return (
                         <span key={i} className="relative inline-block">
-                          <button type="button" onClick={() => setHighlightedSortOrder(isHighlighted ? null : sortOrder)}
+                          <button type="button" onClick={() => {
+                              setHighlightedSortOrder(isHighlighted ? null : sortOrder)
+                              if (!isHighlighted) {
+                                const el = document.getElementById(`ingredient-${sortOrder}`)
+                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              }
+                            }}
                             className={`rounded-md px-1.5 py-0.5 text-xs font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                            {tipText || '?'}
+                            {part.label}
                           </button>
-                          {isHighlighted && (
+                          {isHighlighted && tipText && (
                             <span className="lg:hidden pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
-                              {ingredient?.name ?? `Zutat #${sortOrder}`}{tipText ? ` · ${tipText}` : ''}
+                              {tipText}
                               <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
                             </span>
                           )}
