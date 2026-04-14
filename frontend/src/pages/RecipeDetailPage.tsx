@@ -47,21 +47,22 @@ function shortIngName(name: string): string {
 
 // Remove "(X)" from text when X exactly matches a known ingredient name.
 // Keeps multi-item parentheticals like "(flour, sugar, eggs)" intact.
+// Strip "Word (Word)" → "Word" repetitions and also "(IngName)" standalone parens.
 function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
-  return text.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
+  // 1. Direct backreference: strip when a word is immediately followed by itself in parens
+  //    e.g. "Rhabarber (Rhabarber)" → "Rhabarber"
+  let result = text.replace(/(\p{L}[\p{L}\p{N}\s]*)\s*\(\1\)/giu, '$1')
+  // 2. Strip (X) when X matches a known ingredient name (single-word parens only)
+  result = result.replace(/\s*\(([^)]+)\)/g, (match, inner) => {
     const normalized = inner.trim().toLowerCase()
-    // Keep multi-ingredient lists (have commas)
     if (normalized.includes(',')) return match
-    // Strategy 1: strip if the word immediately before the paren is the same word
-    const precedingWordMatch = text.slice(0, text.indexOf(match)).match(/(\S+)\s*$/)
-    if (precedingWordMatch && precedingWordMatch[1].toLowerCase() === normalized) return ''
-    // Strategy 2: strip if it matches a known ingredient name
     const isIngName = allIngredients.some((ing) => {
       const canonical = shortIngName(ing.name).toLowerCase()
-      return canonical === normalized || normalized.startsWith(canonical) || canonical.startsWith(normalized)
+      return canonical === normalized
     })
     return isIngName ? '' : match
   })
+  return result
 }
 
 function parseIngredientReference(
