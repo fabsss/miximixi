@@ -14,11 +14,16 @@ Neue Struktur:
       cover.jpg
       step-1-frame.jpg
       step-2-frame.jpg
+
+Nutzung:
+  python backend/migrate_images.py
+  python backend/migrate_images.py /custom/path/to/images
 """
 import os
 import re
 import shutil
 import logging
+import sys
 from pathlib import Path
 
 logging.basicConfig(
@@ -27,7 +32,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-IMAGES_DIR = "/data/recipe-images"
+# Pfad aus Kommandozeilen-Argument oder aus Config
+if len(sys.argv) > 1:
+    IMAGES_DIR = sys.argv[1]
+else:
+    # Versuche aus app.config zu lesen
+    try:
+        from app.config import settings
+        IMAGES_DIR = settings.images_dir
+    except ImportError:
+        # Fallback auf Default
+        IMAGES_DIR = "/data/recipe-images"
 
 
 def migrate_images():
