@@ -94,7 +94,7 @@ export function FeedPage() {
       'Vorspeisen':   'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200',
       'Hauptspeisen': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200',
       'Desserts':     'bg-pink-200 text-pink-900 dark:bg-pink-900 dark:text-pink-200',
-      'Frühstück':    'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-200',
+      'Brunch':       'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-200',
       'Snacks':       'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200',
       'Getränke':     'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-200',
     }

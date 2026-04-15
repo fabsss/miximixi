@@ -24,7 +24,7 @@ JSON-Format:
 {
   "title": "Rezeptname",
   "lang": "de",
-  "category": "Vorspeisen|Hauptspeisen|Desserts|Frühstück|Snacks|Getränke",
+  "category": "Vorspeisen|Hauptspeisen|Desserts|Brunch|Snacks|Getränke",
   "servings": 2,
   "prep_time": "10 min",
   "cook_time": "20 min",
@@ -40,7 +40,7 @@ JSON-Format:
 
 Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
-- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Frühstück, Snacks, Getränke
+- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Getränke
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
@@ -59,7 +59,7 @@ JSON-Format:
 {
   "title": "Rezeptname",
   "lang": "de",
-  "category": "Vorspeisen|Hauptspeisen|Desserts|Frühstück|Snacks|Getränke",
+  "category": "Vorspeisen|Hauptspeisen|Desserts|Brunch|Snacks|Getränke",
   "servings": 2,
   "prep_time": "10 min",
   "cook_time": "20 min",
@@ -75,7 +75,7 @@ JSON-Format:
 
 Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
-- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Frühstück, Snacks, Getränke
+- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Getränke
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
@@ -140,9 +140,9 @@ def _normalize_category(category: str | None) -> str | None:
         "nachtisch": "Desserts",
         "süßspeisen": "Desserts",
         "nachspeisen": "Desserts",
-        "frühstück": "Frühstück",
-        "breakfast": "Frühstück",
-        "brunch": "Frühstück",
+        "frühstück": "Brunch",
+        "breakfast": "Brunch",
+        "brunch": "Brunch",
         "snack": "Snacks",
         "snacks": "Snacks",
         "appetizer": "Vorspeisen",
@@ -164,7 +164,7 @@ def _normalize_category(category: str | None) -> str | None:
     normalized = category.lower().strip()
 
     # Exakte Treffer in erlaubten Kategorien
-    if normalized in ["vorspeisen", "hauptspeisen", "desserts", "frühstück", "snacks", "getränke"]:
+    if normalized in ["vorspeisen", "hauptspeisen", "desserts", "brunch", "snacks", "getränke"]:
         return category  # Original-Capitalization behalten
 
     # Versuche Mapping
