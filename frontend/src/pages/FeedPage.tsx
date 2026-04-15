@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
-import { HeartIcon, RecipeCard } from '../components/RecipeCard'
+import { HeartIcon, RecipeCard, categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
 import { useNavDrawer } from '../context/NavDrawerContext'
 
 export function FeedPage() {
@@ -177,7 +177,8 @@ export function FeedPage() {
               <div className="absolute bottom-0 left-0 flex w-full flex-col items-start justify-between gap-4 p-5 md:flex-row md:items-end md:p-8">
                 <div className="max-w-xl">
                   {heroRecipe.category && (
-                    <span className="mb-2 inline-block rounded-full bg-[var(--mx-primary)]/90 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-primary)] backdrop-blur-md md:text-xs">
+                    <span className={`mb-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-md md:text-xs ${categoryChipCls(heroRecipe.category)}`}>
+                      <span className="material-symbols-outlined text-[10px]">{getCategoryIcon(heroRecipe.category)}</span>
                       {heroRecipe.category}
                     </span>
                   )}

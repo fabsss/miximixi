@@ -14,6 +14,7 @@ import {
 import { useCategories } from '../lib/useCategories'
 import type { Ingredient } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
+import { categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
 
 const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
@@ -235,7 +236,8 @@ export function RecipeDetailPage() {
     let expanded = false
 
     const check = () => {
-      setIngredientsVisible(el.getBoundingClientRect().bottom > 0)
+      const rect = el.getBoundingClientRect()
+      setIngredientsVisible(rect.bottom > 0 && rect.top < window.innerHeight)
       const dist = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
 
       if (dist < THRESH && !expanded) {
@@ -422,8 +424,8 @@ export function RecipeDetailPage() {
           <div className="pointer-events-none absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
             <div className="mb-2 flex flex-wrap gap-1.5">
               {categories.length > 0 ? categories.map((cat, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-[var(--mx-secondary-container)] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--mx-secondary)]">
-                  <span className="material-symbols-outlined text-[12px]">eco</span>{cat}
+                <span key={i} className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider ${categoryChipCls(cat)}`}>
+                  <span className="material-symbols-outlined text-[12px]">{getCategoryIcon(cat)}</span>{cat}
                 </span>
               )) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/30 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-white/80 backdrop-blur-sm">
@@ -791,12 +793,6 @@ export function RecipeDetailPage() {
               )
             })}
           </ol>
-
-          <div className="mt-14 border-t border-[var(--mx-outline-variant)]/20 pt-8">
-            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-              {recipe.prep_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Vorbereitung</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.prep_time}</span></div>}
-            </div>
-          </div>
         </section>
       </div>
 
