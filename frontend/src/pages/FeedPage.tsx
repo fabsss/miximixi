@@ -3,8 +3,43 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
-import { HeartIcon, RecipeCard, categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
+import { HeartIcon, RecipeCard } from '../components/RecipeCard'
+import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 import { useNavDrawer } from '../context/NavDrawerContext'
+
+interface CategoryNavProps {
+  categories: string[]
+  categoryCounts: Record<string, number>
+  selectedMainCategory: string | null
+  recipesCount: number
+  onSelect: (cat: string | null) => void
+  catBtnCls: (cat: string | null, active: boolean) => string
+}
+
+function CategoryNav({
+  categories,
+  categoryCounts,
+  selectedMainCategory,
+  recipesCount,
+  onSelect,
+  catBtnCls,
+}: CategoryNavProps) {
+  return (
+    <>
+      <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
+      <button onClick={() => onSelect(null)} className={catBtnCls(null, !selectedMainCategory)}>
+        <span>Alle</span>
+        <span className="text-xs opacity-60">{recipesCount}</span>
+      </button>
+      {categories.map((cat) => (
+        <button key={cat} onClick={() => onSelect(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
+          <span>{cat}</span>
+          {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
+        </button>
+      ))}
+    </>
+  )
+}
 
 export function FeedPage() {
   const [search, setSearch] = useState('')
@@ -45,7 +80,7 @@ export function FeedPage() {
       el.removeEventListener('scroll', onScroll)
       window.removeEventListener('scroll', onScroll)
     }
-  }, [drawerOpen])
+  }, [drawerOpen, setDrawerOpen])
 
   const heroRecipe = recipesQuery.data?.[heroIndex]
 
@@ -102,22 +137,6 @@ export function FeedPage() {
     return `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${color}`
   }
 
-  const CategoryNav = () => (
-    <>
-      <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
-      <button onClick={() => handleMainCat(null)} className={catBtnCls(null, !selectedMainCategory)}>
-        <span>Alle</span>
-        <span className="text-xs opacity-60">{recipesQuery.data?.length ?? 0}</span>
-      </button>
-      {(categoriesQuery.data ?? []).map((cat) => (
-        <button key={cat} onClick={() => handleMainCat(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
-          <span>{cat}</span>
-          {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
-        </button>
-      ))}
-    </>
-  )
-
   return (
     <div ref={mainRef} className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
@@ -143,14 +162,28 @@ export function FeedPage() {
           </button>
         </div>
         <nav className="space-y-1 p-4">
-          <CategoryNav />
+          <CategoryNav
+            categories={categoriesQuery.data ?? []}
+            categoryCounts={categoryCounts}
+            selectedMainCategory={selectedMainCategory}
+            recipesCount={recipesQuery.data?.length ?? 0}
+            onSelect={handleMainCat}
+            catBtnCls={catBtnCls}
+          />
         </nav>
       </div>
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:block lg:sticky lg:top-28 lg:w-52 lg:flex-shrink-0">
         <nav className="rounded-[2rem] bg-[var(--mx-surface-low)] p-4 space-y-1">
-          <CategoryNav />
+          <CategoryNav
+            categories={categoriesQuery.data ?? []}
+            categoryCounts={categoryCounts}
+            selectedMainCategory={selectedMainCategory}
+            recipesCount={recipesQuery.data?.length ?? 0}
+            onSelect={handleMainCat}
+            catBtnCls={catBtnCls}
+          />
         </nav>
       </aside>
 

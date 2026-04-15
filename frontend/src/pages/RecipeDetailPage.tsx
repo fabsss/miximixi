@@ -14,7 +14,7 @@ import {
 import { useCategories } from '../lib/useCategories'
 import type { Ingredient } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
-import { categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
+import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 
 const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
