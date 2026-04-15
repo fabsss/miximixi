@@ -35,10 +35,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     poetry config virtualenvs.create false && \
     poetry install --no-cache --no-interaction --no-root --only main
 
-# Install Playwright browsers (with cache mount to save ~200MB)
-RUN --mount=type=cache,target=/root/.cache/ms-playwright \
-    playwright install --with-deps chromium
-
 # Copy application code
 COPY app/ ./app/
 
@@ -46,6 +42,6 @@ COPY app/ ./app/
 RUN apt-get purge -y --auto-remove \
     build-essential gcc g++ libssl-dev libffi-dev python3-dev \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /root/.cache/*
+    && rm -rf /var/lib/apt/lists/ /root/.cache/*
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
