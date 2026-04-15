@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Thin styled scrollbars (Webkit + Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mx-outline-variant) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--mx-outline-variant);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--mx-on-surface-variant); }
+
 /* Light mode (Heirloom Hearth) */
 :root,
 [data-theme="light"] {
@@ -126,19 +139,22 @@ a {
   margin: 0 auto;
 }
 
-/* Page transition (back button) */
-@keyframes vt-slide-out {
-  to { opacity: 0; transform: translateX(-1.5rem); }
-}
-@keyframes vt-slide-in {
-  from { opacity: 0; transform: translateX(1.5rem); }
-}
-::view-transition-old(root) {
-  animation: 250ms ease-in both vt-slide-out;
-}
-::view-transition-new(root) {
-  animation: 300ms ease-out both vt-slide-in;
-}
+/* --- Page transitions --- */
+
+/* Forward: slide in from the right */
+@keyframes vt-fwd-old  { to   { opacity: 0; transform: translateX(-1.5rem); } }
+@keyframes vt-fwd-new  { from { opacity: 0; transform: translateX(1.5rem); } }
+/* Back: slide back to feed */
+@keyframes vt-back-old { to   { opacity: 0; transform: translateX(1.5rem); } }
+@keyframes vt-back-new { from { opacity: 0; transform: translateX(-1.5rem); } }
+
+/* Default (forward) */
+::view-transition-old(root) { animation: 200ms ease-in  both vt-fwd-old; }
+::view-transition-new(root) { animation: 300ms ease-out both vt-fwd-new; }
+
+/* Back navigation override */
+[data-navdir="back"]::view-transition-old(root) { animation: 220ms ease-in  both vt-back-old; }
+[data-navdir="back"]::view-transition-new(root) { animation: 300ms ease-out both vt-back-new; }
 
 /* Hero image fade-in on rotation */
 @keyframes mx-fadein {

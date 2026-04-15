@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { flushSync } from 'react-dom'
 import { getImageUrl } from '../lib/api'
 import type { RecipeListItem } from '../types'
 
@@ -8,6 +9,16 @@ interface RecipeCardProps {
 }
 
 const tileVariants = ['aspect-[4/3]', 'aspect-[3/2]', 'aspect-[16/10]']
+
+function categoryChipCls(cat: string): string {
+  switch (cat.toLowerCase()) {
+    case 'vorspeisen':   return 'bg-amber-200/90 text-amber-900 dark:bg-amber-900/80 dark:text-amber-200'
+    case 'hauptspeisen': return 'bg-orange-200/90 text-orange-900 dark:bg-orange-900/80 dark:text-orange-200'
+    case 'nachspeisen':  return 'bg-green-200/90 text-green-900 dark:bg-green-900/80 dark:text-green-200'
+    case 'getränke':     return 'bg-sky-200/90 text-sky-900 dark:bg-sky-900/80 dark:text-sky-200'
+    default:             return 'bg-white/25 text-white dark:bg-black/40 dark:text-white'
+  }
+}
 
 function HeartIcon({ filled, className }: { filled: boolean; className?: string }) {
   return (
@@ -32,17 +43,28 @@ function HeartIcon({ filled, className }: { filled: boolean; className?: string 
 }
 
 export function RecipeCard({ recipe, index }: RecipeCardProps) {
+  const navigate = useNavigate()
   const imageUrl = getImageUrl(recipe.id)
-  const source = recipe.source_label || 'Sammlung'
   const tileClass = tileVariants[index % tileVariants.length]
   const isFavorite = recipe.rating === 1
-  // A recipe may have multiple categories stored as comma-separated string
   const categories = recipe.category
     ? recipe.category.split(',').map((c) => c.trim()).filter(Boolean)
     : []
 
+  const handleClick = () => {
+    const target = `/recipes/${recipe.id}`
+    if ('startViewTransition' in document) {
+      document.documentElement.dataset.navdir = 'forward'
+      ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+        flushSync(() => navigate(target))
+      })
+    } else {
+      navigate(target)
+    }
+  }
+
   return (
-    <Link to={`/recipes/${recipe.id}`} className="group block">
+    <div role="link" tabIndex={0} onClick={handleClick} onKeyDown={(e) => e.key === 'Enter' && handleClick()} className="group block cursor-pointer">
       <article className="rounded-[2rem] bg-[var(--mx-surface-container)] p-3 transition duration-500 hover:translate-y-[-2px] hover:shadow-[0_24px_52px_var(--mx-glow)]">
         <div className={`relative overflow-hidden rounded-[1.6rem] ${tileClass}`}>
           <img
@@ -53,13 +75,20 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           />
           {/* Favorite heart – top left */}
           {isFavorite && (
-            <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
+            <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
               <HeartIcon filled className="h-4 w-4" />
             </span>
           )}
-          <span className="mx-glass absolute right-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--mx-primary)]">
-            {source}
-          </span>
+          {/* Category chips – bottom left inside image */}
+          {categories.length > 0 && (
+            <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
+              {categories.map((cat) => (
+                <span key={cat} className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${categoryChipCls(cat)}`}>
+                  {cat}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="px-2 pb-1 pt-3">
@@ -67,14 +96,6 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             {recipe.title}
           </h3>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {categories.map((cat) => (
-              <span
-                key={cat}
-                className="inline-block rounded-full bg-[var(--mx-secondary-container)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mx-secondary)]"
-              >
-                {cat}
-              </span>
-            ))}
             {recipe.tags?.slice(0, 3).map((tag) => (
               <span
                 key={tag}
@@ -86,7 +107,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           </div>
         </div>
       </article>
-    </Link>
+    </div>
   )
 }
 

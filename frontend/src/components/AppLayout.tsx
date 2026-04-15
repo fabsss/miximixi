@@ -1,17 +1,9 @@
 import { flushSync } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
-import { getHealth } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/NavDrawerContext'
 
 export function AppLayout() {
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: getHealth,
-    staleTime: 60_000,
-  })
-
   const { theme, setTheme } = useTheme()
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
@@ -24,7 +16,7 @@ export function AppLayout() {
   const recipeId = detailMatch?.params?.recipeId
 
   return (
-    <div className="pb-12">
+    <div>
       <header className="sticky top-0 z-20 border-none bg-[color:color-mix(in_srgb,var(--mx-surface)_84%,transparent)] backdrop-blur-xl">
         <div className="mx-shell flex items-center justify-between py-4">
           {/* Left: hamburger (feed, mobile) OR back arrow (detail pages) + logo */}
@@ -33,7 +25,8 @@ export function AppLayout() {
               <button
                 onClick={() => {
                   if ('startViewTransition' in document) {
-                    (document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+                    document.documentElement.dataset.navdir = 'back'
+                    ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
                       flushSync(() => navigate('/'))
                     })
                   } else {
@@ -110,14 +103,6 @@ export function AppLayout() {
       <main className="mx-shell mt-8">
         <Outlet />
       </main>
-
-      <footer className="mx-shell mt-12 text-xs text-[var(--mx-on-surface-variant)]">
-        {healthQuery.data?.status === 'ok' ? (
-          <p>Backend online · LLM: {healthQuery.data.llm_provider}</p>
-        ) : (
-          <p>Backend wird überprüft …</p>
-        )}
-      </footer>
     </div>
   )
 }
