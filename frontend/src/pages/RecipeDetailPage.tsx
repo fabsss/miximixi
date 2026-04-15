@@ -5,6 +5,7 @@ import {
   deleteRecipe,
   getImageUrl,
   getRecipe,
+  getStepImageUrl,
   translateRecipe,
   updateRecipe,
   uploadRecipeImage,
@@ -229,6 +230,7 @@ export function RecipeDetailPage() {
   const [notesDraft, setNotesDraft] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFullscreenImage, setShowFullscreenImage] = useState(false)
+  const [fullscreenStepImage, setFullscreenStepImage] = useState<string | null>(null)
   const [ingredientsVisible, setIngredientsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ingredientsRef = useRef<HTMLDivElement>(null)
@@ -417,7 +419,7 @@ export function RecipeDetailPage() {
     return { amount: formatAmount(scaled), unit: ing.unit }
   }
 
-  const stepsToShow = (translation?.steps ?? recipe.steps) as Array<{ id: string; text: string; time_minutes?: number | null }>
+  const stepsToShow = (translation?.steps ?? recipe.steps) as Array<{ id: string; text: string; time_minutes?: number | null; step_image_filename?: string | null }>
   const categories = recipe.category ? recipe.category.split(',').map((c) => c.trim()).filter(Boolean) : []
 
   const inputCls = 'block w-full rounded-[1rem] bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30'
@@ -806,6 +808,19 @@ export function RecipeDetailPage() {
                     })}
                   </p>
                   {step.time_minutes ? <StepTimer minutes={step.time_minutes} /> : null}
+                  {step.step_image_filename && (
+                    <div
+                      className="mt-3 cursor-zoom-in overflow-hidden rounded-2xl"
+                      onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
+                    >
+                      <img
+                        src={getStepImageUrl(recipe.id, step.step_image_filename)}
+                        alt=""
+                        className="w-full object-cover transition-transform duration-500 hover:scale-105"
+                        style={{ maxHeight: '240px' }}
+                      />
+                    </div>
+                  )}
                 </li>
               )
             })}
@@ -824,6 +839,20 @@ export function RecipeDetailPage() {
           className={`max-h-[90dvh] max-w-[90dvw] rounded-2xl object-contain shadow-2xl transition-all duration-300 ${showFullscreenImage ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}
         />
       </div>
+
+      {/* FULLSCREEN STEP IMAGE */}
+      {fullscreenStepImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          onClick={() => setFullscreenStepImage(null)}
+        >
+          <img
+            src={fullscreenStepImage}
+            alt=""
+            className="max-h-[90dvh] max-w-[90dvw] rounded-2xl object-contain"
+          />
+        </div>
+      )}
 
       {/* DELETE CONFIRMATION */}
       {showDeleteConfirm && (

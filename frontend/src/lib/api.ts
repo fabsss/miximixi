@@ -17,6 +17,10 @@ export function getImageUrl(recipeId: string): string {
   return `${API_BASE_URL}/images/${recipeId}`
 }
 
+export function getStepImageUrl(recipeId: string, filename: string): string {
+  return `${API_BASE_URL}/images/${recipeId}/${filename}`
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health')
 }
