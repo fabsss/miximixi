@@ -26,7 +26,7 @@ export function getCategoryIcon(cat: string): string {
   switch (cat.toLowerCase()) {
     case 'vorspeisen':   return 'soup_kitchen'
     case 'hauptspeisen': return 'lunch_dining'
-    case 'dessert':      return 'desserts'
+    case 'dessert':      return 'icecream'
     case 'frühstück':    return 'breakfast_dining'
     case 'snack':        return 'cookie'
     case 'getränke':     return 'local_drink'
