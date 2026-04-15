@@ -1,7 +1,11 @@
 FROM python:3.12-slim
 
-# ffmpeg + Playwright Chromium runtime deps
+# Build deps (für Python packages) + runtime deps (ffmpeg, Playwright, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    python3-dev \
     ffmpeg \
     curl \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
@@ -19,7 +23,9 @@ WORKDIR /app
 RUN pip install poetry --no-cache-dir
 COPY pyproject.toml poetry.lock* ./
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --only main
+    && poetry install --no-interaction --no-ansi --only main \
+    && apt-get purge -y --auto-remove build-essential libssl-dev libffi-dev python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Playwright Chromium installieren (nach poetry install, damit playwright-package vorhanden)
 RUN playwright install chromium
