@@ -13,6 +13,7 @@ import {
 } from '../lib/api'
 import type { Ingredient } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
+import { categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
 
 const CATEGORY_OPTIONS = ['Vorspeisen', 'Hauptspeisen', 'Nachspeisen', 'Getränke'] as const
 
@@ -421,8 +422,8 @@ export function RecipeDetailPage() {
           <div className="pointer-events-none absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
             <div className="mb-2 flex flex-wrap gap-1.5">
               {categories.length > 0 ? categories.map((cat, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-[var(--mx-secondary-container)] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--mx-secondary)]">
-                  <span className="material-symbols-outlined text-[12px]">eco</span>{cat}
+                <span key={i} className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-bold uppercase tracking-wider ${categoryChipCls(cat)}`}>
+                  <span className="material-symbols-outlined text-[12px]">{getCategoryIcon(cat)}</span>{cat}
                 </span>
               )) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/30 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-white/80 backdrop-blur-sm">
