@@ -22,9 +22,9 @@ export function categoryChipCls(cat: string): string {
 
 export function getCategoryIcon(cat: string): string {
   switch (cat.toLowerCase()) {
-    case 'vorspeisen':   return 'soup_kitchen'
+    case 'vorspeisen':   return 'restaurant'
     case 'hauptspeisen': return 'lunch_dining'
-    case 'nachspeisen':  return 'cake'
+    case 'nachspeisen':  return 'desserts'
     case 'getränke':     return 'local_drink'
     default:             return 'restaurant_menu'
   }
