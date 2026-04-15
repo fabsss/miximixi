@@ -169,6 +169,39 @@ When creating PRs, include:
 
 ---
 
+## Pre-Commit Testing Requirements
+
+**Before each commit, run the following checks locally to catch issues early:**
+
+### Backend Tests & Linting
+```bash
+cd backend
+poetry run pytest tests/ -v        # Run all tests
+poetry run pytest --cov           # (Optional) Check coverage
+```
+
+**Required:** All tests must pass before committing.
+
+### Frontend Linting & Type Checking
+```bash
+cd frontend
+npm run lint                       # ESLint checks
+npx tsc --noEmit                   # TypeScript compilation (no emit)
+npm run build                      # Full build verification
+```
+
+**Required:** All linting errors and type errors must be resolved before committing.
+
+### Pre-Commit Checklist
+- [ ] Backend: `poetry run pytest tests/ -v` passes
+- [ ] Frontend: `npm run lint` shows no errors
+- [ ] Frontend: `npx tsc --noEmit` shows no type errors
+- [ ] Frontend: `npm run build` completes successfully
+
+**Why:** Local testing prevents broken commits from reaching CI/CD. GitHub Actions will still run these checks, but catching issues first saves review time and keeps the main branch stable.
+
+---
+
 ## Installation & Setup
 
 ### Clone & Configure

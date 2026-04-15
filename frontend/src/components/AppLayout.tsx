@@ -1,7 +1,7 @@
 import { flushSync } from 'react-dom'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
-import { useNavDrawer } from '../context/NavDrawerContext'
+import { useNavDrawer } from '../context/useNavDrawer'
 
 export function AppLayout() {
   const { theme, setTheme } = useTheme()

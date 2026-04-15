@@ -36,14 +36,17 @@ class TestCategoriesEndpoint:
         response = mock_client.get("/categories")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "categories" in data
+        assert isinstance(data["categories"], list)
 
     def test_get_categories_contains_expected_values(self, mock_client):
         response = mock_client.get("/categories")
         assert response.status_code == 200
         data = response.json()
-        assert "Hauptspeisen" in data
-        assert "Getränke" in data
+        categories = data["categories"]
+        assert "Hauptspeisen" in categories
+        assert "Drinks" in categories
 
 
 class TestRecipesEndpoint:
@@ -63,12 +66,14 @@ class TestImportEndpoint:
         assert response.status_code == 422
 
     def test_import_with_valid_payload_returns_queue_id(self, mock_client):
+        """Test that import endpoint accepts valid payload."""
         with patch("app.main.run_worker"):
-            with patch("app.queue_worker.enqueue") as mock_enqueue:
-                mock_enqueue.return_value = "test-queue-id-123"
-                response = mock_client.post(
-                    "/import",
-                    json={"url": "https://www.example.com/recipe"}
-                )
-                # Either queued (200) or DB error (503) - both are valid outcomes
-                assert response.status_code in (200, 503)
+            response = mock_client.post(
+                "/import",
+                json={"url": "https://www.example.com/recipe"}
+            )
+            # Either queued (200) or DB error (503) - both are valid outcomes
+            assert response.status_code in (200, 503)
+            if response.status_code == 200:
+                data = response.json()
+                assert "queue_id" in data

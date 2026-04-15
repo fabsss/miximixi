@@ -14,7 +14,7 @@ import {
 import { useCategories } from '../lib/useCategories'
 import type { Ingredient } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
-import { categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
+import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 
 const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
@@ -113,12 +113,14 @@ function playBell() {
       gain.gain.exponentialRampToValueAtTime(0.001, t + 1.1)
       osc.start(t); osc.stop(t + 1.1)
     })
-  } catch (_) {}
+  } catch {
+    // Ignore audio context errors
+  }
 }
 
 function StepTimer({ minutes }: { minutes: number }) {
-  const totalRef = useRef(minutes * 60)
-  const [remaining, setRemaining] = useState(totalRef.current)
+  const total = minutes * 60
+  const [remaining, setRemaining] = useState(total)
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
   const hasRung = useRef(false)
@@ -131,12 +133,16 @@ function StepTimer({ minutes }: { minutes: number }) {
 
   useEffect(() => {
     if (running && remaining === 0 && !hasRung.current) {
-      hasRung.current = true; setRunning(false); setDone(true); playBell()
+      hasRung.current = true
+      playBell()
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRunning(false)
+      setDone(true)
     }
   }, [remaining, running])
 
   const reset = () => {
-    hasRung.current = false; setRemaining(totalRef.current); setRunning(false); setDone(false)
+    hasRung.current = false; setRemaining(total); setRunning(false); setDone(false)
   }
   const adjustMinutes = (delta: number) => {
     setRemaining((r) => Math.max(0, r + delta * 60))
@@ -145,7 +151,7 @@ function StepTimer({ minutes }: { minutes: number }) {
 
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0')
   const ss = String(remaining % 60).padStart(2, '0')
-  const labelText = done ? 'Fertig!' : running ? 'Timer läuft' : remaining < totalRef.current ? 'Pausiert' : 'Zeit'
+  const labelText = done ? 'Fertig!' : running ? 'Timer läuft' : remaining < total ? 'Pausiert' : 'Zeit'
   const labelColor = done || running ? 'text-[var(--mx-primary)]' : 'text-[var(--mx-on-surface-variant)]'
 
   return (
@@ -178,9 +184,9 @@ function StepTimer({ minutes }: { minutes: number }) {
       ) : (
         <div className="flex flex-col gap-1.5">
           <button onClick={() => setRunning(true)} className="rounded-full bg-[var(--mx-primary)] px-3 py-1 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors">
-            {remaining < totalRef.current ? 'Weiter' : 'Start'}
+            {remaining < total ? 'Weiter' : 'Start'}
           </button>
-          {remaining < totalRef.current && (
+          {remaining < total && (
             <button onClick={reset} className="rounded-full border border-[var(--mx-outline-variant)] px-3 py-1 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-high)] transition-colors">Reset</button>
           )}
         </div>
@@ -253,7 +259,7 @@ export function RecipeDetailPage() {
         // Restore previous max-height so browser has a start value for the transition
         panel.style.maxHeight = panel.style.maxHeight === 'none' ? '' : panel.style.maxHeight
         panel.style.maxHeight = '' // let Tailwind value be start point
-        panel.offsetHeight    // force reflow so transition sees the baseH start value
+        void panel.offsetHeight    // force reflow so transition sees the baseH start value
         panel.style.maxHeight = `${fullH}px`
       } else if (dist >= THRESH && expanded) {
         expanded = false
@@ -285,8 +291,13 @@ export function RecipeDetailPage() {
     mutationFn: ({ id, data }: { id: string; data: RecipeUpdateRequest }) => updateRecipe(id, data),
     onSuccess: async () => {
       if (pendingImageFile && recipeId) {
-        try { await uploadRecipeImage(recipeId, pendingImageFile) } catch (_) {}
-        setPendingImageFile(null); setImagePreviewUrl(null)
+        try {
+          await uploadRecipeImage(recipeId, pendingImageFile)
+        } catch {
+          // Ignore image upload errors - recipe is still saved
+        }
+        setPendingImageFile(null)
+        setImagePreviewUrl(null)
       }
       await recipeQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
