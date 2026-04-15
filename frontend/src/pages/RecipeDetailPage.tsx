@@ -236,7 +236,8 @@ export function RecipeDetailPage() {
     let expanded = false
 
     const check = () => {
-      setIngredientsVisible(el.getBoundingClientRect().bottom > 0)
+      const rect = el.getBoundingClientRect()
+      setIngredientsVisible(rect.bottom > 0 && rect.top < window.innerHeight)
       const dist = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
 
       if (dist < THRESH && !expanded) {
@@ -792,12 +793,6 @@ export function RecipeDetailPage() {
               )
             })}
           </ol>
-
-          <div className="mt-14 border-t border-[var(--mx-outline-variant)]/20 pt-8">
-            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-              {recipe.prep_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Vorbereitung</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.prep_time}</span></div>}
-            </div>
-          </div>
         </section>
       </div>
 
