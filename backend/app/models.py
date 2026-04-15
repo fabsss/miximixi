@@ -18,6 +18,7 @@ class Step(BaseModel):
     id: int
     text: str
     time_minutes: int | None = None
+    step_timestamp: str | None = None  # "MM:SS" - timestamp im Video für diesen Schritt
 
 
 class ExtractedRecipe(BaseModel):
@@ -64,6 +65,7 @@ class IngredientInput(BaseModel):
 class StepInput(BaseModel):
     text: str
     time_minutes: int | None = None
+    step_timestamp: str | None = None  # "MM:SS" - timestamp im Video
     sort_order: int = 0
 
 
