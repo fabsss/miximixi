@@ -92,8 +92,29 @@ async def process_job(job: dict) -> None:
         recipe_data = extraction.recipe
         logger.info(f"Rezept extrahiert: '{recipe_data.title}'")
 
-        # 4. Titelbild extrahieren und speichern
+        # Recipe ID früh generieren (wird für Step-Frame-Namen benötigt)
         recipe_id = str(uuid.uuid4())
+
+        # 3b. Step-Frame-Extraktion (für wichtige Arbeitsschritte)
+        if recipe_data.steps and media_paths and any(is_video(p) for p in media_paths):
+            video_path = next((p for p in media_paths if is_video(p)), None)
+            if video_path:
+                for step in recipe_data.steps:
+                    if step.step_timestamp:
+                        try:
+                            step_image_filename = extract_frame_at_timestamp(
+                                video_path=video_path,
+                                timestamp=step.step_timestamp,
+                                recipe_id=recipe_id,
+                                step_id=step.id
+                            )
+                            step.step_image_filename = step_image_filename
+                            if step_image_filename:
+                                logger.info(f"Step {step.id} Frame extrahiert: {step_image_filename}")
+                        except Exception as e:
+                            logger.warning(f"Step {step.id} Frame-Extraktion fehlgeschlagen: {e}")
+
+        # 4. Titelbild extrahieren und speichern
         image_filename: Optional[str] = None
         extraction_status = "success"
 
