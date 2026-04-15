@@ -32,6 +32,14 @@ def generate_slug(title: str) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Run database migrations
+    try:
+        from run_migrations import run_migrations
+        run_migrations()
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        raise
+
     # Temp-Verzeichnis anlegen
     os.makedirs(settings.tmp_dir, exist_ok=True)
     os.makedirs(settings.images_dir, exist_ok=True)
