@@ -643,10 +643,10 @@ async def delete_recipe(recipe_id: str):
         cursor.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
         db.commit()
         db.close()
-        # Remove image if it exists
-        image_path = os.path.join(settings.images_dir, f"{recipe_id}.jpg")
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        # Remove image directory if it exists
+        recipe_dir = os.path.join(settings.images_dir, recipe_id)
+        if os.path.exists(recipe_dir):
+            shutil.rmtree(recipe_dir)
         return {"message": "Rezept geloescht"}
     except HTTPException:
         raise
@@ -669,7 +669,9 @@ async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
             db.close()
             raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
         db.close()
-        image_path = os.path.join(settings.images_dir, f"{recipe_id}.jpg")
+        recipe_dir = os.path.join(settings.images_dir, recipe_id)
+        os.makedirs(recipe_dir, exist_ok=True)
+        image_path = os.path.join(recipe_dir, "cover.jpg")
         with open(image_path, "wb") as out:
             shutil.copyfileobj(file.file, out)
         return {"message": "Bild hochgeladen", "image_url": f"/images/{recipe_id}"}
@@ -684,7 +686,22 @@ async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
 @app.get("/images/{recipe_id}")
 async def get_recipe_image(recipe_id: str):
     """Serve recipe cover image."""
-    image_path = os.path.join(settings.images_dir, f"{recipe_id}.jpg")
+    image_path = os.path.join(settings.images_dir, recipe_id, "cover.jpg")
+
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return FileResponse(image_path, media_type="image/jpeg")
+
+
+@app.get("/images/{recipe_id}/{filename}")
+async def get_recipe_step_image(recipe_id: str, filename: str):
+    """Serve recipe step image."""
+    # Validate filename to prevent path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    image_path = os.path.join(settings.images_dir, recipe_id, filename)
 
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")

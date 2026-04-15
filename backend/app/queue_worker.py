@@ -28,6 +28,7 @@ from app.media_processor import (
     download_media,
     download_website,
     extract_cover_frame,
+    extract_cover_frame_at_timestamp,
     extract_frame_at_timestamp,
     is_video,
     prepare_media_for_frames,
@@ -238,7 +239,7 @@ def _resolve_cover(
     if extraction.cover_timestamp:
         for path in media_paths:
             if is_video(path):
-                cover = extract_frame_at_timestamp(path, extraction.cover_timestamp, tmp_dir)
+                cover = extract_cover_frame_at_timestamp(path, extraction.cover_timestamp, tmp_dir)
                 if cover:
                     logger.info(f"Cover via Timestamp {extraction.cover_timestamp}: {cover}")
                     return cover

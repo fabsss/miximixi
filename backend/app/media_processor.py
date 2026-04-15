@@ -305,9 +305,9 @@ def prepare_media_for_frames(media_paths: list[str], tmp_dir: str) -> list[str]:
 
 # ── Titelbild-Extraktion ──────────────────────────────────────────────
 
-def extract_frame_at_timestamp(video_path: str, timestamp: str, output_dir: str) -> str | None:
+def extract_cover_frame_at_timestamp(video_path: str, timestamp: str, output_dir: str) -> str | None:
     """
-    Extrahiert einen einzelnen Frame bei einem bestimmten Timestamp (MM:SS).
+    Extrahiert einen einzelnen Cover-Frame bei einem bestimmten Timestamp (MM:SS).
     Wird für den Gemini-Pfad verwendet: Gemini liefert den besten Timestamp.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -361,9 +361,11 @@ def save_cover_to_storage(file_path: str, recipe_id: str) -> str:
     """Speichert Titelbild lokal und gibt den Dateinamen zurück."""
     import shutil
 
-    os.makedirs(settings.images_dir, exist_ok=True)
-    image_filename = f"{recipe_id}.jpg"
-    destination = os.path.join(settings.images_dir, image_filename)
+    recipe_dir = os.path.join(settings.images_dir, recipe_id)
+    os.makedirs(recipe_dir, exist_ok=True)
+
+    image_filename = "cover.jpg"
+    destination = os.path.join(recipe_dir, image_filename)
 
     shutil.copy2(file_path, destination)
     logger.info(f"Cover gespeichert: {destination}")
@@ -393,11 +395,12 @@ def extract_frame_at_timestamp(video_path: str, timestamp: str, recipe_id: str, 
         return None
 
     try:
-        os.makedirs(settings.images_dir, exist_ok=True)
+        recipe_dir = os.path.join(settings.images_dir, recipe_id)
+        os.makedirs(recipe_dir, exist_ok=True)
 
-        # Frame-Dateiname: recipe_id-step_id-frame.jpg (z.B. abc123-3-frame.jpg)
-        frame_filename = f"{recipe_id}-step-{step_id}-frame.jpg"
-        output_path = os.path.join(settings.images_dir, frame_filename)
+        # Frame-Dateiname: step-{step_id}-frame.jpg (z.B. step-2-frame.jpg)
+        frame_filename = f"step-{step_id}-frame.jpg"
+        output_path = os.path.join(recipe_dir, frame_filename)
 
         # ffmpeg: Frame bei Timestamp extrahieren
         cmd = [

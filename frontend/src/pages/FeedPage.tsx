@@ -3,8 +3,43 @@ import { Link } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
-import { HeartIcon, RecipeCard, categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
-import { useNavDrawer } from '../context/NavDrawerContext'
+import { HeartIcon, RecipeCard } from '../components/RecipeCard'
+import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
+import { useNavDrawer } from '../context/useNavDrawer'
+
+interface CategoryNavProps {
+  categories: string[]
+  categoryCounts: Record<string, number>
+  selectedMainCategory: string | null
+  recipesCount: number
+  onSelect: (cat: string | null) => void
+  catBtnCls: (cat: string | null, active: boolean) => string
+}
+
+function CategoryNav({
+  categories,
+  categoryCounts,
+  selectedMainCategory,
+  recipesCount,
+  onSelect,
+  catBtnCls,
+}: CategoryNavProps) {
+  return (
+    <>
+      <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
+      <button onClick={() => onSelect(null)} className={catBtnCls(null, !selectedMainCategory)}>
+        <span>Alle</span>
+        <span className="text-xs opacity-60">{recipesCount}</span>
+      </button>
+      {categories.map((cat) => (
+        <button key={cat} onClick={() => onSelect(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
+          <span>{cat}</span>
+          {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
+        </button>
+      ))}
+    </>
+  )
+}
 
 const PAGE_SIZE = 20
 
@@ -56,7 +91,7 @@ export function FeedPage() {
       el.removeEventListener('scroll', onScroll)
       window.removeEventListener('scroll', onScroll)
     }
-  }, [drawerOpen])
+  }, [drawerOpen, setDrawerOpen])
 
   // Infinite scroll: load next page when sentinel enters viewport
   useEffect(() => {
@@ -129,22 +164,6 @@ export function FeedPage() {
     return `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${color}`
   }
 
-  const CategoryNav = () => (
-    <>
-      <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
-      <button onClick={() => handleMainCat(null)} className={catBtnCls(null, !selectedMainCategory)}>
-        <span>Alle</span>
-        <span className="text-xs opacity-60">{allRecipes.length}</span>
-      </button>
-      {(categoriesQuery.data ?? []).map((cat) => (
-        <button key={cat} onClick={() => handleMainCat(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
-          <span>{cat}</span>
-          {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
-        </button>
-      ))}
-    </>
-  )
-
   return (
     <div ref={mainRef} className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
@@ -170,14 +189,28 @@ export function FeedPage() {
           </button>
         </div>
         <nav className="space-y-1 p-4">
-          <CategoryNav />
+          <CategoryNav
+            categories={categoriesQuery.data ?? []}
+            categoryCounts={categoryCounts}
+            selectedMainCategory={selectedMainCategory}
+            recipesCount={allRecipes.length}
+            onSelect={handleMainCat}
+            catBtnCls={catBtnCls}
+          />
         </nav>
       </div>
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:block lg:sticky lg:top-28 lg:w-52 lg:flex-shrink-0">
         <nav className="rounded-[2rem] bg-[var(--mx-surface-low)] p-4 space-y-1">
-          <CategoryNav />
+          <CategoryNav
+            categories={categoriesQuery.data ?? []}
+            categoryCounts={categoryCounts}
+            selectedMainCategory={selectedMainCategory}
+            recipesCount={allRecipes.length}
+            onSelect={handleMainCat}
+            catBtnCls={catBtnCls}
+          />
         </nav>
       </aside>
 
@@ -280,7 +313,11 @@ export function FeedPage() {
                 key={tag}
                 onClick={() => setSelectedTags((prev) => {
                   const next = new Set(prev)
-                  next.has(tag) ? next.delete(tag) : next.add(tag)
+                  if (next.has(tag)) {
+                    next.delete(tag)
+                  } else {
+                    next.add(tag)
+                  }
                   return next
                 })}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${

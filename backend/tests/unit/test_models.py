@@ -19,10 +19,10 @@ class TestCategories:
     def test_categories_list_contains_expected_values(self):
         assert "Vorspeisen" in CATEGORIES
         assert "Hauptspeisen" in CATEGORIES
-        assert "Dessert" in CATEGORIES
-        assert "Frühstück" in CATEGORIES
-        assert "Snack" in CATEGORIES
-        assert "Getränke" in CATEGORIES
+        assert "Desserts" in CATEGORIES
+        assert "Brunch" in CATEGORIES
+        assert "Snacks" in CATEGORIES
+        assert "Drinks" in CATEGORIES
 
     def test_categories_has_six_entries(self):
         assert len(CATEGORIES) == 6
