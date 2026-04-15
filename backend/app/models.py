@@ -2,6 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+CATEGORIES = ["Vorspeisen", "Hauptspeisen", "Dessert", "Frühstück", "Snack", "Getränke"]
 CATEGORY_VALUES = Literal["Vorspeisen", "Hauptspeisen", "Dessert", "Frühstück", "Snack", "Getränke"]
 
 
