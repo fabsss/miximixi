@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse
+from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CATEGORIES
 from app.queue_worker import run_worker
 from app.llm_provider import LLMProvider
 
@@ -78,6 +78,13 @@ async def health():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail="Database not available")
+
+
+# ── Configuration Endpoints ──────────────────────────────────────────
+@app.get("/categories")
+async def get_categories():
+    """Gibt alle erlaubten Rezept-Kategorien zurück."""
+    return {"categories": CATEGORIES}
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────

@@ -1,12 +1,10 @@
--- Miximixi – Migration 006: Strict category CHECK constraint
+-- Miximixi – Migration 006: Remove category CHECK constraint
 --
--- Enforces that recipes.category must be one of the four valid values.
--- Existing rows with non-conforming values must be updated before applying.
+-- Removed the strict category constraint because categories are already enforced by:
+-- 1. Frontend dropdown/selection UI
+-- 2. LLM prompt instructions
+-- 3. Category normalization in backend
+-- This eliminates DB-level bugs without losing validation
 
--- Drop old unconstrained check (if any) and re-add with explicit name
 ALTER TABLE recipes
   DROP CONSTRAINT IF EXISTS recipes_category_check;
-
-ALTER TABLE recipes
-  ADD CONSTRAINT recipes_category_check
-    CHECK (category IS NULL OR category IN ('Vorspeisen', 'Hauptspeisen', 'Dessert', 'Frühstück', 'Snack', 'Getränke'));

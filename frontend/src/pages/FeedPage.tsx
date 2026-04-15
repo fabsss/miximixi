@@ -2,15 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
+import { useCategories } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { useNavDrawer } from '../context/NavDrawerContext'
 
-const MAIN_CATEGORIES = ['Vorspeisen', 'Hauptspeisen', 'Nachspeisen', 'Getr\u00e4nke'] as const
-type MainCategory = (typeof MAIN_CATEGORIES)[number]
-
 export function FeedPage() {
   const [search, setSearch] = useState('')
-  const [selectedMainCategory, setSelectedMainCategory] = useState<MainCategory | null>(null)
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
@@ -18,6 +16,7 @@ export function FeedPage() {
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
   const mainRef = useRef<HTMLDivElement>(null)
 
+  const categoriesQuery = useCategories()
   const recipesQuery = useQuery({
     queryKey: ['recipes'],
     queryFn: () => getRecipes(80),
@@ -82,19 +81,21 @@ export function FeedPage() {
     })
   }, [recipesQuery.data, search, selectedMainCategory, selectedTags, showFavoritesOnly])
 
-  const handleMainCat = (cat: MainCategory | null) => {
+  const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
     setSelectedTags(new Set())
     setShowFavoritesOnly(false)
     setDrawerOpen(false)
   }
 
-  const catBtnCls = (cat: MainCategory | null, active: boolean) => {
+  const catBtnCls = (cat: string | null, active: boolean) => {
     if (!active) return 'flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-container)]'
     const colors: Record<string, string> = {
       'Vorspeisen':   'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200',
       'Hauptspeisen': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200',
-      'Nachspeisen':  'bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-200',
+      'Dessert':      'bg-pink-200 text-pink-900 dark:bg-pink-900 dark:text-pink-200',
+      'Frühstück':    'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-200',
+      'Snack':        'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200',
       'Getränke':     'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-200',
     }
     const color = cat ? (colors[cat] ?? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]') : 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
@@ -108,7 +109,7 @@ export function FeedPage() {
         <span>Alle</span>
         <span className="text-xs opacity-60">{recipesQuery.data?.length ?? 0}</span>
       </button>
-      {MAIN_CATEGORIES.map((cat) => (
+      {(categoriesQuery.data ?? []).map((cat) => (
         <button key={cat} onClick={() => handleMainCat(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
           <span>{cat}</span>
           {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
