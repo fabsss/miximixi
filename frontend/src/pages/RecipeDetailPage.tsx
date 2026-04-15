@@ -135,6 +135,7 @@ function StepTimer({ minutes }: { minutes: number }) {
     if (running && remaining === 0 && !hasRung.current) {
       hasRung.current = true
       playBell()
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRunning(false)
       setDone(true)
     }

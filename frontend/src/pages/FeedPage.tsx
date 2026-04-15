@@ -5,7 +5,7 @@ import { getImageUrl, getRecipes } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
-import { useNavDrawer } from '../context/NavDrawerContext'
+import { useNavDrawer } from '../context/useNavDrawer'
 
 interface CategoryNavProps {
   categories: string[]
