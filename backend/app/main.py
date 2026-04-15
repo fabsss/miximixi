@@ -320,7 +320,7 @@ async def instagram_sync():
 
 # ── Recipes Endpoints ───────────────────────────────────────────────
 @app.get("/recipes")
-async def list_recipes(limit: int = 50):
+async def list_recipes(limit: int = 20, offset: int = 0):
     """Alle Rezepte auflisten."""
     db = get_db()
     cursor = db.cursor(cursor_factory=RealDictCursor)
@@ -329,9 +329,9 @@ async def list_recipes(limit: int = 50):
         cursor.execute(
             """
             SELECT id, title, category, image_filename, source_url, source_label, rating, tags, created_at
-            FROM recipes ORDER BY created_at DESC LIMIT %s
+            FROM recipes ORDER BY created_at DESC LIMIT %s OFFSET %s
             """,
-            (limit,),
+            (limit, offset),
         )
         recipes = cursor.fetchall()
         db.close()

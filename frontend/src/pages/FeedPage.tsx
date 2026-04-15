@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
 import { HeartIcon, RecipeCard, categoryChipCls, getCategoryIcon } from '../components/RecipeCard'
 import { useNavDrawer } from '../context/NavDrawerContext'
+
+const PAGE_SIZE = 20
 
 export function FeedPage() {
   const [search, setSearch] = useState('')
@@ -15,23 +17,32 @@ export function FeedPage() {
   const [heroImgOk, setHeroImgOk] = useState(true)
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
   const mainRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   const categoriesQuery = useCategories()
-  const recipesQuery = useQuery({
+  const recipesQuery = useInfiniteQuery({
     queryKey: ['recipes'],
-    queryFn: () => getRecipes(80),
+    queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < PAGE_SIZE) return undefined
+      return allPages.reduce((sum, page) => sum + page.length, 0)
+    },
+    refetchInterval: 30_000,
   })
+
+  const allRecipes = useMemo(() => recipesQuery.data?.pages.flat() ?? [], [recipesQuery.data])
 
   // Rotate hero every 5s through first 6 recipes
   useEffect(() => {
-    const total = Math.min(recipesQuery.data?.length ?? 0, 6)
+    const total = Math.min(allRecipes.length, 6)
     if (total <= 1) return
     const id = setInterval(() => {
       setHeroIndex(i => (i + 1) % total)
       setHeroImgOk(true)
     }, 5000)
     return () => clearInterval(id)
-  }, [recipesQuery.data?.length])
+  }, [allRecipes.length])
 
   // Close drawer on scroll
   useEffect(() => {
@@ -47,29 +58,45 @@ export function FeedPage() {
     }
   }, [drawerOpen])
 
-  const heroRecipe = recipesQuery.data?.[heroIndex]
+  // Infinite scroll: load next page when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && recipesQuery.hasNextPage && !recipesQuery.isFetchingNextPage) {
+          void recipesQuery.fetchNextPage()
+        }
+      },
+      { rootMargin: '300px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [recipesQuery.hasNextPage, recipesQuery.isFetchingNextPage, recipesQuery.fetchNextPage])
+
+  const heroRecipe = allRecipes[heroIndex]
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    for (const r of recipesQuery.data ?? []) {
+    for (const r of allRecipes) {
       if (r.category) counts[r.category] = (counts[r.category] ?? 0) + 1
     }
     return counts
-  }, [recipesQuery.data])
+  }, [allRecipes])
 
   const availableTags = useMemo(() => {
     const tags = new Set<string>()
-    for (const r of recipesQuery.data ?? []) {
+    for (const r of allRecipes) {
       if (!selectedMainCategory || r.category === selectedMainCategory) {
         for (const t of r.tags ?? []) tags.add(t)
       }
     }
     return Array.from(tags).sort()
-  }, [recipesQuery.data, selectedMainCategory])
+  }, [allRecipes, selectedMainCategory])
 
   const filteredRecipes = useMemo(() => {
     const value = search.trim().toLowerCase()
-    return (recipesQuery.data ?? []).filter((recipe) => {
+    return allRecipes.filter((recipe) => {
       const titleMatch = recipe.title.toLowerCase().includes(value)
       const tagMatch = recipe.tags?.some((t) => t.toLowerCase().includes(value))
       const categoryMatch = recipe.category?.toLowerCase().includes(value)
@@ -79,7 +106,7 @@ export function FeedPage() {
       const favoriteOk = !showFavoritesOnly || recipe.rating === 1
       return searchOk && mainCatOk && tagOk && favoriteOk
     })
-  }, [recipesQuery.data, search, selectedMainCategory, selectedTags, showFavoritesOnly])
+  }, [allRecipes, search, selectedMainCategory, selectedTags, showFavoritesOnly])
 
   const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
@@ -107,7 +134,7 @@ export function FeedPage() {
       <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
       <button onClick={() => handleMainCat(null)} className={catBtnCls(null, !selectedMainCategory)}>
         <span>Alle</span>
-        <span className="text-xs opacity-60">{recipesQuery.data?.length ?? 0}</span>
+        <span className="text-xs opacity-60">{allRecipes.length}</span>
       </button>
       {(categoriesQuery.data ?? []).map((cat) => (
         <button key={cat} onClick={() => handleMainCat(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
@@ -204,9 +231,9 @@ export function FeedPage() {
             </div>
 
             {/* Dot indicators */}
-            {(recipesQuery.data?.length ?? 0) > 1 && (
+            {allRecipes.length > 1 && (
               <div className="mt-3 flex justify-center gap-1.5">
-                {Array.from({ length: Math.min(recipesQuery.data!.length, 6) }, (_, i) => (
+                {Array.from({ length: Math.min(allRecipes.length, 6) }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => { setHeroIndex(i); setHeroImgOk(true) }}
@@ -289,6 +316,14 @@ export function FeedPage() {
               <RecipeCard key={recipe.id} recipe={recipe} index={index} />
             ))}
           </section>
+        )}
+
+        {/* Infinite scroll sentinel & loader */}
+        <div ref={sentinelRef} className="h-1" />
+        {recipesQuery.isFetchingNextPage && (
+          <div className="py-8 text-center">
+            <span className="material-symbols-outlined text-[28px] text-[var(--mx-primary)]" style={{ animation: 'spin 1s linear infinite' }}>progress_activity</span>
+          </div>
         )}
 
         {/* Empty state */}

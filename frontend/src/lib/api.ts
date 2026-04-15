@@ -26,8 +26,8 @@ export async function getCategories(): Promise<string[]> {
   return response.categories
 }
 
-export async function getRecipes(limit = 60): Promise<RecipeListItem[]> {
-  return request<RecipeListItem[]>(`/recipes?limit=${limit}`)
+export async function getRecipes(limit = 20, offset = 0): Promise<RecipeListItem[]> {
+  return request<RecipeListItem[]>(`/recipes?limit=${limit}&offset=${offset}`)
 }
 
 export async function getRecipe(recipeId: string): Promise<RecipeDetail> {
