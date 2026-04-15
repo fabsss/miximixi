@@ -286,7 +286,11 @@ export function FeedPage() {
                 key={tag}
                 onClick={() => setSelectedTags((prev) => {
                   const next = new Set(prev)
-                  next.has(tag) ? next.delete(tag) : next.add(tag)
+                  if (next.has(tag)) {
+                    next.delete(tag)
+                  } else {
+                    next.add(tag)
+                  }
                   return next
                 })}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${

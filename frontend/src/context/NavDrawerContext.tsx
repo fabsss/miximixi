@@ -1,13 +1,14 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 
 interface NavDrawerCtx {
   open: boolean
   setOpen: (v: boolean) => void
 }
 
-const NavDrawerContext = createContext<NavDrawerCtx>({ open: false, setOpen: () => {} })
+const defaultValue: NavDrawerCtx = { open: false, setOpen: () => {} }
+const NavDrawerContext = createContext<NavDrawerCtx>(defaultValue)
 
-export function NavDrawerProvider({ children }: { children: React.ReactNode }) {
+export function NavDrawerProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return <NavDrawerContext.Provider value={{ open, setOpen }}>{children}</NavDrawerContext.Provider>
 }
