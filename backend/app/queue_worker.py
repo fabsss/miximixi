@@ -29,6 +29,7 @@ from app.media_processor import (
     download_website,
     extract_cover_frame,
     extract_frame_at_timestamp,
+    is_video,
     prepare_media_for_frames,
     prepare_media_for_gemini,
     save_cover_to_storage,
