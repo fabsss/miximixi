@@ -12,8 +12,8 @@ export function AppLayout() {
   const nextTheme: 'light' | 'dark' | 'system' =
     theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
 
-  const detailMatch = useMatch('/recipes/:recipeId')
-  const recipeId = detailMatch?.params?.recipeId
+  const detailMatch = useMatch('/recipes/:recipeSlug')
+  const recipeSlug = detailMatch?.params?.recipeSlug
 
   return (
     <div>
@@ -59,9 +59,9 @@ export function AppLayout() {
 
           {/* Right: cook mode (detail pages) + theme pill */}
           <div className="flex items-center gap-3">
-            {recipeId && (
+            {recipeSlug && (
               <Link
-                to={`/cook/${recipeId}`}
+                to={`/cook/${recipeSlug}`}
                 className="hidden sm:flex items-center gap-2 rounded-xl bg-[var(--mx-primary)] px-4 py-2 text-sm font-semibold text-[var(--mx-on-primary)] shadow-md shadow-[var(--mx-primary)]/20 transition-all hover:bg-[var(--mx-primary-dim)] active:scale-95"
               >
                 <span
@@ -74,9 +74,9 @@ export function AppLayout() {
               </Link>
             )}
             <nav className="mx-glass flex items-center rounded-full p-1 text-sm font-semibold">
-              {recipeId && (
+              {recipeSlug && (
                 <Link
-                  to={`/cook/${recipeId}`}
+                  to={`/cook/${recipeSlug}`}
                   className="sm:hidden flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-primary)] hover:bg-[var(--mx-surface-container)] transition-colors"
                   title="Kochmodus"
                 >
