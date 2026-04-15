@@ -113,7 +113,9 @@ function playBell() {
       gain.gain.exponentialRampToValueAtTime(0.001, t + 1.1)
       osc.start(t); osc.stop(t + 1.1)
     })
-  } catch (_) {}
+  } catch {
+    // Ignore audio context errors
+  }
 }
 
 function StepTimer({ minutes }: { minutes: number }) {
@@ -131,7 +133,10 @@ function StepTimer({ minutes }: { minutes: number }) {
 
   useEffect(() => {
     if (running && remaining === 0 && !hasRung.current) {
-      hasRung.current = true; setRunning(false); setDone(true); playBell()
+      hasRung.current = true
+      playBell()
+      setRunning(false)
+      setDone(true)
     }
   }, [remaining, running])
 
@@ -285,8 +290,13 @@ export function RecipeDetailPage() {
     mutationFn: ({ id, data }: { id: string; data: RecipeUpdateRequest }) => updateRecipe(id, data),
     onSuccess: async () => {
       if (pendingImageFile && recipeId) {
-        try { await uploadRecipeImage(recipeId, pendingImageFile) } catch {}
-        setPendingImageFile(null); setImagePreviewUrl(null)
+        try {
+          await uploadRecipeImage(recipeId, pendingImageFile)
+        } catch {
+          // Ignore image upload errors - recipe is still saved
+        }
+        setPendingImageFile(null)
+        setImagePreviewUrl(null)
       }
       await recipeQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
