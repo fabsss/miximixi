@@ -44,6 +44,23 @@ function shortIngName(name: string): string {
   return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
 }
 
+// Remove "(X)" from text when X exactly matches a known ingredient name.
+// Keeps multi-item parentheticals like "(flour, sugar, eggs)" intact.
+// Strip "Word (Word)" → "Word" repetitions and standalone "(IngName)" parens.
+function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
+  // 1. Remove (X) when the word immediately before it is the same word (case-insensitive)
+  let result = text.replace(/(\p{L}[\p{L}\p{N}]*)\s*\((\p{L}[\p{L}\p{N}]*)\)/gu, (match, word, paren) =>
+    word.toLowerCase() === paren.toLowerCase() ? word : match
+  )
+  // 2. Remove (X) when X exactly matches a known ingredient name (no commas = not a list)
+  result = result.replace(/\s*\(([^),]+)\)/g, (match, inner) => {
+    const normalized = inner.trim().toLowerCase()
+    const isIngName = allIngredients.some((ing) => shortIngName(ing.name).toLowerCase() === normalized)
+    return isIngName ? '' : match
+  })
+  return result
+}
+
 function parseIngredientReference(
   text: string,
 ): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
@@ -56,10 +73,25 @@ function parseIngredientReference(
     // The text before the match (including the captured label word, which we strip)
     const beforeLabel = match[1] ?? ''
     const matchStart = match.index
-    const textChunk = text.slice(lastIndex, matchStart)
+    let textChunk = text.slice(lastIndex, matchStart)
+    let advance = 0
+    // Detect single-ref wrapped in parens: "...(Label{N})" - textChunk ends with "(" and next char is ")"
+    if (/\(\s*$/.test(textChunk) && text[regex.lastIndex] === ')') {
+      // Strip only the "(" (keep preceding space for readability)
+      textChunk = textChunk.replace(/\(\s*$/, '')
+      advance = 1 // skip the closing ")"
+      // If the last word of textChunk duplicates the chip label, strip it
+      if (beforeLabel) {
+        const trimmed = textChunk.trimEnd()
+        const lastWord = trimmed.split(/\s+/).pop() ?? ''
+        if (lastWord.toLowerCase() === beforeLabel.toLowerCase())
+          textChunk = trimmed.slice(0, trimmed.length - lastWord.length)
+      }
+    }
     if (textChunk) parts.push({ type: 'text', content: textChunk, label: '' })
     parts.push({ type: 'ref', content: match[2], label: beforeLabel })
-    lastIndex = regex.lastIndex
+    lastIndex = regex.lastIndex + advance
+    regex.lastIndex = lastIndex
   }
   if (lastIndex < text.length)
     parts.push({ type: 'text', content: text.slice(lastIndex), label: '' })
@@ -185,20 +217,51 @@ export function RecipeDetailPage() {
   const [editingNotes, setEditingNotes] = useState(false)
   const [notesDraft, setNotesDraft] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false)
   const [ingredientsVisible, setIngredientsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ingredientsRef = useRef<HTMLDivElement>(null)
   const ingredientsPanelRef = useRef<HTMLElement>(null)
+  const bubbleTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     const el = ingredientsRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setIngredientsVisible(entry.isIntersecting),
-      { threshold: 0.1 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+    const panel = ingredientsPanelRef.current
+    if (!el || !panel) return
+
+    panel.style.transition = 'max-height 380ms ease-in-out'
+    const baseH = window.innerHeight - 112 // 7rem
+    const THRESH = 150
+    let expanded = false
+
+    const check = () => {
+      setIngredientsVisible(el.getBoundingClientRect().bottom > 0)
+      const dist = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
+
+      if (dist < THRESH && !expanded) {
+        expanded = true
+        panel.scrollTop = 0
+        // Measure full height now (data is loaded by the time user scrolls to bottom)
+        panel.style.maxHeight = 'none'
+        const fullH = panel.scrollHeight
+        // Restore previous max-height so browser has a start value for the transition
+        panel.style.maxHeight = panel.style.maxHeight === 'none' ? '' : panel.style.maxHeight
+        panel.style.maxHeight = '' // let Tailwind value be start point
+        panel.offsetHeight    // force reflow so transition sees the baseH start value
+        panel.style.maxHeight = `${fullH}px`
+      } else if (dist >= THRESH && expanded) {
+        expanded = false
+        panel.scrollTop = 0
+        panel.style.maxHeight = `${baseH}px`
+        panel.addEventListener('transitionend', () => {
+          panel.style.maxHeight = ''
+        }, { once: true })
+      }
+    }
+
+    check()
+    window.addEventListener('scroll', check, { passive: true, capture: true })
+    return () => window.removeEventListener('scroll', check, { capture: true })
   }, [])
 
   const recipeQuery = useQuery({
@@ -349,14 +412,14 @@ export function RecipeDetailPage() {
 
       {/* HERO */}
       <section className="pb-6 pt-2">
-        <div className="group relative h-[360px] w-full overflow-hidden rounded-[2rem]">
+        <div className="group relative h-[360px] w-full cursor-zoom-in overflow-hidden rounded-[2rem]" onClick={() => setShowFullscreenImage(true)}>
           <img
             src={imagePreviewUrl ?? getImageUrl(recipe.id)}
             alt={recipe.title ?? 'Rezeptbild'}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-          <div className="absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+          <div className="pointer-events-none absolute bottom-0 left-0 w-full max-w-2xl p-6 md:p-8">
             <div className="mb-2 flex flex-wrap gap-1.5">
               {categories.length > 0 ? categories.map((cat, i) => (
                 <span key={i} className="inline-flex items-center gap-1 rounded-full bg-[var(--mx-secondary-container)] px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--mx-secondary)]">
@@ -397,6 +460,7 @@ export function RecipeDetailPage() {
                   <span className="text-xs font-medium">{recipe.source_label ? recipe.source_label.replace(/^@/, '@') : 'Originalquelle'}</span>
                 </a>
               )}
+
             </div>
           </div>
         </div>
@@ -552,7 +616,10 @@ export function RecipeDetailPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         {/* INGREDIENTS SIDEBAR */}
-        <aside ref={ingredientsPanelRef} className="w-full flex-shrink-0 lg:sticky lg:top-24 lg:w-[350px] lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+        <aside
+          ref={ingredientsPanelRef}
+          className="w-full flex-shrink-0 lg:sticky lg:top-24 lg:w-[350px] lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
+        >
           <div ref={ingredientsRef} className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-headline text-xl font-bold text-[var(--mx-on-surface)]">Zutaten</h3>
@@ -613,40 +680,40 @@ export function RecipeDetailPage() {
                 )
               })}
             </div>
+          </div>
 
-            {/* Chef's Note – inline editing */}
-            <div className="mt-7 rounded-[1.5rem] border border-[var(--mx-primary-container)]/30 bg-[var(--mx-primary-container)]/20 p-4">
-              <div className="flex gap-3">
-                <span className="material-symbols-outlined flex-shrink-0 text-[20px] text-[var(--mx-primary)]">lightbulb</span>
-                <div className="min-w-0 flex-1">
-                  <strong className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-primary)]">Chef's Note</strong>
-                  {editingNotes ? (
-                    <div className="space-y-2">
-                      <textarea value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} rows={4} autoFocus
-                        placeholder="Persönliche Notizen, Variationen, Tipps …"
-                        className="block w-full resize-none rounded-lg bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30" />
-                      <div className="flex gap-2">
-                        <button onClick={() => notesMutation.mutate({ id: recipeId!, notes: notesDraft })} disabled={notesMutation.isPending}
-                          className="rounded-full bg-[var(--mx-primary)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] disabled:opacity-50">
-                          {notesMutation.isPending ? 'Speichert …' : 'Speichern'}
-                        </button>
-                        <button onClick={() => setEditingNotes(false)} className="rounded-full bg-[var(--mx-surface-high)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-surface)]">Abbrechen</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {recipe.notes ? (
-                        <p className="whitespace-pre-wrap font-body text-sm leading-relaxed text-[var(--mx-on-surface)]">{recipe.notes}</p>
-                      ) : (
-                        <p className="font-body text-sm italic text-[var(--mx-on-surface-variant)]">Noch keine Notizen …</p>
-                      )}
-                      <button onClick={() => { setNotesDraft(recipe.notes ?? ''); setEditingNotes(true) }}
-                        className="mt-2 text-xs font-semibold text-[var(--mx-primary)] hover:underline">
-                        {recipe.notes ? 'Bearbeiten' : 'Notiz hinzufügen'}
+          {/* Chef's Note */}
+          <div className="mt-4 rounded-[1.5rem] border border-[var(--mx-primary-container)]/30 bg-[var(--mx-primary-container)]/20 p-4">
+            <div className="flex gap-3">
+              <span className="material-symbols-outlined flex-shrink-0 text-[20px] text-[var(--mx-primary)]">lightbulb</span>
+              <div className="min-w-0 flex-1">
+                <strong className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-primary)]">Chef's Note</strong>
+                {editingNotes ? (
+                  <div className="space-y-2">
+                    <textarea value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} rows={4} autoFocus
+                      placeholder="Persönliche Notizen, Variationen, Tipps …"
+                      className="block w-full resize-none rounded-lg bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30" />
+                    <div className="flex gap-2">
+                      <button onClick={() => notesMutation.mutate({ id: recipeId!, notes: notesDraft })} disabled={notesMutation.isPending}
+                        className="rounded-full bg-[var(--mx-primary)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] disabled:opacity-50">
+                        {notesMutation.isPending ? 'Speichert …' : 'Speichern'}
                       </button>
-                    </>
-                  )}
-                </div>
+                      <button onClick={() => setEditingNotes(false)} className="rounded-full bg-[var(--mx-surface-high)] px-4 py-1.5 text-xs font-bold text-[var(--mx-on-surface)]">Abbrechen</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {recipe.notes ? (
+                      <p className="whitespace-pre-wrap font-body text-sm leading-relaxed text-[var(--mx-on-surface)]">{recipe.notes}</p>
+                    ) : (
+                      <p className="font-body text-sm italic text-[var(--mx-on-surface-variant)]">Noch keine Notizen …</p>
+                    )}
+                    <button onClick={() => { setNotesDraft(recipe.notes ?? ''); setEditingNotes(true) }}
+                      className="mt-2 text-xs font-semibold text-[var(--mx-primary)] hover:underline">
+                      {recipe.notes ? 'Bearbeiten' : 'Notiz hinzufügen'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -663,7 +730,23 @@ export function RecipeDetailPage() {
                   <div className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-primary)] text-sm font-bold text-[var(--mx-on-primary)]">{index + 1}</div>
                   <p className="font-body text-sm leading-relaxed text-[var(--mx-on-surface-variant)] md:text-base">
                     {parts.map((part, i) => {
-                      if (part.type === 'text') return <span key={i}>{part.content}</span>
+                      if (part.type === 'text') {
+                        const allIngs = Array.from(groupedIngredients.values()).flat()
+                        let content = stripIngredientParens(part.content, allIngs)
+                        // If next part is a ref chip, strip trailing word that duplicates the chip label
+                        const nextPart = parts[i + 1]
+                        if (nextPart?.type === 'ref') {
+                          const nextIng = allIngs.find((ing) => String(ing.sort_order) === nextPart.content)
+                          if (nextIng) {
+                            const chipLabel = shortIngName(nextIng.name).toLowerCase()
+                            const trimmed = content.trimEnd()
+                            const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() ?? ''
+                            if (lastWord === chipLabel)
+                              content = trimmed.slice(0, trimmed.length - lastWord.length)
+                          }
+                        }
+                        return <span key={i}>{content}</span>
+                      }
                       const sortOrder = part.content
                       const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
                       const isHighlighted = highlightedSortOrder === sortOrder
@@ -674,13 +757,19 @@ export function RecipeDetailPage() {
                           <button type="button" onClick={() => {
                               const next = isHighlighted ? null : sortOrder
                               setHighlightedSortOrder(next)
-                              if (next && ingredientsPanelRef.current) {
-                                const el = document.getElementById(`ingredient-${next}`)
-                                if (el) {
-                                  const panelRect = ingredientsPanelRef.current.getBoundingClientRect()
-                                  const elRect = el.getBoundingClientRect()
-                                  if (elRect.top < panelRect.top || elRect.bottom > panelRect.bottom) {
-                                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                              if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current)
+                              if (next) {
+                                // Auto-dismiss bubble after 3s
+                                bubbleTimerRef.current = window.setTimeout(() => setHighlightedSortOrder(null), 3000)
+                                // Scroll ingredient into view in sticky panel if needed
+                                if (ingredientsPanelRef.current) {
+                                  const el = document.getElementById(`ingredient-${next}`)
+                                  if (el) {
+                                    const panelRect = ingredientsPanelRef.current.getBoundingClientRect()
+                                    const elRect = el.getBoundingClientRect()
+                                    if (elRect.top < panelRect.top || elRect.bottom > panelRect.bottom) {
+                                      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                                    }
                                   }
                                 }
                               }                            }}
@@ -706,16 +795,21 @@ export function RecipeDetailPage() {
           <div className="mt-14 border-t border-[var(--mx-outline-variant)]/20 pt-8">
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
               {recipe.prep_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Vorbereitung</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.prep_time}</span></div>}
-              {recipe.cook_time && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kochzeit</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.cook_time}</span></div>}
-              {recipe.servings && <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Portionen</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{actualServings}</span></div>}
-              {recipe.source_url ? (
-                <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Quelle</span><a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-[var(--mx-primary)] hover:underline">{recipe.source_label || 'Instagram'}</a></div>
-              ) : recipe.category ? (
-                <div><span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">Kategorie</span><span className="text-sm font-bold text-[var(--mx-on-surface)]">{recipe.category}</span></div>
-              ) : null}
             </div>
           </div>
         </section>
+      </div>
+
+      {/* FULLSCREEN IMAGE */}
+      <div
+        onClick={() => setShowFullscreenImage(false)}
+        className={`fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300 ${showFullscreenImage ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      >
+        <img
+          src={getImageUrl(recipe.id)}
+          alt={recipe.title ?? 'Rezeptbild'}
+          className={`max-h-[90dvh] max-w-[90dvw] rounded-2xl object-contain shadow-2xl transition-all duration-300 ${showFullscreenImage ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}
+        />
       </div>
 
       {/* DELETE CONFIRMATION */}

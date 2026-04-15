@@ -9,7 +9,7 @@ import { useNavDrawer } from '../context/NavDrawerContext'
 export function FeedPage() {
   const [search, setSearch] = useState('')
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
-  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
@@ -75,35 +75,42 @@ export function FeedPage() {
       const categoryMatch = recipe.category?.toLowerCase().includes(value)
       const searchOk = !value || titleMatch || tagMatch || categoryMatch
       const mainCatOk = !selectedMainCategory || recipe.category === selectedMainCategory
-      const tagOk = !selectedTag || recipe.tags?.includes(selectedTag)
+      const tagOk = selectedTags.size === 0 || recipe.tags?.some((t) => selectedTags.has(t))
       const favoriteOk = !showFavoritesOnly || recipe.rating === 1
       return searchOk && mainCatOk && tagOk && favoriteOk
     })
-  }, [recipesQuery.data, search, selectedMainCategory, selectedTag, showFavoritesOnly])
+  }, [recipesQuery.data, search, selectedMainCategory, selectedTags, showFavoritesOnly])
 
   const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
-    setSelectedTag(null)
+    setSelectedTags(new Set())
     setShowFavoritesOnly(false)
     setDrawerOpen(false)
   }
 
-  const sidebarBtnCls = (active: boolean) =>
-    `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-      active
-        ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
-        : 'text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-container)]'
-    }`
+  const catBtnCls = (cat: string | null, active: boolean) => {
+    if (!active) return 'flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-container)]'
+    const colors: Record<string, string> = {
+      'Vorspeisen':   'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200',
+      'Hauptspeisen': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200',
+      'Dessert':      'bg-pink-200 text-pink-900 dark:bg-pink-900 dark:text-pink-200',
+      'Frühstück':    'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-200',
+      'Snack':        'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200',
+      'Getränke':     'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-200',
+    }
+    const color = cat ? (colors[cat] ?? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]') : 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
+    return `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${color}`
+  }
 
   const CategoryNav = () => (
     <>
       <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
-      <button onClick={() => handleMainCat(null)} className={sidebarBtnCls(!selectedMainCategory)}>
+      <button onClick={() => handleMainCat(null)} className={catBtnCls(null, !selectedMainCategory)}>
         <span>Alle</span>
         <span className="text-xs opacity-60">{recipesQuery.data?.length ?? 0}</span>
       </button>
       {(categoriesQuery.data ?? []).map((cat) => (
-        <button key={cat} onClick={() => handleMainCat(cat)} className={sidebarBtnCls(selectedMainCategory === cat)}>
+        <button key={cat} onClick={() => handleMainCat(cat)} className={catBtnCls(cat, selectedMainCategory === cat)}>
           <span>{cat}</span>
           {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
         </button>
@@ -229,7 +236,7 @@ export function FeedPage() {
           <div className="flex flex-wrap gap-2">
             {/* Favorites filter */}
             <button
-              onClick={() => { setShowFavoritesOnly(!showFavoritesOnly); setSelectedTag(null) }}
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
                 showFavoritesOnly
                   ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
@@ -240,21 +247,16 @@ export function FeedPage() {
               Favoriten
             </button>
 
-            {selectedTag && (
-              <button
-                onClick={() => setSelectedTag(null)}
-                className="rounded-full bg-[var(--mx-surface-container)] px-3 py-1 text-xs font-semibold text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)]"
-              >
-                \u2715 Alle Tags
-              </button>
-            )}
-
             {availableTags.map((tag) => (
               <button
                 key={tag}
-                onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                onClick={() => setSelectedTags((prev) => {
+                  const next = new Set(prev)
+                  next.has(tag) ? next.delete(tag) : next.add(tag)
+                  return next
+                })}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  selectedTag === tag
+                  selectedTags.has(tag)
                     ? 'bg-[var(--mx-secondary-container)] text-[var(--mx-secondary)]'
                     : 'bg-[var(--mx-surface-container)] text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)]'
                 }`}
