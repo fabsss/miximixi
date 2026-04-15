@@ -33,7 +33,7 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5}
+    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15"}
   ],
   "cover_timestamp": "MM:SS"
 }
@@ -44,6 +44,7 @@ Wichtig:
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
+- "step_timestamp" = Timestamp im Format "MM:SS" des Moments im Video, wo dieser Schritt deutlich zu sehen ist. WICHTIG: Für jeden Schritt einen aussagekräftigen Moment im Video identifizieren!
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_timestamp" = Timestamp im Format "MM:SS" des Moments, in dem das fertige Gericht am appetitlichsten zu sehen ist. NULL wenn kein geeigneter Moment vorhanden.
@@ -68,7 +69,7 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5}
+    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "0:15"}
   ],
   "cover_frame_index": 2
 }
@@ -79,6 +80,7 @@ Wichtig:
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
+- "step_timestamp" = Timestamp im Format "MM:SS" oder "M:SS" des Moments im Video, wo dieser Schritt deutlich zu sehen ist. WICHTIG: Für jeden Schritt einen aussagekräftigen Moment identifizieren! Nutze die Bilder um die genaue Position zu bestimmen.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt. NULL wenn kein geeignetes Bild vorhanden.
