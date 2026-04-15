@@ -810,14 +810,14 @@ export function RecipeDetailPage() {
                   {step.time_minutes ? <StepTimer minutes={step.time_minutes} /> : null}
                   {step.step_image_filename && (
                     <div
-                      className="mt-3 cursor-zoom-in overflow-hidden rounded-xl"
+                      className="mt-2 inline-block cursor-zoom-in overflow-hidden rounded-lg"
                       onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
-                      style={{ aspectRatio: '16/9' }}
+                      style={{ width: '120px', aspectRatio: '16/9' }}
                     >
                       <img
                         src={getStepImageUrl(recipe.id, step.step_image_filename)}
                         alt=""
-                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-110"
                       />
                     </div>
                   )}
