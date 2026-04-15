@@ -1,0 +1,18 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { createHtmlPlugin } from 'vite-plugin-html';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    createHtmlPlugin({
+      minify: true,
+    }),
+  ],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/tests/setup.ts',
+    include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+  },
+});

@@ -6,6 +6,9 @@
         "Resolve-Path": true,
         "Push-Location": true,
         "npx -y node@22.12.0": true,
-        "Pop-Location": true
+        "Pop-Location": true,
+        "Set-Content": true,
+        "git add": true,
+        "git commit": true
     }
 }
