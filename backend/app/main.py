@@ -34,6 +34,10 @@ def generate_slug(title: str) -> str:
 async def lifespan(app: FastAPI):
     # Run database migrations
     try:
+        import sys
+        from pathlib import Path
+        # Add parent directory to path so we can import run_migrations
+        sys.path.insert(0, str(Path(__file__).parent.parent))
         from run_migrations import run_migrations
         run_migrations()
     except Exception as e:
