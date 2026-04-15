@@ -1,5 +1,6 @@
 export interface RecipeListItem {
   id: string
+  slug?: string
   title: string
   category: string | null
   image_filename: string | null
