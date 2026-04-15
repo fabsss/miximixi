@@ -812,12 +812,12 @@ export function RecipeDetailPage() {
                     <div
                       className="mt-3 cursor-zoom-in overflow-hidden rounded-xl"
                       onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
+                      style={{ aspectRatio: '16/9' }}
                     >
                       <img
                         src={getStepImageUrl(recipe.id, step.step_image_filename)}
                         alt=""
-                        className="w-full object-cover transition-transform duration-300 hover:scale-105"
-                        style={{ height: '140px' }}
+                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                       />
                     </div>
                   )}
