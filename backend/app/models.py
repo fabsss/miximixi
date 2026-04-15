@@ -19,6 +19,7 @@ class Step(BaseModel):
     text: str
     time_minutes: int | None = None
     step_timestamp: str | None = None  # "MM:SS" - timestamp im Video für diesen Schritt
+    step_image_filename: str | None = None  # Dateiname des extrahierten Frame-Bildes
 
 
 class ExtractedRecipe(BaseModel):
@@ -66,6 +67,7 @@ class StepInput(BaseModel):
     text: str
     time_minutes: int | None = None
     step_timestamp: str | None = None  # "MM:SS" - timestamp im Video
+    step_image_filename: str | None = None  # Dateiname des extrahierten Frame-Bildes
     sort_order: int = 0
 
 

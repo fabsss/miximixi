@@ -369,3 +369,59 @@ def save_cover_to_storage(file_path: str, recipe_id: str) -> str:
     logger.info(f"Cover gespeichert: {destination}")
 
     return image_filename
+
+
+# ── Step Frame Extraction ────────────────────────────────────────────────
+
+def extract_frame_at_timestamp(video_path: str, timestamp: str, recipe_id: str, step_id: int) -> str | None:
+    """
+    Extrahiert einen Frame aus dem Video an einem bestimmten Timestamp.
+
+    Args:
+        video_path: Pfad zur Videodatei
+        timestamp: Format "MM:SS" oder "M:SS"
+        recipe_id: ID des Rezepts
+        step_id: ID des Schritts
+
+    Returns:
+        Dateiname des gespeicherten Frames oder None bei Fehler
+    """
+    import shutil
+
+    if not is_video(video_path):
+        logger.warning(f"extract_frame_at_timestamp: {video_path} ist kein Video")
+        return None
+
+    try:
+        os.makedirs(settings.images_dir, exist_ok=True)
+
+        # Frame-Dateiname: recipe_id-step_id-frame.jpg (z.B. abc123-3-frame.jpg)
+        frame_filename = f"{recipe_id}-step-{step_id}-frame.jpg"
+        output_path = os.path.join(settings.images_dir, frame_filename)
+
+        # ffmpeg: Frame bei Timestamp extrahieren
+        cmd = [
+            "ffmpeg",
+            "-ss", timestamp,           # Seek to timestamp
+            "-i", video_path,
+            "-vframes", "1",             # Extract only 1 frame
+            "-q:v", "2",                 # High quality
+            "-y",                        # Overwrite without asking
+            output_path
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+        if result.returncode != 0:
+            logger.error(f"ffmpeg frame extraction fehlgeschlagen: {result.stderr}")
+            return None
+
+        logger.info(f"Frame extrahiert: {output_path} (timestamp: {timestamp})")
+        return frame_filename
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"ffmpeg timeout bei {video_path}, timestamp {timestamp}")
+        return None
+    except Exception as e:
+        logger.error(f"Frame-Extraktion fehlgeschlagen: {e}")
+        return None
