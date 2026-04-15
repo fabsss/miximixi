@@ -11,10 +11,9 @@ import {
   type RecipeUpdateRequest,
   type TranslationResponse,
 } from '../lib/api'
+import { useCategories } from '../lib/useCategories'
 import type { Ingredient } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
-
-const CATEGORY_OPTIONS = ['Vorspeisen', 'Hauptspeisen', 'Nachspeisen', 'Getränke'] as const
 
 const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
@@ -170,6 +169,8 @@ export function RecipeDetailPage() {
   const { recipeId } = useParams<{ recipeId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const categoriesQuery = useCategories()
+  const categoryOptions = categoriesQuery.data
 
   const [convertToMetric, setConvertToMetric] = useState(true)
   const [displayServings, setDisplayServings] = useState<number | null>(null)
@@ -476,7 +477,7 @@ export function RecipeDetailPage() {
                 <span className={labelCls}>Kategorie</span>
                 <select value={editDraft.category} onChange={(e) => setEditDraft((d) => d ? { ...d, category: e.target.value } : d)} className={inputCls}>
                   <option value="">— keine —</option>
-                  {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {(categoryOptions ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
               <label className="space-y-1">
