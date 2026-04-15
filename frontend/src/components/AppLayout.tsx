@@ -21,7 +21,7 @@ export function AppLayout() {
         <div className="mx-shell flex items-center justify-between py-4">
           {/* Left: hamburger (feed, mobile) OR back arrow (detail pages) + logo */}
           <div className="flex items-center gap-3">
-            {recipeId ? (
+            {recipeSlug ? (
               <button
                 onClick={() => {
                   if ('startViewTransition' in document) {

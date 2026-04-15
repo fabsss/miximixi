@@ -66,7 +66,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
     : []
 
   const handleClick = () => {
-    const target = `/recipes/${recipe.slug || recipe.id}`
+    const target = `/recipes/${recipe.id}`
     if ('startViewTransition' in document) {
       document.documentElement.dataset.navdir = 'forward'
       ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
