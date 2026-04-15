@@ -481,6 +481,10 @@ export function RecipeDetailPage() {
               className="rounded-full bg-[var(--mx-surface-high)] px-5 py-2 text-xs font-bold text-[var(--mx-on-surface)] transition-all active:scale-95">
               Abbrechen
             </button>
+            <button onClick={() => setShowDeleteConfirm(true)}
+              className="ml-auto flex items-center gap-1.5 rounded-full bg-[var(--mx-surface-high)] px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all active:scale-95">
+              <span className="material-symbols-outlined text-[15px]">delete</span>Löschen
+            </button>
           </>
         ) : (
           <>
@@ -500,10 +504,7 @@ export function RecipeDetailPage() {
               className={`flex items-center justify-center rounded-full p-2 transition-all active:scale-95 disabled:opacity-50 ${recipe.rating === 1 ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]'}`}>
               <HeartIcon filled={recipe.rating === 1} className="h-4 w-4" />
             </button>
-            <button onClick={() => setShowDeleteConfirm(true)}
-              className="ml-auto flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all active:scale-95">
-              <span className="material-symbols-outlined text-[14px]">delete</span>Löschen
-            </button>
+
           </>
         )}
       </div>
@@ -611,6 +612,7 @@ export function RecipeDetailPage() {
               </button>
             </div>
           </div>
+
         </div>
       )}
 
