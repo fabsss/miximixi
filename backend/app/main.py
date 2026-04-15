@@ -30,18 +30,63 @@ def generate_slug(title: str) -> str:
     return slug.strip('-')
 
 
+def _run_migrations():
+    """Execute all SQL migrations from the migrations/ directory."""
+    from pathlib import Path
+    migrations_dir = Path(__file__).parent.parent / "migrations"
+
+    if not migrations_dir.exists():
+        logger.warning(f"Migrations directory not found: {migrations_dir}")
+        return
+
+    migration_files = sorted(migrations_dir.glob("*.sql"))
+
+    if not migration_files:
+        logger.info("No migration files found")
+        return
+
+    try:
+        # Connect to database
+        conn = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            database=settings.db_name,
+            user=settings.db_user,
+            password=settings.db_password,
+        )
+        cursor = conn.cursor()
+
+        for migration_file in migration_files:
+            logger.info(f"Running migration: {migration_file.name}")
+
+            with open(migration_file, 'r') as f:
+                sql = f.read()
+
+            try:
+                cursor.execute(sql)
+                conn.commit()
+                logger.info(f"✓ Completed: {migration_file.name}")
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"✗ Failed: {migration_file.name}: {e}")
+                raise
+
+        cursor.close()
+        conn.close()
+        logger.info("All migrations completed successfully")
+
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        raise
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Run database migrations
     try:
-        import sys
-        from pathlib import Path
-        # Add parent directory to path so we can import run_migrations
-        sys.path.insert(0, str(Path(__file__).parent.parent))
-        from run_migrations import run_migrations
-        run_migrations()
+        _run_migrations()
     except Exception as e:
-        logger.error(f"Migration failed: {e}")
+        logger.error(f"Migration startup failed: {e}")
         raise
 
     # Temp-Verzeichnis anlegen
