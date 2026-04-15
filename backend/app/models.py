@@ -2,8 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-CATEGORIES = ["Vorspeisen", "Hauptspeisen", "Dessert", "Frühstück", "Snack", "Getränke"]
-CATEGORY_VALUES = Literal["Vorspeisen", "Hauptspeisen", "Dessert", "Frühstück", "Snack", "Getränke"]
+CATEGORIES = ["Vorspeisen", "Hauptspeisen", "Desserts", "Brunch", "Snacks", "Drinks"]
+CATEGORY_VALUES = Literal["Vorspeisen", "Hauptspeisen", "Desserts", "Brunch", "Snacks", "Drinks"]
 
 
 class Ingredient(BaseModel):
@@ -18,6 +18,8 @@ class Step(BaseModel):
     id: int
     text: str
     time_minutes: int | None = None
+    step_timestamp: str | None = None  # "MM:SS" - timestamp im Video für diesen Schritt
+    step_image_filename: str | None = None  # Dateiname des extrahierten Frame-Bildes
 
 
 class ExtractedRecipe(BaseModel):
@@ -64,6 +66,8 @@ class IngredientInput(BaseModel):
 class StepInput(BaseModel):
     text: str
     time_minutes: int | None = None
+    step_timestamp: str | None = None  # "MM:SS" - timestamp im Video
+    step_image_filename: str | None = None  # Dateiname des extrahierten Frame-Bildes
     sort_order: int = 0
 
 

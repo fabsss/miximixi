@@ -24,7 +24,7 @@ JSON-Format:
 {
   "title": "Rezeptname",
   "lang": "de",
-  "category": "Vorspeisen|Hauptspeisen|Dessert|Frühstück|Snack|Getränke",
+  "category": "Vorspeisen|Hauptspeisen|Desserts|Brunch|Snacks|Drinks",
   "servings": 2,
   "prep_time": "10 min",
   "cook_time": "20 min",
@@ -33,17 +33,18 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5}
+    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15"}
   ],
   "cover_timestamp": "MM:SS"
 }
 
 Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
-- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Dessert, Frühstück, Snack, Getränke
+- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
+- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Wähle den Moment, in dem dieser Schritt am deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_timestamp" = Timestamp im Format "MM:SS" des Moments, in dem das fertige Gericht am appetitlichsten zu sehen ist. NULL wenn kein geeigneter Moment vorhanden.
@@ -59,7 +60,7 @@ JSON-Format:
 {
   "title": "Rezeptname",
   "lang": "de",
-  "category": "Vorspeisen|Hauptspeisen|Dessert|Frühstück|Snack|Getränke",
+  "category": "Vorspeisen|Hauptspeisen|Desserts|Brunch|Snacks|Drinks",
   "servings": 2,
   "prep_time": "10 min",
   "cook_time": "20 min",
@@ -68,17 +69,18 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5}
+    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15"}
   ],
   "cover_frame_index": 2
 }
 
 Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
-- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Dessert, Frühstück, Snack, Getränke
+- "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
+- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Nutze die Bilder um den Moment zu identifizieren, wo dieser Schritt am deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt. NULL wenn kein geeignetes Bild vorhanden.
@@ -135,23 +137,23 @@ def _normalize_category(category: str | None) -> str | None:
 
     # Mapping von häufigen LLM-Outputs auf erlaubte Kategorien
     mapping = {
-        "dessert": "Dessert",
-        "desserts": "Dessert",
-        "nachtisch": "Dessert",
-        "süßspeisen": "Dessert",
-        "nachspeisen": "Dessert",
-        "frühstück": "Frühstück",
-        "breakfast": "Frühstück",
-        "brunch": "Frühstück",
-        "snack": "Snack",
-        "snacks": "Snack",
+        "dessert": "Desserts",
+        "desserts": "Desserts",
+        "nachtisch": "Desserts",
+        "süßspeisen": "Desserts",
+        "nachspeisen": "Desserts",
+        "frühstück": "Brunch",
+        "breakfast": "Brunch",
+        "brunch": "Brunch",
+        "snack": "Snacks",
+        "snacks": "Snacks",
         "appetizer": "Vorspeisen",
         "appetizers": "Vorspeisen",
-        "getränk": "Getränke",
-        "getränke": "Getränke",
-        "drinks": "Getränke",
-        "drink": "Getränke",
-        "beverage": "Getränke",
+        "getränk": "Drinks",
+        "getränke": "Drinks",
+        "drinks": "Drinks",
+        "drink": "Drinks",
+        "beverage": "Drinks",
         "suppe": "Vorspeisen",
         "salat": "Vorspeisen",
         "pasta": "Hauptspeisen",
@@ -164,7 +166,7 @@ def _normalize_category(category: str | None) -> str | None:
     normalized = category.lower().strip()
 
     # Exakte Treffer in erlaubten Kategorien
-    if normalized in ["vorspeisen", "hauptspeisen", "dessert", "frühstück", "snack", "getränke"]:
+    if normalized in ["vorspeisen", "hauptspeisen", "desserts", "brunch", "snacks", "drinks"]:
         return category  # Original-Capitalization behalten
 
     # Versuche Mapping

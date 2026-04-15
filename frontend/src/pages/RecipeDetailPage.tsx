@@ -199,7 +199,11 @@ interface EditDraft {
 
 // Page
 export function RecipeDetailPage() {
-  const { recipeId } = useParams<{ recipeId: string }>()
+  const { recipeSlug } = useParams<{ recipeSlug: string }>()
+  // Extrahiere UUID aus slug-uuid Format (letzte 36 Zeichen)
+  const recipeId = recipeSlug && recipeSlug.length > 36 && recipeSlug[recipeSlug.length - 37] === '-'
+    ? recipeSlug.slice(-36)
+    : recipeSlug
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const categoriesQuery = useCategories()

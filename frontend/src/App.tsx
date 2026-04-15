@@ -9,9 +9,9 @@ function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<FeedPage />} />
-        <Route path="/recipes/:recipeId" element={<RecipeDetailPage />} />
+        <Route path="/recipes/:recipeSlug" element={<RecipeDetailPage />} />
       </Route>
-      <Route path="/cook/:recipeId" element={<CookPage />} />
+      <Route path="/cook/:recipeSlug" element={<CookPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
