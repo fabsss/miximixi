@@ -9,6 +9,7 @@
         "Pop-Location": true,
         "Set-Content": true,
         "git add": true,
-        "git commit": true
+        "git commit": true,
+        "git merge": true
     }
 }
