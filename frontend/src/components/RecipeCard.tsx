@@ -10,13 +10,27 @@ interface RecipeCardProps {
 
 const tileVariants = ['aspect-[4/3]', 'aspect-[3/2]', 'aspect-[16/10]']
 
-function categoryChipCls(cat: string): string {
+export function categoryChipCls(cat: string): string {
   switch (cat.toLowerCase()) {
     case 'vorspeisen':   return 'bg-amber-200/90 text-amber-900 dark:bg-amber-900/80 dark:text-amber-200'
     case 'hauptspeisen': return 'bg-orange-200/90 text-orange-900 dark:bg-orange-900/80 dark:text-orange-200'
-    case 'nachspeisen':  return 'bg-green-200/90 text-green-900 dark:bg-green-900/80 dark:text-green-200'
+    case 'dessert':      return 'bg-green-200/90 text-green-900 dark:bg-green-900/80 dark:text-green-200'
+    case 'frühstück':    return 'bg-rose-200/90 text-rose-900 dark:bg-rose-900/80 dark:text-rose-200'
+    case 'snack':        return 'bg-purple-200/90 text-purple-900 dark:bg-purple-900/80 dark:text-purple-200'
     case 'getränke':     return 'bg-sky-200/90 text-sky-900 dark:bg-sky-900/80 dark:text-sky-200'
     default:             return 'bg-white/25 text-white dark:bg-black/40 dark:text-white'
+  }
+}
+
+export function getCategoryIcon(cat: string): string {
+  switch (cat.toLowerCase()) {
+    case 'vorspeisen':   return 'soup_kitchen'
+    case 'hauptspeisen': return 'lunch_dining'
+    case 'dessert':      return 'icecream'
+    case 'frühstück':    return 'breakfast_dining'
+    case 'snack':        return 'cookie'
+    case 'getränke':     return 'local_drink'
+    default:             return 'restaurant_menu'
   }
 }
 
@@ -83,7 +97,8 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           {categories.length > 0 && (
             <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
               {categories.map((cat) => (
-                <span key={cat} className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${categoryChipCls(cat)}`}>
+                <span key={cat} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${categoryChipCls(cat)}`}>
+                  <span className="material-symbols-outlined text-[10px]">{getCategoryIcon(cat)}</span>
                   {cat}
                 </span>
               ))}
