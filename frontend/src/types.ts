@@ -28,6 +28,7 @@ export interface Step {
   sort_order: number
   text: string
   time_minutes: number | null
+  step_image_filename: string | null
 }
 
 export interface RecipeDetail extends RecipeListItem {
