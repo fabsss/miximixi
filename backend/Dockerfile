@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 FROM python:3.12-slim
 
 # Install all system dependencies at once
@@ -23,18 +24,20 @@ WORKDIR /app
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod +x /usr/local/bin/yt-dlp
 
-# Install Poetry with explicit version
+# Install Poetry
 RUN pip install --no-cache-dir poetry==1.8.3
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./
 
-# Install Python dependencies
-RUN poetry config virtualenvs.create false && \
+# Install Python dependencies with cache mount
+RUN --mount=type=cache,target=/root/.cache/pip \
+    poetry config virtualenvs.create false && \
     poetry install --no-cache --no-interaction --no-root --only main
 
-# Install Playwright browsers (requires installed packages)
-RUN playwright install chromium
+# Install Playwright browsers (with cache mount to save ~200MB)
+RUN --mount=type=cache,target=/root/.cache/ms-playwright \
+    playwright install --with-deps chromium
 
 # Copy application code
 COPY app/ ./app/
@@ -43,6 +46,6 @@ COPY app/ ./app/
 RUN apt-get purge -y --auto-remove \
     build-essential gcc g++ libssl-dev libffi-dev python3-dev \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /root/.cache/*
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
