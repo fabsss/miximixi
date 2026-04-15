@@ -21,6 +21,11 @@ export async function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health')
 }
 
+export async function getCategories(): Promise<string[]> {
+  const response = await request<{ categories: string[] }>('/categories')
+  return response.categories
+}
+
 export async function getRecipes(limit = 60): Promise<RecipeListItem[]> {
   return request<RecipeListItem[]>(`/recipes?limit=${limit}`)
 }

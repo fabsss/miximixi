@@ -2,15 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
+import { useCategories } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { useNavDrawer } from '../context/NavDrawerContext'
 
-const MAIN_CATEGORIES = ['Vorspeisen', 'Hauptspeisen', 'Nachspeisen', 'Getr\u00e4nke'] as const
-type MainCategory = (typeof MAIN_CATEGORIES)[number]
-
 export function FeedPage() {
   const [search, setSearch] = useState('')
-  const [selectedMainCategory, setSelectedMainCategory] = useState<MainCategory | null>(null)
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
@@ -18,6 +16,7 @@ export function FeedPage() {
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
   const mainRef = useRef<HTMLDivElement>(null)
 
+  const categoriesQuery = useCategories()
   const recipesQuery = useQuery({
     queryKey: ['recipes'],
     queryFn: () => getRecipes(80),
@@ -82,7 +81,7 @@ export function FeedPage() {
     })
   }, [recipesQuery.data, search, selectedMainCategory, selectedTag, showFavoritesOnly])
 
-  const handleMainCat = (cat: MainCategory | null) => {
+  const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
     setSelectedTag(null)
     setShowFavoritesOnly(false)
@@ -103,7 +102,7 @@ export function FeedPage() {
         <span>Alle</span>
         <span className="text-xs opacity-60">{recipesQuery.data?.length ?? 0}</span>
       </button>
-      {MAIN_CATEGORIES.map((cat) => (
+      {(categoriesQuery.data ?? []).map((cat) => (
         <button key={cat} onClick={() => handleMainCat(cat)} className={sidebarBtnCls(selectedMainCategory === cat)}>
           <span>{cat}</span>
           {categoryCounts[cat] != null && <span className="text-xs opacity-60">{categoryCounts[cat]}</span>}
