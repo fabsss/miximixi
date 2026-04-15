@@ -58,7 +58,11 @@ function formatTime(totalSeconds: number): string {
 }
 
 export function CookPage() {
-  const { recipeId } = useParams<{ recipeId: string }>()
+  const { recipeSlug } = useParams<{ recipeSlug: string }>()
+  // Extrahiere UUID aus slug-uuid Format (letzte 36 Zeichen)
+  const recipeId = recipeSlug && recipeSlug.length > 36 && recipeSlug[recipeSlug.length - 37] === '-'
+    ? recipeSlug.slice(-36)
+    : recipeSlug
   const [currentStep, setCurrentStep] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null)

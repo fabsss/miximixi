@@ -21,6 +21,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 
+def generate_slug(title: str) -> str:
+    """Generiert einen URL-sicheren Slug aus dem Rezepttitel."""
+    import re
+    slug = title.lower().strip()
+    slug = re.sub(r'[^\w\s-]', '', slug)  # Nur Buchstaben, Zahlen, Leerzeichen, Bindestrich
+    slug = re.sub(r'[-\s]+', '-', slug)   # Leerzeichen + mehrere Bindestriche → ein Bindestrich
+    return slug.strip('-')
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Temp-Verzeichnis anlegen
@@ -326,7 +335,13 @@ async def list_recipes(limit: int = 50):
         )
         recipes = cursor.fetchall()
         db.close()
-        return [dict(r) for r in recipes]
+        return [
+            {
+                **dict(r),
+                "slug": f"{generate_slug(r['title'])}-{r['id']}"
+            }
+            for r in recipes
+        ]
 
     except Exception as e:
         db.close()
@@ -334,13 +349,19 @@ async def list_recipes(limit: int = 50):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/recipes/{recipe_id}")
-async def get_recipe(recipe_id: str):
-    """Rezept mit Zutaten und Schritten abrufen."""
+@app.get("/recipes/{recipe_slug}")
+async def get_recipe(recipe_slug: str):
+    """Rezept mit Zutaten und Schritten abrufen. Slug-Format: 'rezept-name-{uuid}'."""
     db = get_db()
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
     try:
+        # Extrahiere UUID aus slug-uuid Format (letzte 36 Zeichen)
+        if len(recipe_slug) > 36 and recipe_slug[-37] == '-':
+            recipe_id = recipe_slug[-36:]
+        else:
+            recipe_id = recipe_slug
+
         cursor.execute("SELECT * FROM recipes WHERE id = %s", (recipe_id,))
         recipe = cursor.fetchone()
 
@@ -364,6 +385,7 @@ async def get_recipe(recipe_id: str):
 
         return {
             **dict(recipe),
+            "slug": f"{generate_slug(recipe['title'])}-{recipe['id']}",
             "ingredients": [dict(i) for i in ingredients],
             "steps": [dict(s) for s in steps],
         }
