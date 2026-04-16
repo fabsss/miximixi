@@ -64,21 +64,6 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             loading="lazy"
             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
           />
-          {/* Overlay with button */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end justify-center pb-4">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleClick()
-              }}
-              className="flex items-center gap-2 rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-black/20 transition-all hover:bg-amber-800 active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[17px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                restaurant
-              </span>
-              Zum Rezept
-            </button>
-          </div>
           {/* Favorite heart – top left */}
           {isFavorite && (
             <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
@@ -96,6 +81,19 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
               ))}
             </div>
           )}
+          {/* "Zum Rezept" button – bottom right */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleClick()
+            }}
+            className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-md hover:bg-amber-800 transition-colors active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              restaurant
+            </span>
+            Zum Rezept
+          </button>
         </div>
 
         <div className="px-2 pb-1 pt-3">
