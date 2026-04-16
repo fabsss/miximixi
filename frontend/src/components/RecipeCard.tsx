@@ -71,7 +71,7 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
                 e.stopPropagation()
                 handleClick()
               }}
-              className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black shadow-md shadow-black/20 transition-all hover:bg-gray-100 active:scale-95"
+              className="flex items-center gap-2 rounded-xl bg-[var(--mx-surface-container)] px-4 py-2 text-sm font-semibold text-[var(--mx-on-surface)] shadow-md shadow-black/20 transition-all hover:bg-[var(--mx-surface-high)] active:scale-95"
             >
               <span className="material-symbols-outlined text-[17px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 restaurant
