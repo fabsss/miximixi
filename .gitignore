@@ -17,9 +17,6 @@ __pycache__/
 frontend/dist/
 frontend/.vite/
 
-# n8n runtime data
-n8n/data/
-
 # Logs
 *.log
 

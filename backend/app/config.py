@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).parent.parent.parent / ".env"),
         env_file_encoding="utf-8",
-        extra="ignore",  # Felder für andere Services (n8n, Supabase, Vite) ignorieren
+        extra="ignore",  # Felder für andere Services (Supabase, Vite) ignorieren
     )
 
     # LLM

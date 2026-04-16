@@ -1,6 +1,6 @@
 ---
 name: devops-engineer
-description: "Use when: building or debugging Docker images, configuring docker-compose services, managing environment variables, setting up deployments, troubleshooting container runtime issues, configuring Supabase/Ollama/n8n infrastructure"
+description: "Use when: building or debugging Docker images, configuring docker-compose services, managing environment variables, setting up deployments, troubleshooting container runtime issues, configuring Supabase/Ollama infrastructure"
 applyTo: ["Dockerfile", "docker-compose*.yml", ".env*", "docs/deployment.md"]
 ---
 
@@ -28,15 +28,13 @@ applyTo: ["Dockerfile", "docker-compose*.yml", ".env*", "docs/deployment.md"]
 docker-compose.dev.yml:
   ├─ db (PostgreSQL 15-alpine)
   ├─ backend (FastAPI) - local machine, not containerized in dev
-  ├─ ollama (LLM inference, CPU-only)
-  └─ n8n (Workflow automation)
+  └─ ollama (LLM inference, CPU-only)
 
 docker-compose.yml (self-hosted / production):
   ├─ db (PostgreSQL 15-alpine)
   ├─ backend (FastAPI)
   ├─ frontend (React PWA, Nginx) - optional
   ├─ ollama (LLM inference, CPU-only)
-  ├─ n8n (Workflow automation)
   └─ [Zoraxy reverse proxy - external]
 ```
 
@@ -44,7 +42,6 @@ docker-compose.yml (self-hosted / production):
 - `docker-compose.dev.yml` — Local development stack
 - `docker-compose.yml` — Production deployment
 - `backend/Dockerfile` — FastAPI container
-- `n8n/Dockerfile` — n8n with yt-dlp/ffmpeg
 - `.env.example` → `.env` — Configuration template
 - `docs/deployment.md` — Full deployment runbook
 
@@ -60,7 +57,7 @@ docker-compose.yml (self-hosted / production):
 cp .env.example .env
 # Edit .env with your values (Telegram token, API keys, LLM provider, etc.)
 
-# Start stack (db, ollama, n8n)
+# Start stack (db, ollama)
 docker compose -f docker-compose.dev.yml up -d
 
 # Monitor startup
@@ -76,41 +73,11 @@ docker exec miximixi-db psql -U postgres -d miximixi -c "SELECT tablename FROM p
 **URLs:**
 | Service | URL | Notes |
 |---------|-----|-------|
-| n8n | http://localhost:5678 | Workflow automation |
 | Ollama | http://localhost:11434 | LLM inference API |
 | Backend (dev) | http://localhost:8000 | Run locally: `cd backend && poetry run uvicorn app.main:app --reload` |
 | PostgreSQL | localhost:5432 | psql command-line: `psql postgresql://postgres:password@localhost:5432/miximixi` |
 
-### 2. Build Custom Service Image
-
-**Example: n8n with yt-dlp**
-```dockerfile
-# n8n/Dockerfile
-FROM alpine:latest
-
-RUN apk add --no-cache \
-    ffmpeg \
-    python3 py3-pip curl \
-    nodejs npm
-
-RUN pip3 install --break-system-packages yt-dlp
-RUN npm install -g n8n
-
-RUN addgroup -S node && adduser -S -G node node
-USER node
-
-EXPOSE 5678
-ENTRYPOINT ["n8n", "start", "--tunnel"]
-```
-
-**Build & test:**
-```bash
-docker compose build --no-cache n8n
-docker compose up -d n8n
-docker compose logs n8n
-```
-
-### 3. Environment Variables
+### 2. Environment Variables
 
 **Template (.env.example):**
 ```bash
@@ -177,7 +144,7 @@ netstat -ano | findstr :5678  # Windows
 **Network issues?**
 ```bash
 # Test DNS within Docker
-docker exec miximixi-n8n ping db
+docker exec miximixi-backend ping db
 
 # Check network
 docker network ls
@@ -199,7 +166,7 @@ devops/<feature-or-fix>
 **Examples:**
 - `devops/update-postgres-config`
 - `devops/add-redis-cache-service`
-- `devops/fix-n8n-healthcheck`
+- `devops/upgrade-ollama-image`
 - `devops/upgrade-ollama-image`
 
 ### Commit Message Format
@@ -335,7 +302,6 @@ docker compose logs -f backend
 # Zoraxy rules:
 rezepte.home.local  → 127.0.0.1:80   (frontend Nginx)
 api.home.local      → 127.0.0.1:8000 (backend FastAPI)
-n8n.home.local      → 127.0.0.1:5678 (n8n admin)
 ```
 
 ---
@@ -358,10 +324,10 @@ n8n.home.local      → 127.0.0.1:5678 (n8n admin)
 - Verify DB port 5432 is accessible only internally (via docker network)
 - Ensure `db` healthcheck passes before starting backend: `docker compose ps` should show "healthy"
 
-### n8n stuck on startup
-- Check logs: `docker compose logs n8n | tail -50`
-- Increase timeout: `docker-compose up --abort-on-container-exit`
-- Clear n8n-data volume: `docker volume prune`
+### Backend won't start
+- Check logs: `docker compose logs backend | tail -50`
+- Verify all environment variables are set in `.env`
+- Ensure database is fully healthy before starting backend
 
 ---
 

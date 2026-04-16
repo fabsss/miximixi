@@ -35,29 +35,5 @@ services:
     volumes:
       - ./data/ollama-models:/root/.ollama
 
-  # ── n8n ───────────────────────────────────────────────────
-  n8n:
-    build:
-      context: ./n8n
-      dockerfile: Dockerfile
-    container_name: miximixi-n8n
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-admin}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-dev-encryption-key}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - BACKEND_URL=http://host.docker.internal:8000  # Backend läuft lokal
-      - WEBHOOK_TUNNEL_URL=   # Optional: ngrok URL für Telegram Webhooks
-      - DB_TYPE=sqlite
-      - DB_SQLITE_PATH=/home/node/.n8n/database.sqlite
-    volumes:
-      - ./data/n8n-data:/home/node/.n8n
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
 # Using bind mounts for persistent development data
 # All paths relative to this docker-compose.yml file location

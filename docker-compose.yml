@@ -73,33 +73,6 @@ services:
     networks:
       - miximixi
 
-  # ── n8n ───────────────────────────────────────────────────
-  n8n:
-    build:
-      context: ./n8n
-      dockerfile: Dockerfile
-    container_name: miximixi-n8n
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - BACKEND_URL=http://backend:8000
-      - WEBHOOK_URL=https://miximixi-n8n.sektbirne.fun
-      - DB_TYPE=sqlite
-      - DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
-    volumes:
-      - /mnt/data/backup/miximixi/n8n-data:/home/node/.n8n
-    depends_on:
-      - backend
-    networks:
-      - miximixi
-      - proxy
-
   # ── PostgreSQL Database ────────────────────────────────────
   db:
     image: postgres:15-alpine

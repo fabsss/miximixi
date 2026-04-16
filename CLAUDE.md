@@ -35,13 +35,13 @@ Custom AI agents for specialized development roles in the Miximixi project. Each
 - Configuring environment variables
 - Setting up development vs production deployments
 - Troubleshooting container runtime issues
-- Managing Supabase, Ollama, n8n infrastructure
+- Managing Supabase and Ollama infrastructure
 
 **Domain focus:** `Dockerfile`, `docker-compose.yml`, `.env`, `deployment.md`
 
 **Example prompts:**
-- `@devops-engineer why is n8n failing to start?`
-- `@devops-engineer help me set up SSLfor the reverse proxy`
+- `@devops-engineer why is the database failing to start?`
+- `@devops-engineer help me set up SSL for the reverse proxy`
 - `@devops-engineer configure healthchecks for all services`
 
 ---
@@ -137,7 +137,7 @@ All agents enforce these practices:
 
 **Examples by agent:**
 - `backend/add-recipe-translation-api`
-- `devops/fix-n8n-postgres-healthcheck`
+- `devops/improve-postgres-healthcheck`
 - `llm/improve-gemini-extraction-prompt`
 
 ### Commit Guidelines
