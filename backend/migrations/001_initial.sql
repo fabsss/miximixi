@@ -92,4 +92,3 @@ CREATE TRIGGER recipes_updated_at
 CREATE TRIGGER import_queue_updated_at
   BEFORE UPDATE ON import_queue
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
