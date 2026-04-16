@@ -812,26 +812,20 @@ export function RecipeDetailPage() {
                       )
                     })}
                   </p>
-                  <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-start">
-                    {step.step_image_filename && (
-                      <div
-                        className="flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg"
-                        onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
-                        style={{ width: '120px', aspectRatio: '16/9' }}
-                      >
-                        <img
-                          src={getStepImageUrl(recipe.id, step.step_image_filename)}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-300 hover:scale-110"
-                        />
-                      </div>
-                    )}
-                    {step.time_minutes && (
-                      <div className="flex justify-center">
-                        <StepTimer minutes={step.time_minutes} />
-                      </div>
-                    )}
-                  </div>
+                  {step.step_image_filename && (
+                    <div
+                      className="mt-3 inline-block cursor-zoom-in overflow-hidden rounded-lg"
+                      onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
+                      style={{ width: '120px', aspectRatio: '16/9' }}
+                    >
+                      <img
+                        src={getStepImageUrl(recipe.id, step.step_image_filename)}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform duration-300 hover:scale-110"
+                      />
+                    </div>
+                  )}
+                  {step.time_minutes ? <div className="mt-3 flex justify-center"><StepTimer minutes={step.time_minutes} /></div> : null}
                 </li>
               )
             })}
