@@ -25,6 +25,7 @@ MIGRATIONS=(
   "008_instagram_sync_state.sql"
   "009_instagram_sync_collections.sql"
   "010_admin_users.sql"
+  "011_fix_import_queue_cascade.sql"
 )
 
 # Get the directory where this script is located
