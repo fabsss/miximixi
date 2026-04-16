@@ -89,10 +89,13 @@ export async function translateRecipe(
 }
 
 export async function deleteRecipe(recipeId: string): Promise<void> {
+  console.log(`[API] Deleting recipe: ${recipeId}`)
   const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`, {
     method: 'DELETE',
     credentials: 'include',
   })
+  console.log(`[API] Delete response status: ${response.status}`)
+
   if (!response.ok) {
     let errorDetail = `Delete failed: ${response.status}`
     try {
@@ -103,8 +106,12 @@ export async function deleteRecipe(recipeId: string): Promise<void> {
     } catch {
       // If response isn't JSON, use status code message
     }
+    console.error(`[API] Delete error: ${errorDetail}`)
     throw new Error(errorDetail)
   }
+
+  console.log(`[API] Recipe deleted successfully`)
+  // For successful deletion, no response body to parse
 }
 
 export async function uploadRecipeImage(recipeId: string, file: File): Promise<void> {
