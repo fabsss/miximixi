@@ -812,7 +812,7 @@ export function RecipeDetailPage() {
                       )
                     })}
                   </p>
-                  <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-start">
+                  <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-start">
                     {step.step_image_filename && (
                       <div
                         className="flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg"
@@ -827,7 +827,7 @@ export function RecipeDetailPage() {
                       </div>
                     )}
                     {step.time_minutes && (
-                      <div className="flex-1 md:flex md:justify-center">
+                      <div className="flex justify-center">
                         <StepTimer minutes={step.time_minutes} />
                       </div>
                     )}
