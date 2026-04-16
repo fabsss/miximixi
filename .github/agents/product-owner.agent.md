@@ -298,6 +298,13 @@ When requesting documentation:
 type:feature, auth:backend, effort:5h
 ```
 
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
 ---
 
 ## Branching & Commits

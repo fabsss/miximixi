@@ -242,6 +242,13 @@ Before pushing:
 - [ ] Ports don't conflict with existing services
 - [ ] Tested with `docker compose up -d`
 
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
 ---
 
 ## Common Patterns
