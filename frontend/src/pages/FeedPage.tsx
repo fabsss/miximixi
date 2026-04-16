@@ -157,7 +157,7 @@ export function FeedPage() {
       'Hauptspeisen': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200',
       'Desserts':     'bg-pink-200 text-pink-900 dark:bg-pink-900 dark:text-pink-200',
       'Brunch':       'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-900',
-      'Snacks':       'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-200',
+      'Snacks':       'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200',
       'Drinks':       'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-200',
     }
     const color = cat ? (colors[cat] ?? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]') : 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
