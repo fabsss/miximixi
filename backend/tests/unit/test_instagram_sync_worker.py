@@ -20,7 +20,7 @@ class TestSyncControl:
     def test_sync_control_initial_state(self):
         """TC0: SyncControl initializes with correct defaults"""
         control = SyncControl()
-        assert control.enabled is True
+        assert control.enabled is False
         assert control.selected_collection_id is None
         assert control.selected_collection_name is None
         assert control.last_status == {}
@@ -36,6 +36,7 @@ class TestSyncControl:
     def test_disable_sets_enabled_false(self):
         """TC0B: disable() sets enabled flag to False"""
         control = SyncControl()
+        control.enable()
         assert control.enabled is True
         control.disable()
         assert control.enabled is False
@@ -57,9 +58,9 @@ class TestSyncControl:
         status = control.get_status()
         
         assert isinstance(status, dict)
-        assert status["enabled"] is True
-        assert status["selected_collection"]["id"] == "123"
-        assert status["selected_collection"]["name"] == "Test"
+        assert status["enabled"] is False
+        assert status["collection_id"] == "123"
+        assert status["collection_name"] == "Test"
 
 
 class TestHasRecipe:
