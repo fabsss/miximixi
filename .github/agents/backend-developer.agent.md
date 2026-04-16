@@ -175,6 +175,13 @@ Before pushing:
 - [ ] Async functions use `async def` + `await` correctly
 - [ ] Type hints on all function signatures
 
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
 ### Code Review Checklist (for PRs)
 - [ ] API response schema matches docs/architecture.md
 - [ ] Database queries use parameterized statements (no SQL injection)
