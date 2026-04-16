@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # ── Prompts ───────────────────────────────────────────────────────────
 
 # Gemini: analysiert Video nativ, gibt Timestamp des besten Frames zurück
-GEMINI_PROMPT = """Du bist ein Rezept-Extraktor. Analysiere das Video/Bild und den beigefügten Text und extrahiere ein vollständiges Rezept.
+GEMINI_PROMPT = """Du bist ein Rezept-Extraktor. Analysiere das Video/Bild, Audio und den beigefügten Text und extrahiere ein vollständiges Rezept.
 
 Gib das Ergebnis AUSSCHLIESSLICH als JSON zurück – kein Markdown, keine Erklärungen.
 
@@ -44,10 +44,10 @@ Wichtig:
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
-- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Wähle den Moment, in dem dieser Schritt am deutlichsten zu sehen ist.
+- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für besonders wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Wähle den Moment, in dem dieser Schritt am deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
-- "cover_timestamp" = Timestamp im Format "MM:SS" des Moments, in dem das fertige Gericht am appetitlichsten zu sehen ist. NULL wenn kein geeigneter Moment vorhanden.
+- "cover_timestamp" = Timestamp im Format "MM:SS" des Moments, in dem das fertige Gericht am appetitlichsten zu sehen ist. Bevorzuge Momente, in denen das fertige Gericht OHNE Text/Überschriften zu sehen ist. Falls jeder Moment Text enthält, nutze den Moment mit dem wenigsten oder unauffälligsten Text. NULL wenn kein geeigneter Moment vorhanden.
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
 
@@ -80,7 +80,7 @@ Wichtig:
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
-- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Nutze die Bilder um den Moment zu identifizieren, wo dieser Schritt am deutlichsten zu sehen ist.
+- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für besonders wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Nutze die Bilder um den Moment zu identifizieren, wo dieser Schritt am deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt. NULL wenn kein geeignetes Bild vorhanden.
