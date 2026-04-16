@@ -64,6 +64,21 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             loading="lazy"
             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
           />
+          {/* Overlay with button on hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClick()
+              }}
+              className="flex items-center gap-2 rounded-xl bg-[var(--mx-primary)] px-4 py-2 text-sm font-semibold text-[var(--mx-on-primary)] shadow-md shadow-[var(--mx-primary)]/20 transition-all hover:bg-[var(--mx-primary-dim)] active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[17px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                restaurant
+              </span>
+              Zum Rezept
+            </button>
+          </div>
           {/* Favorite heart – top left */}
           {isFavorite && (
             <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
