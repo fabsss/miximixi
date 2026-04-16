@@ -196,15 +196,6 @@ Story 3: Recipe is searchable
 - **Alternative:** Claude for edge cases (better at parsing captions)
 - **Documented in:** `docs/architecture.md` → LLM Abstraction Layer
 
-### Why self-hosted Supabase?
-- **Decision:** Self-host PostgreSQL via Supabase, not use cloud SaaS
-- **Rationale:**
-  - Full control over data
-  - No recurring costs beyond hosting
-  - Can implement custom RLS policies
-- **Trade-off:** Ops responsibility (backups, upgrades)
-- **Documented in:** `docs/deployment.md` → Home Server
-
 ---
 
 ## Sprint Planning
