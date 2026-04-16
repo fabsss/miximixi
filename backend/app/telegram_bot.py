@@ -153,6 +153,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Queue the job
     try:
         import psycopg2
+        import psycopg2.errors
         from psycopg2.extras import RealDictCursor
         
         db = psycopg2.connect(
@@ -193,15 +194,28 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Detect source type
         source_type = detect_source_type(url)
         
-        # Insert into import_queue with telegram_chat_id
-        cursor.execute(
-            """
-            INSERT INTO import_queue (source_url, source_type, status, telegram_chat_id)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id
-            """,
-            (url, source_type, "pending", str(user_id))
-        )
+        # Insert into import_queue
+        # Try with telegram_chat_id (if column exists), fall back without it
+        try:
+            cursor.execute(
+                """
+                INSERT INTO import_queue (source_url, source_type, status, telegram_chat_id)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (url, source_type, "pending", str(user_id))
+            )
+        except psycopg2.errors.UndefinedColumn:
+            # Fallback: Column doesn't exist yet (migration not applied)
+            cursor.execute(
+                """
+                INSERT INTO import_queue (source_url, source_type, status)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (url, source_type, "pending")
+            )
+        
         job_id = cursor.fetchone()["id"]
         db.commit()
         db.close()
