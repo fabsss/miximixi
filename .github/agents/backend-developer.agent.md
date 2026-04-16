@@ -112,62 +112,27 @@ docker exec -it miximixi-db psql -U postgres -d miximixi \
 
 **Note:** This project does not use Row-Level Security (RLS). Permission checking is handled in the FastAPI application code instead.
 
-### 3. Async Job Queue
-
-**Pattern:**
-```python
-# backend/app/queue_worker.py
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
-async def process_import_job():
-    """Main job processor loop."""
-    while True:
-        db = psycopg2.connect(host=settings.db_host, ...)
-        cursor = db.cursor(cursor_factory=RealDictCursor)
-        
-        try:
-            # 1. Fetch pending job from import_queue
-            cursor.execute(
-                "SELECT * FROM import_queue WHERE status = 'pending' LIMIT 1"
-            )
-            job = cursor.fetchone()
-            if not job:
-                await asyncio.sleep(5)  # Poll every 5 seconds
-                continue
-
-            # 2. Download media + extract caption
-            media_paths, caption = await download_media(job['source_url'])
-            
-            # 3. Call LLM extraction
-            extracted = await llm_provider.extract_recipe(media_paths, caption)
-            
-            # 4. Save to database
-            cursor.execute(
-                "INSERT INTO recipes (title, source_url, ...) VALUES (%s, %s, ...)",
-                (extracted.title, job['source_url'], ...)
-            )
-            recipe_id = cursor.fetchone()['id']
-            
-            # 5. Update queue status
-            cursor.execute(
-                "UPDATE import_queue SET status = 'done', recipe_id = %s WHERE id = %s",
-                (recipe_id, job['id'])
-            )
-            db.commit()
-        except Exception as e:
-            cursor.execute(
-                "UPDATE import_queue SET status = 'needs_review', error_msg = %s WHERE id = %s",
-                (str(e), job['id'])
-            )
-            db.commit()
-        finally:
-            db.close()
-```
-
 ---
 
 ## Branching & Code Standards
+
+## Coding Style should follow these guidelines:
+- **PEP 8** for Python code (use `black` for formatting)
+- **Always** use Test Driven Development (TDD) for new features and bug fixes
+- Use type hints on all function signatures and variables where possible
+- Write clear, user-friendly error messages for API responses           
+- **Always** document new endpoints and database schema changes in `docs/architecture.md`
+- **Always** document your code with comments explaining the "why" behind complex logic, especially around LLM interactions and async patterns using docstrings and inline comments.
+- use async/await for all I/O operations (database queries, HTTP requests, file operations)
+
+## Testing and Continous Improvement
+- if you encounter a bug or issue, write a test that reproduces the problem before fixing it. This ensures the issue is fully understood and prevents regressions in the future.
+- after implementing a feature or fix, review your code for any potential edge cases or improvements. Consider how the code might be extended in the future and whether it follows best practices for maintainability and scalability.
+- if you find yourself writing similar code in multiple places, consider refactoring to create reusable functions or classes. This reduces duplication and makes the codebase easier to maintain.
+- always run the full test suite after making changes to ensure nothing else is broken. If you find a failing test, investigate and fix it before merging your code.
+- if you are unsure about the best way to implement something, or if you encounter a particularly tricky problem, don't hesitate to ask for help from your team members or consult documentation and online resources. Collaboration and continuous learning are key to improving as a developer.
+- After each session, document any new learnings, patterns, or best practices you discovered in a shared knowledge base /docs/learning/learning.md. This helps the entire team benefit from your insights and promotes a culture of continuous improvement.
+
 
 ### Branch Naming
 ```
