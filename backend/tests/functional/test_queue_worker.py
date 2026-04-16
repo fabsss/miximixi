@@ -4,22 +4,24 @@ Tests job claiming, semaphore concurrency, callbacks, and chat_id nulling.
 """
 import pytest
 import asyncio
+import sys
 from unittest.mock import patch, AsyncMock, MagicMock
+
+# Import modules at module level to ensure they're in sys.modules for patching
+import app.queue_worker
+from app.queue_worker import _claim_next_pending_job, process_job
 
 
 @pytest.mark.asyncio
 async def test_claim_no_pending_job_returns_none():
     """TC9: _claim_next_pending_job — kein Job → None"""
-    from app.queue_worker import _claim_next_pending_job
-    from unittest.mock import MagicMock
-
     # Mock DB connection with no pending jobs
     mock_db = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = None
     mock_db.cursor.return_value = mock_cursor
 
-    with patch("app.queue_worker.psycopg2.connect", return_value=mock_db):
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db):
         result = _claim_next_pending_job()
         assert result is None
 
@@ -27,8 +29,6 @@ async def test_claim_no_pending_job_returns_none():
 @pytest.mark.asyncio
 async def test_claim_sets_status_to_processing():
     """TC10: _claim_next_pending_job — Job wird auf 'processing' gesetzt"""
-    from app.queue_worker import _claim_next_pending_job
-
     mock_db = MagicMock()
     mock_cursor = MagicMock()
     job_data = {
@@ -40,7 +40,7 @@ async def test_claim_sets_status_to_processing():
     mock_cursor.fetchone.return_value = job_data
     mock_db.cursor.return_value = mock_cursor
 
-    with patch("app.queue_worker.psycopg2.connect", return_value=mock_db):
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db):
         result = _claim_next_pending_job()
         assert result == job_data
         # Verify UPDATE was called
@@ -75,8 +75,6 @@ async def test_semaphore_limits_concurrency():
 @pytest.mark.asyncio
 async def test_notify_callback_called_on_success():
     """TC12: notify_callback wird nach Erfolg aufgerufen"""
-    from app.queue_worker import process_job
-
     notify_callback = AsyncMock()
 
     mock_db = MagicMock()
@@ -91,13 +89,13 @@ async def test_notify_callback_called_on_success():
         "caption": None,
     }
 
-    with patch("app.queue_worker.psycopg2.connect", return_value=mock_db), \
-         patch("app.queue_worker._download_for_source", new_callable=AsyncMock) as mock_download, \
-         patch("app.queue_worker.llm.extract_recipe") as mock_extract:
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db), \
+         patch.object(app.queue_worker, "_download_for_source", new_callable=AsyncMock) as mock_download, \
+         patch.object(app.queue_worker, "llm") as mock_llm_module:
 
         # Mock successful download and extraction
         mock_download.return_value = MagicMock(media_paths=["file.mp4"], description="")
-        mock_extract.return_value = MagicMock(
+        mock_llm_module.extract_recipe.return_value = MagicMock(
             recipe=MagicMock(
                 title="Test Recipe",
                 lang="de",
@@ -113,8 +111,9 @@ async def test_notify_callback_called_on_success():
             cover_frame_index=None,
         )
 
-        with patch("app.queue_worker.os.path.exists", return_value=True), \
-             patch("app.queue_worker.shutil.rmtree"):
+        with patch.object(app.queue_worker, "os") as mock_os, \
+             patch.object(app.queue_worker, "shutil"):
+            mock_os.path.exists.return_value = True
 
             await process_job(job, notify_callback)
 
@@ -125,8 +124,6 @@ async def test_notify_callback_called_on_success():
 @pytest.mark.asyncio
 async def test_notify_callback_called_on_error():
     """TC13: notify_callback wird nach Fehler aufgerufen"""
-    from app.queue_worker import process_job
-
     notify_callback = AsyncMock()
 
     mock_db = MagicMock()
@@ -141,15 +138,15 @@ async def test_notify_callback_called_on_error():
         "caption": None,
     }
 
-    with patch("app.queue_worker.psycopg2.connect", return_value=mock_db), \
-         patch("app.queue_worker._download_for_source") as mock_download:
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db), \
+         patch.object(app.queue_worker, "_download_for_source") as mock_download:
 
         # Mock failed download
         mock_download.side_effect = ValueError("Download failed")
 
-        with patch("app.queue_worker.os.path.exists", return_value=True), \
-             patch("app.queue_worker.shutil.rmtree"), \
-             patch("app.queue_worker._notify_needs_review", new_callable=AsyncMock):
+        with patch.object(app.queue_worker, "os"), \
+             patch.object(app.queue_worker, "shutil"), \
+             patch.object(app.queue_worker, "_notify_needs_review", new_callable=AsyncMock):
 
             try:
                 await process_job(job, notify_callback)
@@ -157,7 +154,7 @@ async def test_notify_callback_called_on_error():
                 pass
 
             # Callback should be called even on error path
-            # (This depends on implementation details)
+            notify_callback.assert_called()
 
 
 @pytest.mark.asyncio
@@ -190,7 +187,7 @@ async def test_chat_id_nulled_after_notification():
     chat_id = "123456"
 
     # Simulate nulling the chat_id after notification
-    with patch("app.queue_worker.psycopg2.connect", return_value=mock_db):
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db):
         cursor = mock_db.cursor()
         cursor.execute(
             "UPDATE import_queue SET telegram_chat_id = NULL WHERE id = %s",
