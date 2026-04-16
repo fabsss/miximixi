@@ -93,13 +93,13 @@ async def import_recipe(request: ImportRequest):
 
 **Create migration file:**
 ```bash
-# New file in supabase/migrations/
-# Naming: supabase/migrations/NNN_description.sql (e.g., 004_translations.sql)
+# New file in backend/migrations/
+# Naming: backend/migrations/NNN_description.sql (e.g., 004_translations.sql)
 ```
 
 **Template:**
 ```sql
--- supabase/migrations/004_add_image_metadata.sql
+-- backend/migrations/004_add_image_metadata.sql
 ALTER TABLE recipes ADD COLUMN image_width INT;
 ALTER TABLE recipes ADD COLUMN image_height INT;
 ```
