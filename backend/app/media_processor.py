@@ -333,7 +333,7 @@ def extract_cover_frame_at_timestamp(video_path: str, timestamp: str, output_dir
 
 def extract_cover_frame(media_paths: list[str], output_dir: str) -> str | None:
     """
-    Fallback: Extrahiert einen mittleren Frame aus dem ersten Video.
+    Fallback: Extrahiert einen Frame nahe dem Ende des Videos.
     Wird verwendet wenn kein Timestamp/Frame-Index vom LLM geliefert wurde.
     """
     for path in media_paths:
@@ -343,7 +343,7 @@ def extract_cover_frame(media_paths: list[str], output_dir: str) -> str | None:
             cover_dir = os.path.join(output_dir, "cover")
             frames = extract_keyframes(path, cover_dir, num_frames=3)
             if frames:
-                return frames[len(frames) // 2]  # Mittlerer Frame
+                return frames[-1]  # Letzter Frame (nahe dem Ende)
         except Exception as e:
             logger.error(f"Cover-Extraktion fehlgeschlagen: {e}")
 
