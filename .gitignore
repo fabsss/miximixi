@@ -29,3 +29,12 @@ Thumbs.db
 
 # Instagram session cache (enthält Credentials)
 backend/instagram_session.json
+
+
+# Log files
+logs/
+*.log
+run-logs*.txt
+
+# Temporary files
+tmp/  
