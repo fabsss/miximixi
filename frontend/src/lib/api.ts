@@ -93,7 +93,18 @@ export async function deleteRecipe(recipeId: string): Promise<void> {
     method: 'DELETE',
     credentials: 'include',
   })
-  if (!response.ok) throw new Error(`Delete failed: ${response.status}`)
+  if (!response.ok) {
+    let errorDetail = `Delete failed: ${response.status}`
+    try {
+      const errorData = await response.json()
+      if (errorData.detail) {
+        errorDetail = errorData.detail
+      }
+    } catch {
+      // If response isn't JSON, use status code message
+    }
+    throw new Error(errorDetail)
+  }
 }
 
 export async function uploadRecipeImage(recipeId: string, file: File): Promise<void> {

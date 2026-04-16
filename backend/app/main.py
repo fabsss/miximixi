@@ -711,15 +711,23 @@ async def translate_recipe(recipe_id: str, lang: str):
 @app.delete("/recipes/{recipe_id}")
 async def delete_recipe(recipe_id: str):
     """Delete a recipe (ingredients and steps cascade automatically)."""
-    db = get_db()
-    cursor = db.cursor()
+    logger.info(f"Attempting to delete recipe: {recipe_id}")
+    db = None
     try:
+        db = get_db()
+        cursor = db.cursor()
+        logger.info(f"Database connection established for deletion")
+
         cursor.execute("SELECT id FROM recipes WHERE id = %s", (recipe_id,))
         if not cursor.fetchone():
+            logger.info(f"Recipe {recipe_id} not found")
             db.close()
             raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        logger.info(f"Found recipe {recipe_id}, attempting DELETE")
         cursor.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
         db.commit()
+        logger.info(f"Successfully committed deletion of recipe {recipe_id}")
         db.close()
 
         # Remove image directory if it exists (after DB commit)
@@ -727,22 +735,26 @@ async def delete_recipe(recipe_id: str):
         recipe_dir = os.path.join(settings.images_dir, recipe_id)
         try:
             if os.path.exists(recipe_dir):
+                logger.info(f"Deleting image directory: {recipe_dir}")
                 shutil.rmtree(recipe_dir)
+                logger.info(f"Successfully deleted image directory")
         except Exception as e:
             logger.warning(f"Failed to delete recipe images for {recipe_id}: {e}")
             # Don't fail the whole request if image deletion fails
 
+        logger.info(f"Recipe {recipe_id} deletion completed successfully")
         return {"message": "Rezept geloescht"}
     except HTTPException:
         raise
     except Exception as e:
-        try:
-            db.rollback()
-            db.close()
-        except Exception:
-            pass  # Connection might already be closed
-        logger.error(f"Recipe delete failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Recipe delete failed: {type(e).__name__}: {e}", exc_info=True)
+        if db:
+            try:
+                db.rollback()
+                db.close()
+            except Exception as close_err:
+                logger.error(f"Failed to close DB connection: {close_err}")
+        raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
 
 
 # ── Image Upload ─────────────────────────────────────────────────────
