@@ -10,6 +10,8 @@
         "Set-Content": true,
         "git add": true,
         "git commit": true,
-        "git merge": true
+        "git merge": true,
+        "poetry": true,
+        "c:/Users/fixcwif/git/miximixi/.venv/Scripts/python.exe": true
     }
 }
