@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str = ""
     telegram_notify_chat_id: str = ""
+    telegram_allowed_user_ids: list[str] = []
+    # Format: "123456,789012" (comma-separated). Empty = all users allowed.
+
+    # Worker
+    worker_max_concurrent: int = 3
+    # 1 = seriell (für lokale LLMs: Ollama, Gemma3n — nur ein Modell)
+    # 3 = parallel (für Cloud-LLMs: Gemini, Claude, OpenAI)
 
     # Instagram
     instagram_username: str = ""

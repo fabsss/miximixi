@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from app.config import settings
 from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CATEGORIES
 from app.queue_worker import run_worker
+from app.telegram_bot import run_bot
 from app.llm_provider import LLMProvider
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -36,18 +37,43 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.tmp_dir, exist_ok=True)
     os.makedirs(settings.images_dir, exist_ok=True)
 
-    # Queue-Worker als Background-Task starten
-    worker_task = asyncio.create_task(run_worker(poll_interval=5))
+    # Shared mutable slot for bot → worker callback wiring
+    notify_holder = [None]
+
+    async def notify_proxy(**kwargs):
+        """Proxy that calls the real notify callback once bot is initialized."""
+        if notify_holder[0]:
+            await notify_holder[0](**kwargs)
+
+    # Start worker with proxy callback
+    worker_task = asyncio.create_task(
+        run_worker(poll_interval=5, notify_callback=notify_proxy)
+    )
     logger.info("Queue-Worker gestartet")
+
+    # Start bot (bot will inject real callback into notify_holder)
+    async def init_bot():
+        def set_notify_callback(callback):
+            notify_holder[0] = callback
+        await run_bot(set_notify_callback)
+    
+    bot_task = asyncio.create_task(init_bot())
+    logger.info("Telegram-Bot gestartet")
 
     yield
 
-    # Beim Herunterfahren
+    # Graceful shutdown
+    logger.info("Fahre Worker und Bot herunter...")
     worker_task.cancel()
-    try:
-        await worker_task
-    except asyncio.CancelledError:
-        pass
+    bot_task.cancel()
+    
+    for task in [worker_task, bot_task]:
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    
+    logger.info("Worker und Bot heruntergefahren")
 
 
 app = FastAPI(

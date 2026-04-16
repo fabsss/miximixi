@@ -51,11 +51,18 @@ def get_db_connection():
     )
 
 
-async def process_job(job: dict) -> None:
-    """Verarbeitet einen einzelnen Import-Job."""
+async def process_job(job: dict, notify_callback=None) -> None:
+    """
+    Verarbeitet einen einzelnen Import-Job.
+    
+    Args:
+        job: Job dict from import_queue table
+        notify_callback: Optional async function to notify user (telegram_chat_id, success, recipe_title, error_msg)
+    """
     queue_id = job["id"]
     source_url = job["source_url"]
     source_type = job.get("source_type", "telegram")
+    telegram_chat_id = job.get("telegram_chat_id")
     tmp_job_dir = os.path.join(settings.tmp_dir, queue_id)
     db = None
 
@@ -191,6 +198,25 @@ async def process_job(job: dict) -> None:
             f"Job {queue_id} ✓  recipe_id={recipe_id}  status={extraction_status}"
         )
 
+        # 9. User-Benachrichtigung (telegram_chat_id) senden
+        if notify_callback and telegram_chat_id:
+            try:
+                await notify_callback(
+                    chat_id=telegram_chat_id,
+                    success=True,
+                    recipe_title=recipe_data.title,
+                )
+                # Null the chat_id after notification (privacy-first)
+                cursor = db.cursor()
+                cursor.execute(
+                    "UPDATE import_queue SET telegram_chat_id = NULL WHERE id = %s",
+                    (queue_id,),
+                )
+                db.commit()
+                logger.info(f"Notification sent for {queue_id}, chat_id nulled")
+            except Exception as notify_err:
+                logger.warning(f"Notification failed for {queue_id}: {notify_err}")
+
     except Exception as e:
         logger.exception(f"Fehler bei Job {queue_id}: {e}")
         if db:
@@ -203,6 +229,25 @@ async def process_job(job: dict) -> None:
                 db.commit()
             except Exception as db_err:
                 logger.warning(f"Fehler beim Update der import_queue: {db_err}")
+        
+        # User notification for errors
+        if notify_callback and telegram_chat_id:
+            try:
+                await notify_callback(
+                    chat_id=telegram_chat_id,
+                    success=False,
+                    error_msg=str(e),
+                )
+                # Null the chat_id after notification
+                cursor = db.cursor()
+                cursor.execute(
+                    "UPDATE import_queue SET telegram_chat_id = NULL WHERE id = %s",
+                    (queue_id,),
+                )
+                db.commit()
+            except Exception as notify_err:
+                logger.warning(f"Error notification failed: {notify_err}")
+        
         await _notify_needs_review(source_url, str(e))
 
     finally:
@@ -309,25 +354,84 @@ async def _notify_needs_review(source_url: str, error: str) -> None:
         logger.warning(f"Telegram-Benachrichtigung fehlgeschlagen: {e}")
 
 
-async def run_worker(poll_interval: int = 5) -> None:
-    """Startet die Background-Worker-Loop."""
-    logger.info(f"Queue-Worker gestartet (provider={settings.llm_provider}, poll={poll_interval}s)")
+def _claim_next_pending_job() -> Optional[dict]:
+    """
+    Claims the next pending job atomically using FOR UPDATE SKIP LOCKED.
+    Sets status to 'processing' inside the transaction.
+    Returns the job dict or None if no pending jobs.
+    """
+    db = get_db_connection()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Atomically claim the next job
+        cursor.execute(
+            """
+            UPDATE import_queue
+            SET status = %s
+            WHERE id = (
+                SELECT id FROM import_queue
+                WHERE status = %s
+                ORDER BY created_at
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING *
+            """,
+            ("processing", "pending")
+        )
+        job = cursor.fetchone()
+        db.commit()
+        return dict(job) if job else None
+    except Exception as e:
+        logger.warning(f"Error claiming job: {e}")
+        db.rollback()
+        return None
+    finally:
+        db.close()
+
+
+async def run_worker(
+    poll_interval: int = 5,
+    notify_callback=None,
+) -> None:
+    """
+    Starts the Background-Worker-Loop with parallel job processing.
+    
+    Args:
+        poll_interval: How often to check for new jobs (seconds)
+        notify_callback: Optional async function to notify users
+    """
+    max_concurrent = settings.worker_max_concurrent
+    semaphore = asyncio.Semaphore(max_concurrent)
+    
+    logger.info(
+        f"Queue-Worker gestartet (provider={settings.llm_provider}, "
+        f"max_concurrent={max_concurrent}, poll={poll_interval}s)"
+    )
+
+    async def _process_with_semaphore(job: dict) -> None:
+        """Wraps process_job with semaphore to limit concurrency."""
+        async with semaphore:
+            await process_job(job, notify_callback)
 
     while True:
         try:
-            db = get_db_connection()
-            cursor = db.cursor(cursor_factory=RealDictCursor)
-
-            cursor.execute(
-                "SELECT * FROM import_queue WHERE status = %s ORDER BY created_at LIMIT 1",
-                ("pending",),
-            )
-            result = cursor.fetchone()
-            db.close()
-
-            if result:
-                await process_job(dict(result))
+            # Claim up to max_concurrent jobs
+            jobs = []
+            for _ in range(max_concurrent):
+                job = _claim_next_pending_job()
+                if job:
+                    jobs.append(job)
+                else:
+                    break
+            
+            if jobs:
+                # Process all jobs concurrently (semaphore limits to max_concurrent)
+                tasks = [_process_with_semaphore(job) for job in jobs]
+                await asyncio.gather(*tasks, return_exceptions=True)
             else:
+                # No jobs — wait before polling again
                 await asyncio.sleep(poll_interval)
         except Exception as e:
             logger.exception(f"Worker-Fehler: {e}")
