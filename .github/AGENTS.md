@@ -145,6 +145,7 @@ Each agent reminds you to:
 1. **Reference the issue**: `Fixes #42: Add recipe translation API`
 2. **Include domain tag**: `[backend]`, `[devops]`, `[llm]`
 3. **Keep commits small**: One feature per commit (easier to review)
+4. **NEVER MERGE A BRANCH TO MAINLINE WITHOUT A PROPER PR!!!**
 
 ### Code Review Checklist
 When creating PRs, include:

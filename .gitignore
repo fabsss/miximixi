@@ -35,6 +35,13 @@ backend/instagram_session.json
 logs/
 *.log
 run-logs*.txt
+*log.txt
+
 
 # Temporary files
 tmp/  
+
+# Cookie files
+*.cookies
+*cookies*
+instagram_cookies.txt
