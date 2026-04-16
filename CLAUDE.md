@@ -126,6 +126,36 @@ Custom AI agents for specialized development roles in the Miximixi project. Each
 
 ---
 
+## UI/Frontend Work
+
+### Component & Selector Verification
+When making UI/CSS changes, **always verify the exact component and selector being modified** by reading the file first. Never assume which element the user is referring to — grep for the specific text/class mentioned and confirm before editing.
+
+**Pattern:**
+1. User describes a UI change
+2. Use Grep to find the exact component/class/text
+3. Read the full component file
+4. Confirm which file and line you'll edit
+5. Show the user the current state BEFORE making changes
+6. Only edit after confirmation
+
+### Theme System: `data-theme` vs Tailwind `dark:`
+This project uses `data-theme` attribute for theming, **NOT Tailwind's `dark:` class prefix**. Always check the actual theme implementation before modifying styles.
+
+**How it works:**
+- Light mode: `<html>` or `<html data-theme="light">`
+- Dark mode: `<html data-theme="dark">`
+- CSS variables like `--mx-primary` change based on `data-theme` attribute
+- Do NOT use Tailwind's `dark:` prefix — it won't work
+
+**When modifying styles:**
+- Check if the change affects both light and dark modes
+- Use CSS variables (`var(--mx-*)`) when possible
+- If you need data-theme-specific rules, use: `[data-theme="dark"] .selector { ... }`
+- Test changes in both light and dark modes before committing
+
+---
+
 ## Branching & Code Review Workflow
 
 All agents enforce these practices:
@@ -199,6 +229,55 @@ npm run build                      # Full build verification
 - [ ] Frontend: `npm run build` completes successfully
 
 **Why:** Local testing prevents broken commits from reaching CI/CD. GitHub Actions will still run these checks, but catching issues first saves review time and keeps the main branch stable.
+
+---
+
+## Deployment
+
+### Target Environment: Remote Proxmox Server
+The app runs on a **remote Proxmox server**, NOT locally. **Never run docker commands locally expecting them to affect the deployed app.** Always confirm the target environment (local dev vs remote server) before running deployment or docker commands.
+
+**When working with deployment:**
+1. Confirm: Is this for local dev testing or the remote server?
+2. Local dev: `docker compose up -d` in the project directory
+3. Remote server: SSH into the server first, then run docker commands
+4. Never assume a docker command affects the deployed version
+5. Document which environment you're targeting in the commit message
+
+---
+
+## Debugging Guidelines
+
+### Systematic Investigation Before Changes
+When debugging, **do NOT guess at root causes in sequence**. Instead:
+1. **Read the relevant code thoroughly first**
+2. **Form a hypothesis based on evidence**, not guesses
+3. **Explain your hypothesis to the user** before making changes
+4. **Avoid shotgun debugging** — test one hypothesis at a time with validation
+
+**Pattern:**
+- "I found X in the code. This could cause Y because Z. Let me test this by reading/running..."
+- NOT: "Let me try changing this... nope. Let me try this... nope. Let me try..."
+
+---
+
+## Media/Metadata Processing
+
+### GPS/Geolocation Metadata (EXIF, XMP)
+For GPS/geolocation metadata (EXIF, XMP), **always verify the exact tag names, sign conventions, and format strings against exiftool documentation** before writing. **Latitude south and longitude west must be negative.**
+
+**Critical rules:**
+- **North latitude:** positive, **South latitude:** negative (e.g., Sydney = -33.87)
+- **East longitude:** positive, **West longitude:** negative (e.g., NYC = -74.01)
+- XMP format: `<rdf:li>{coordinate}/1,{coordinate}/1,{coordinate}/1</rdf:li>`
+- EXIF tags: `GPSLatitude`, `GPSLatitudeRef` (N/S), `GPSLongitude`, `GPSLongitudeRef` (E/W)
+- Always check exiftool docs: `exiftool -a -G1 file.jpg | grep -i gps`
+
+**Before writing metadata:**
+1. Verify the exact tag name in exiftool documentation
+2. Double-check sign conventions for your coordinate system
+3. Test on a sample file and validate with exiftool before production use
+4. Log GPS data for verification (don't silently write it)
 
 ---
 

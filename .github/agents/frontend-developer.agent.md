@@ -22,6 +22,80 @@ applyTo: ["frontend/", "src/", "*.tsx", "*.jsx", "*.css"]
 
 ---
 
+## UI/CSS Changes: Verification First Pattern
+
+**CRITICAL FOR MIXIMIXI:** When making UI/CSS changes, **ALWAYS verify the exact component and selector being modified by reading the file first.**
+
+**Required workflow:**
+1. User describes a UI change or color/style fix
+2. Use Grep to find the exact component/class/id/text the user mentioned
+3. Read the FULL component file to understand current state
+4. Check the theme system (data-theme attributes, CSS variables)
+5. **Show the user the current code BEFORE making any changes**
+6. Explicitly state: "I will edit [file] at line X. Current code: [snippet]. New code: [snippet]"
+7. Wait for confirmation before editing
+8. Only after confirmed, make the change
+
+**Why:** Previous sessions had repeated wrong-target edits where the wrong button, component, or CSS property was modified. This pattern prevents that.
+
+---
+
+## Theme System: `data-theme` NOT `dark:`
+
+**This project uses `data-theme` attribute, NOT Tailwind's `dark:` prefix.**
+
+**How theming works:**
+- Light mode: `<html>` (default) or `<html data-theme="light">`
+- Dark mode: `<html data-theme="dark">`
+- CSS variables in `frontend/src/index.css` change based on data-theme:
+  ```css
+  :root, [data-theme="light"] { --mx-primary: #a43f14; ... }
+  [data-theme="dark"] { --mx-primary: #ffb59c; ... }
+  ```
+
+**When styling:**
+- ✅ Use CSS variables: `text-[var(--mx-primary)]`
+- ✅ For data-theme-specific rules: `[data-theme="dark"] .selector { ... }`
+- ❌ Do NOT use Tailwind's `dark:` prefix — it won't work in this project
+- Always test color changes in BOTH light and dark modes
+
+---
+
+## Debugging & Root Cause Analysis
+
+**When debugging UI issues, NEVER guess at root causes in sequence.**
+
+**Required pattern:**
+1. Read the relevant component code thoroughly
+2. Form ONE hypothesis based on actual code evidence
+3. Explain the hypothesis: "I see X in the code at [location]. This causes Y because [reason]"
+4. Test the hypothesis (grep for related code, check DevTools, etc.)
+5. Only proceed with fix after hypothesis is validated
+6. Do NOT: try fix A, fail, try fix B, fail, try fix C
+
+**Example of wrong approach:** "Let me try removing `pointer-events-none`... nope. Let me try adding `!important`... nope."
+
+**Example of right approach:** "The link is inside a `pointer-events-none` container. I see the parent has `pointer-events-none` at line X, so child interactive elements can't be clicked. I'll add `pointer-events-auto` to the link to override this."
+
+---
+
+## Color/Category System: Use CSS Variables
+
+**All category colors must use CSS variables defined in `frontend/src/index.css`.**
+
+**When adding or changing category colors:**
+1. Define the variable in `index.css` for BOTH light and dark modes
+2. Use the variable consistently everywhere (chips, buttons, cards)
+3. Test that the same color appears everywhere
+4. Verify in both light and dark modes before committing
+
+**Example:** If you change category colors for "Hauptspeisen", update:
+- `--cat-hauptspeisen-bg` and `--cat-hauptspeisen-text` in CSS variables
+- All places that use `bg-[var(--cat-hauptspeisen-bg)]`
+- Check RecipeCard.tsx, FeedPage.tsx, and any other places using the category color
+
+---
+
 ## Branching & Code Standards
 
 ## Coding Style should follow these guidelines:
