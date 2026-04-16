@@ -282,6 +282,26 @@ export function RecipeDetailPage() {
     },
   })
 
+  // Scroll to top when recipe is loaded
+  useEffect(() => {
+    if (recipeQuery.data) {
+      window.scrollTo(0, 0)
+    }
+  }, [recipeQuery.data])
+
+  // Handle browser back button to close fullscreen images
+  useEffect(() => {
+    if (!showFullscreenImage && !fullscreenStepImage) return
+
+    const handlePopState = () => {
+      if (showFullscreenImage) setShowFullscreenImage(false)
+      if (fullscreenStepImage) setFullscreenStepImage(null)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [showFullscreenImage, fullscreenStepImage])
+
   const groupedIngredients = useMemo(() => {
     const map = new Map<string, Ingredient[]>()
     for (const ing of recipeQuery.data?.ingredients ?? []) {

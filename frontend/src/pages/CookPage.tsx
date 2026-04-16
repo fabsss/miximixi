@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { getRecipe } from '../lib/api'
 
 function parseIngredientReference(text: string): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
@@ -59,6 +60,7 @@ function formatTime(totalSeconds: number): string {
 
 export function CookPage() {
   const { recipeSlug } = useParams<{ recipeSlug: string }>()
+  const navigate = useNavigate()
   // Extrahiere UUID aus slug-uuid Format (letzte 36 Zeichen)
   const recipeId = recipeSlug && recipeSlug.length > 36 && recipeSlug[recipeSlug.length - 37] === '-'
     ? recipeSlug.slice(-36)
@@ -68,6 +70,17 @@ export function CookPage() {
   const [secondsOverride, setSecondsOverride] = useState<number | null>(null)
   const [highlightedRef, setHighlightedRef] = useState<string | null>(null)
   const bubbleTimerRef = useRef<number | null>(null)
+
+  const handleGoToRecipe = () => {
+    if ('startViewTransition' in document) {
+      document.documentElement.dataset.navdir = 'forward'
+      ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+        flushSync(() => navigate(`/recipes/${recipeId}`))
+      })
+    } else {
+      navigate(`/recipes/${recipeId}`)
+    }
+  }
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', recipeId, 'cook'],
@@ -178,12 +191,12 @@ export function CookPage() {
     <div className="mx-shell py-4 pb-28">
       <div className="rounded-[2.5rem] bg-[var(--mx-surface-container)] p-4 md:p-6">
         <div className="mb-4 flex items-center gap-3">
-          <Link
-            to={`/recipes/${recipe.id}`}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]"
+          <button
+            onClick={handleGoToRecipe}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-variant)] transition-colors"
           >
             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-          </Link>
+          </button>
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kochmodus</p>
             <h1 className="m-0 text-lg font-bold text-[var(--mx-on-surface)] md:text-2xl">{recipe.title}</h1>
