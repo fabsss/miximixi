@@ -126,6 +126,9 @@ Custom AI agents for specialized development roles in the Miximixi project. Each
 
 ---
 
+## Running Command Line Tools
+We use Windows as Operating System for the Dev-Machines. So we **allways** need to make sure to use PowerShell compatible commands. **Never use Linux-Shell Commands!**
+
 ## Branching & Code Review Workflow
 
 All agents enforce these practices:
