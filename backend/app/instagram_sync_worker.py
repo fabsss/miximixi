@@ -23,7 +23,7 @@ class SyncControl:
     """Manages sync state: enabled/disabled, selected collection, status"""
     
     def __init__(self):
-        self.enabled: bool = True
+        self.enabled: bool = False
         self.selected_collection_id: Optional[str] = None
         self.selected_collection_name: Optional[str] = None
         self.last_status: Dict = {}
@@ -49,10 +49,8 @@ class SyncControl:
         """Get current sync status"""
         return {
             "enabled": self.enabled,
-            "selected_collection": {
-                "id": self.selected_collection_id,
-                "name": self.selected_collection_name,
-            } if self.selected_collection_id else None,
+            "collection_id": self.selected_collection_id,
+            "collection_name": self.selected_collection_name,
             "last_sync": self.last_status.get("timestamp"),
             "last_stats": self.last_status.get("stats"),
         }
