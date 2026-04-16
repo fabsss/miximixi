@@ -12,6 +12,10 @@
         "git commit": true,
         "git merge": true,
         "poetry": true,
-        "c:/Users/fixcwif/git/miximixi/.venv/Scripts/python.exe": true
+        "c:/Users/fixcwif/git/miximixi/.venv/Scripts/python.exe": true,
+        "/^python -m pytest tests/unit/test_telegram_bot\\.py -v --tb=short 2>&1 \\| head -100$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }
