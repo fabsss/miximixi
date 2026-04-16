@@ -93,13 +93,13 @@ async def import_recipe(request: ImportRequest):
 
 **Create migration file:**
 ```bash
-# New file in supabase/migrations/
-# Naming: supabase/migrations/NNN_description.sql (e.g., 004_translations.sql)
+# New file in backend/migrations/
+# Naming: backend/migrations/NNN_description.sql (e.g., 004_translations.sql)
 ```
 
 **Template:**
 ```sql
--- supabase/migrations/004_add_image_metadata.sql
+-- backend/migrations/004_add_image_metadata.sql
 ALTER TABLE recipes ADD COLUMN image_width INT;
 ALTER TABLE recipes ADD COLUMN image_height INT;
 ```
@@ -174,6 +174,13 @@ Before pushing:
 - [ ] Error handling covers edge cases (404, 500, validation)
 - [ ] Async functions use `async def` + `await` correctly
 - [ ] Type hints on all function signatures
+
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
 
 ### Code Review Checklist (for PRs)
 - [ ] API response schema matches docs/architecture.md
