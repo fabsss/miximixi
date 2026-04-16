@@ -231,52 +231,9 @@ export function RecipeDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFullscreenImage, setShowFullscreenImage] = useState(false)
   const [fullscreenStepImage, setFullscreenStepImage] = useState<string | null>(null)
-  const [ingredientsVisible, setIngredientsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const ingredientsRef = useRef<HTMLDivElement>(null)
-  const ingredientsPanelRef = useRef<HTMLElement>(null)
   const bubbleTimerRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    const el = ingredientsRef.current
-    const panel = ingredientsPanelRef.current
-    if (!el || !panel) return
-
-    panel.style.transition = 'max-height 380ms ease-in-out'
-    const baseH = window.innerHeight - 112 // 7rem
-    const THRESH = 150
-    let expanded = false
-
-    const check = () => {
-      const rect = el.getBoundingClientRect()
-      setIngredientsVisible(rect.bottom > 0 && rect.top < window.innerHeight)
-      const dist = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
-
-      if (dist < THRESH && !expanded) {
-        expanded = true
-        panel.scrollTop = 0
-        // Measure full height now (data is loaded by the time user scrolls to bottom)
-        panel.style.maxHeight = 'none'
-        const fullH = panel.scrollHeight
-        // Restore previous max-height so browser has a start value for the transition
-        panel.style.maxHeight = panel.style.maxHeight === 'none' ? '' : panel.style.maxHeight
-        panel.style.maxHeight = '' // let Tailwind value be start point
-        void panel.offsetHeight    // force reflow so transition sees the baseH start value
-        panel.style.maxHeight = `${fullH}px`
-      } else if (dist >= THRESH && expanded) {
-        expanded = false
-        panel.scrollTop = 0
-        panel.style.maxHeight = `${baseH}px`
-        panel.addEventListener('transitionend', () => {
-          panel.style.maxHeight = ''
-        }, { once: true })
-      }
-    }
-
-    check()
-    window.addEventListener('scroll', check, { passive: true, capture: true })
-    return () => window.removeEventListener('scroll', check, { capture: true })
-  }, [])
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', recipeId],
@@ -643,10 +600,9 @@ export function RecipeDetailPage() {
 
         {/* INGREDIENTS SIDEBAR */}
         <aside
-          ref={ingredientsPanelRef}
-          className="w-full flex-shrink-0 lg:sticky lg:top-24 lg:w-[350px] lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
+          className="w-full flex-shrink-0 lg:w-[350px]"
         >
-          <div ref={ingredientsRef} className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6">
+          <div className="rounded-[2rem] bg-[var(--mx-surface-low)] p-6">
             <div className="mb-5 flex items-center justify-between">
               <h3 className="font-headline text-xl font-bold text-[var(--mx-on-surface)]">Zutaten</h3>
               <div className="flex rounded-full bg-[var(--mx-surface-variant)] p-0.5">
@@ -787,22 +743,11 @@ export function RecipeDetailPage() {
                               if (next) {
                                 // Auto-dismiss bubble after 3s
                                 bubbleTimerRef.current = window.setTimeout(() => setHighlightedSortOrder(null), 3000)
-                                // Scroll ingredient into view in sticky panel if needed
-                                if (ingredientsPanelRef.current) {
-                                  const el = document.getElementById(`ingredient-${next}`)
-                                  if (el) {
-                                    const panelRect = ingredientsPanelRef.current.getBoundingClientRect()
-                                    const elRect = el.getBoundingClientRect()
-                                    if (elRect.top < panelRect.top || elRect.bottom > panelRect.bottom) {
-                                      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                                    }
-                                  }
-                                }
                               }                            }}
                             className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
                             {shortIngName(ingredient?.name ?? `Zutat ${sortOrder}`)}
                           </button>
-                          {isHighlighted && tipText && !ingredientsVisible && (
+                          {isHighlighted && tipText && (
                             <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
                               {tipText}
                               <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
