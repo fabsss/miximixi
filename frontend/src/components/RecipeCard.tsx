@@ -64,8 +64,8 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
             loading="lazy"
             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
           />
-          {/* Overlay with button on hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
+          {/* Overlay with button */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end justify-center pb-4">
             <button
               onClick={(e) => {
                 e.stopPropagation()
