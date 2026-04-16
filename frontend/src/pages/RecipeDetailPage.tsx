@@ -754,90 +754,83 @@ export function RecipeDetailPage() {
               return (
                 <li key={step.id} className="relative pl-12">
                   <div className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-primary)] text-sm font-bold text-[var(--mx-on-primary)]">{index + 1}</div>
-                  <div className="grid grid-cols-3 gap-4 md:gap-6">
-                    {/* Left column: step image */}
-                    <div>
-                      {step.step_image_filename && (
-                        <div
-                          className="cursor-zoom-in overflow-hidden rounded-lg"
-                          onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
-                          style={{ width: '120px', aspectRatio: '16/9' }}
-                        >
-                          <img
-                            src={getStepImageUrl(recipe.id, step.step_image_filename)}
-                            alt=""
-                            className="h-full w-full object-cover transition-transform duration-300 hover:scale-110"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Center column: timer (always centered) */}
-                    <div className="flex items-start justify-center">
-                      {step.time_minutes ? <StepTimer minutes={step.time_minutes} /> : null}
-                    </div>
-
-                    {/* Right column: step text */}
-                    <div>
-                      <p className="font-body text-sm leading-relaxed text-[var(--mx-on-surface-variant)] md:text-base">
-                        {parts.map((part, i) => {
-                          if (part.type === 'text') {
-                            const allIngs = Array.from(groupedIngredients.values()).flat()
-                            let content = stripIngredientParens(part.content, allIngs)
-                            // If next part is a ref chip, strip trailing word that duplicates the chip label
-                            const nextPart = parts[i + 1]
-                            if (nextPart?.type === 'ref') {
-                              const nextIng = allIngs.find((ing) => String(ing.sort_order) === nextPart.content)
-                              if (nextIng) {
-                                const chipLabel = shortIngName(nextIng.name).toLowerCase()
-                                const trimmed = content.trimEnd()
-                                const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() ?? ''
-                                if (lastWord === chipLabel)
-                                  content = trimmed.slice(0, trimmed.length - lastWord.length)
-                              }
-                            }
-                            return <span key={i}>{content}</span>
+                  <p className="font-body text-sm leading-relaxed text-[var(--mx-on-surface-variant)] md:text-base">
+                    {parts.map((part, i) => {
+                      if (part.type === 'text') {
+                        const allIngs = Array.from(groupedIngredients.values()).flat()
+                        let content = stripIngredientParens(part.content, allIngs)
+                        // If next part is a ref chip, strip trailing word that duplicates the chip label
+                        const nextPart = parts[i + 1]
+                        if (nextPart?.type === 'ref') {
+                          const nextIng = allIngs.find((ing) => String(ing.sort_order) === nextPart.content)
+                          if (nextIng) {
+                            const chipLabel = shortIngName(nextIng.name).toLowerCase()
+                            const trimmed = content.trimEnd()
+                            const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() ?? ''
+                            if (lastWord === chipLabel)
+                              content = trimmed.slice(0, trimmed.length - lastWord.length)
                           }
-                          const sortOrder = part.content
-                          const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
-                          const isHighlighted = highlightedSortOrder === sortOrder
-                          const { amount: tipAmt, unit: tipUnit } = ingredient ? getDisplayAmount(ingredient) : { amount: '', unit: null as string | null }
-                          const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
-                          return (
-                            <span key={i} className="relative inline-block">
-                              <button type="button" onClick={() => {
-                                  const next = isHighlighted ? null : sortOrder
-                                  setHighlightedSortOrder(next)
-                                  if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current)
-                                  if (next) {
-                                    // Auto-dismiss bubble after 3s
-                                    bubbleTimerRef.current = window.setTimeout(() => setHighlightedSortOrder(null), 3000)
-                                    // Scroll ingredient into view in sticky panel if needed
-                                    if (ingredientsPanelRef.current) {
-                                      const el = document.getElementById(`ingredient-${next}`)
-                                      if (el) {
-                                        const panelRect = ingredientsPanelRef.current.getBoundingClientRect()
-                                        const elRect = el.getBoundingClientRect()
-                                        if (elRect.top < panelRect.top || elRect.bottom > panelRect.bottom) {
-                                          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                                        }
-                                      }
+                        }
+                        return <span key={i}>{content}</span>
+                      }
+                      const sortOrder = part.content
+                      const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
+                      const isHighlighted = highlightedSortOrder === sortOrder
+                      const { amount: tipAmt, unit: tipUnit } = ingredient ? getDisplayAmount(ingredient) : { amount: '', unit: null as string | null }
+                      const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
+                      return (
+                        <span key={i} className="relative inline-block">
+                          <button type="button" onClick={() => {
+                              const next = isHighlighted ? null : sortOrder
+                              setHighlightedSortOrder(next)
+                              if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current)
+                              if (next) {
+                                // Auto-dismiss bubble after 3s
+                                bubbleTimerRef.current = window.setTimeout(() => setHighlightedSortOrder(null), 3000)
+                                // Scroll ingredient into view in sticky panel if needed
+                                if (ingredientsPanelRef.current) {
+                                  const el = document.getElementById(`ingredient-${next}`)
+                                  if (el) {
+                                    const panelRect = ingredientsPanelRef.current.getBoundingClientRect()
+                                    const elRect = el.getBoundingClientRect()
+                                    if (elRect.top < panelRect.top || elRect.bottom > panelRect.bottom) {
+                                      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
                                     }
-                                  }                            }}
-                                className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                                {shortIngName(ingredient?.name ?? `Zutat ${sortOrder}`)}
-                              </button>
-                              {isHighlighted && tipText && !ingredientsVisible && (
-                                <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
-                                  {tipText}
-                                  <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
-                                </span>
-                              )}
+                                  }
+                                }
+                              }                            }}
+                            className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
+                            {shortIngName(ingredient?.name ?? `Zutat ${sortOrder}`)}
+                          </button>
+                          {isHighlighted && tipText && !ingredientsVisible && (
+                            <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
+                              {tipText}
+                              <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--mx-on-surface)]" />
                             </span>
-                          )
-                        })}
-                      </p>
-                    </div>
+                          )}
+                        </span>
+                      )
+                    })}
+                  </p>
+                  <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-start">
+                    {step.step_image_filename && (
+                      <div
+                        className="flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg"
+                        onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
+                        style={{ width: '120px', aspectRatio: '16/9' }}
+                      >
+                        <img
+                          src={getStepImageUrl(recipe.id, step.step_image_filename)}
+                          alt=""
+                          className="h-full w-full object-cover transition-transform duration-300 hover:scale-110"
+                        />
+                      </div>
+                    )}
+                    {step.time_minutes && (
+                      <div className="flex-1 md:flex md:justify-center">
+                        <StepTimer minutes={step.time_minutes} />
+                      </div>
+                    )}
                   </div>
                 </li>
               )
