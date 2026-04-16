@@ -45,7 +45,7 @@ class ExtractionResult(BaseModel):
 class ImportRequest(BaseModel):
     url: str
     source_type: str = "telegram"  # telegram | instagram | youtube | web | manual
-    media_paths: list[str] = []    # Bereits heruntergeladene Medien (von n8n)
+    media_paths: list[str] = []    # Bereits heruntergeladene Medien
     caption: str = ""              # Instagram-Caption / YouTube-Beschreibung falls vorhanden
 
 

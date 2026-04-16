@@ -240,7 +240,6 @@ supabase-storage/
 rezepte-app/
 ├── frontend/          # React PWA (Vite)
 ├── backend/           # FastAPI (LLM Abstraction + Queue-Handler)
-├── n8n/               # n8n Workflow-Exports (JSON)
 ├── supabase/
 │   └── migrations/    # SQL-Migrations
 ├── docker-compose.yml

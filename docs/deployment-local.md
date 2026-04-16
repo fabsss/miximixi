@@ -123,7 +123,6 @@ Expected output:
 NAME              STATUS
 miximixi-db       healthy
 miximixi-ollama   running (or healthy if configured)
-miximixi-n8n      running
 ```
 
 **If database is "unhealthy"**, check logs:
@@ -337,28 +336,6 @@ docker exec -it miximixi-ollama ollama list
 - Subsequent requests: ~2-10 min per recipe (CPU-bound)
 - Memory usage: ~6-8 GB during inference
 - **Recommendation:** Use Gemini for faster iteration, Ollama for testing
-
----
-
-### n8n (Workflow Automation)
-
-**Port:** 5678
-**Container:** `miximixi-n8n`
-**URL:** `http://localhost:5678`
-
-**Role:** Receives webhooks from Telegram/Instagram, triggers recipe imports via backend API.
-
-**Not actively used in local dev** (trigger imports manually via curl or Swagger UI). Useful for:
-- Telegram bot integration (user messages trigger imports)
-- Instagram saved collection polling (automatic)
-- Scheduled recipe imports
-
-**Manual import (for local testing):**
-```bash
-curl -X POST http://localhost:8000/import \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://instagram.com/p/ABC123","source_type":"instagram"}'
-```
 
 ---
 
