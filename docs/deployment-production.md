@@ -9,11 +9,11 @@ Complete guide for deploying Miximixi on a home server or Linux VPS using Docker
 - **CPU:** 4+ cores recommended (Ollama CPU inference uses multiple cores)
 - **RAM:** 
   - **With cloud LLM (Gemini/Claude):** 8 GB minimum
-    - 4 GB for PostgreSQL, n8n, backend
+    - 4 GB for PostgreSQL, backend
     - 4 GB buffer for OS and overhead
   - **With local Ollama (CPU):** 16 GB minimum
     - 8 GB for Ollama + LLM model inference
-    - 4 GB for PostgreSQL, n8n, backend
+    - 4 GB for PostgreSQL, backend
     - 4 GB buffer for OS and overhead
 - **Storage:** 50 GB minimum
   - 10 GB for LLM models (Ollama) — *Optional, only if using local LLM*
@@ -143,7 +143,6 @@ Directory structure:
 ├── .env.example
 ├── backend/
 ├── frontend/
-├── n8n/
 ├── supabase/migrations/  # Contains SQL migrations
 └── docs/
 ```
@@ -229,13 +228,6 @@ INSTAGRAM_COLLECTION_ID=<collection numeric ID>
 VITE_API_BASE_URL=https://api.rezepte.example.com
 
 # ============================================
-# n8n Configuration
-# ============================================
-N8N_BASIC_AUTH_USER=admin
-N8N_BASIC_AUTH_PASSWORD=<use $(openssl rand -base64 16)>
-N8N_ENCRYPTION_KEY=<use $(openssl rand -base64 32)>
-
-# ============================================
 # Domain Configuration (for Zoraxy)
 # ============================================
 # These are used by docker-compose.yml labels
@@ -243,7 +235,6 @@ DOMAIN_NAME=rezepte.example.com
 # Then proxy rules are:
 # rezepte.example.com       → frontend:80
 # api.rezepte.example.com   → backend:8000
-# n8n.rezepte.example.com   → n8n:5678
 ```
 
 **Generate secure random values:**
@@ -325,7 +316,6 @@ docker compose ps
 NAME              STATUS
 miximixi-db       Up (healthy)
 miximixi-backend  Up
-miximixi-n8n      Up
 ```
 
 **Optional services:**
@@ -379,7 +369,6 @@ Add proxy rules for all Miximixi services:
 |----------|---------|------|----------|-------|
 | `rezepte.example.com` | `miximixi-frontend` | 80 | HTTP | React PWA (Nginx) |
 | `api.rezepte.example.com` | `miximixi-backend` | 8000 | HTTP | FastAPI |
-| `n8n.rezepte.example.com` | `miximixi-n8n` | 5678 | HTTP | n8n workflows |
 
 **Configure HTTPS:**
 - Zoraxy → Proxy Rules → select rule → Enable HTTPS
@@ -424,33 +413,14 @@ docker exec -it miximixi-ollama ollama pull gemma3n:e4b
 docker exec -it miximixi-ollama ollama list
 ```
 
-### Step 9: Import n8n Workflows
+### Step 9: Verify Telegram Bot and Instagram Sync
 
-These automate recipe imports from Telegram and Instagram:
+The Telegram bot and Instagram sync are now handled natively by the backend:
 
-1. Open n8n: https://n8n.rezepte.example.com
+- **Telegram Bot:** Running in native `python-telegram-bot` polling mode
+- **Instagram Sync:** Running as a background worker (every 15 minutes)
 
-2. **Workflows → Import from File**
-
-3. Select `n8n/telegram_import.json`
-
-4. Click **Save**
-
-5. Configure:
-   - Telegram bot token (from @BotFather)
-   - Backend webhook URL (https://api.rezepte.example.com/import)
-
-6. **Activate** the workflow
-
-7. Repeat for `n8n/instagram_poller.json`
-
-8. Test:
-   - Send message to Telegram bot with Instagram URL
-   - Check import_queue in PostgreSQL:
-   ```bash
-   docker exec -it miximixi-db psql -U postgres -d miximixi \
-     -c "SELECT id, source_url, status FROM import_queue ORDER BY created_at DESC LIMIT 5;"
-   ```
+No additional configuration needed. Both are integrated into the backend service.
 
 ---
 
@@ -465,12 +435,12 @@ All containers communicate via internal Docker network:
 │ Docker Network (miximixi)                               │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  ┌─────────┐  ┌─────────┐  ┌────────┐  ┌─────────┐    │
-│  │frontend │  │backend  │  │ ollama │  │  n8n    │    │
-│  │(React)  │  │(FastAPI)│  │(LLM)   │  │(workflow)   │
-│  └────┬────┘  └────┬────┘  └───┬────┘  └────┬────┘    │
-│       │            │            │            │        │
-│       └────────────┼────────────┼────────────┘        │
+│  ┌─────────┐  ┌─────────┐  ┌────────┐                 │
+│  │frontend │  │backend  │  │ ollama │                 │
+│  │(React)  │  │(FastAPI)│  │(LLM)   │                 │
+│  └────┬────┘  └────┬────┘  └───┬────┘                 │
+│       │            │            │                     │
+│       └────────────┼────────────┘                      │
 │                    │            │                      │
 │              ┌─────▼────────────┴─────┐                │
 │              │ PostgreSQL 15           │                │
@@ -500,7 +470,6 @@ All containers communicate via internal Docker network:
                                        │- db-data   │ │
                                        │- recipe-   │ │
                                        │  images    │ │
-                                       │- n8n-data  │ │
                                        │- backend-  │ │
                                        │  tmp       │ │
                                        │- ollama-   │ │
@@ -625,25 +594,6 @@ Mounts:
 
 **Recommendation:** Use cloud LLM (Gemini/Claude) for production unless you have spare CPU capacity or want zero API costs.
 
-#### n8n (Workflow Orchestration)
-
-```yaml
-Image: n8nio/n8n:latest
-Port: 5678
-CPU: 1 core
-Memory: 1 GB
-Restart: always
-Mounts:
-  - n8n_data: /home/node/.n8n/
-Environment:
-  - N8N_BASIC_AUTH_USER (from .env)
-  - N8N_BASIC_AUTH_PASSWORD (from .env)
-  - N8N_ENCRYPTION_KEY (from .env)
-  - N8N_WEBHOOK_URL (external HTTPS URL for receiving webhooks)
-```
-
-**Role:** Receives Telegram/Instagram webhooks, triggers recipe imports via backend API.
-
 ---
 
 ## Maintenance & Operations
@@ -661,9 +611,6 @@ docker compose logs --tail 100
 
 # Stream live logs
 docker compose logs -f backend
-
-# Check specific service
-docker compose logs n8n
 ```
 
 #### Monitor Resource Usage
@@ -755,20 +702,6 @@ sudo certbot certificates
 
 # View renewal log
 sudo journalctl --unit=certbot --since today
-```
-
-#### Rotate Admin Passwords (n8n, Supabase)
-
-```bash
-# Generate new password
-openssl rand -base64 16
-
-# Update .env
-nano .env
-# Edit N8N_BASIC_AUTH_PASSWORD
-
-# Restart n8n
-docker compose restart n8n
 ```
 
 #### Review Disk Usage & Plan Expansion
@@ -874,7 +807,6 @@ sleep 30
 
 # Then start dependent services
 docker compose up -d backend
-docker compose up -d n8n
 
 # Or fully restart
 docker compose down
@@ -1064,30 +996,6 @@ docker compose restart backend
 
 # Optional: Stop Ollama to free up RAM
 docker compose stop ollama
-```
-
-### n8n webhook not receiving Telegram messages
-
-**Symptom:** Telegram bot sends message, n8n workflow doesn't trigger
-
-**Cause:** Webhook URL not reachable externally, or bot webhook not configured
-
-**Solution:**
-```bash
-# 1. Test n8n is accessible
-curl https://n8n.rezepte.example.com
-
-# 2. In n8n, create a new Webhook node:
-#    URL: https://n8n.rezepte.example.com/webhook/telegram
-#    Method: POST
-
-# 3. Configure Telegram bot webhook
-curl -X POST https://api.telegram.org/bot<TOKEN>/setWebhook \
-  -F url=https://n8n.rezepte.example.com/webhook/telegram \
-  -F allowed_updates='["message"]'
-
-# 4. Verify webhook is set
-curl https://api.telegram.org/bot<TOKEN>/getWebhookInfo
 ```
 
 ---

@@ -25,12 +25,6 @@
 │     Local Filesystem (recipe-images volume)         │
 │              /{recipe_id}.jpg                       │
 └─────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────┐
-│                    n8n (self-hosted)                  │
-│    Telegram Trigger → yt-dlp → Backend /import       │
-│    Schedule → instagrapi → Backend /import           │
-└─────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -48,7 +42,7 @@
 | Database | PostgreSQL 15 (Alpine) | 15+ | Leichtgewichtig, zuverlässig, Standard |
 | DB-Client | psycopg2 | 2.9+ | Parametrisierte Abfragen, schnell |
 | Image Storage | Local Filesystem | – | Einfach, schnell, auf Docker-Volume |
-| Workflow | n8n (self-hosted) | – | Import-Pipelines ohne Code-Boilerplate |
+| Telegram | python-telegram-bot | – | Native Telegram Bot ohne n8n |
 | LLM (lokal) | Ollama + llama3.2-vision:11b | – | Kein GPU nötig, CPU-only, langsam |
 | LLM (Cloud) | Google Gemini | gemini-2.0-flash | Native Video-Analyse, 1 API-Call für Rezept + Foto |
 | LLM (Alt.) | Claude API | claude-sonnet-4-6 | Alternative Cloud-Option |
@@ -66,7 +60,7 @@
 | Quelle | Import-Weg | Medien | Caption / Text |
 |--------|-----------|--------|----------------|
 | Instagram (Link) | Telegram Bot + yt-dlp | Video oder Bild | Instagram Caption |
-| Instagram (Collection) | n8n Poller + instagrapi | Video oder Bild | Instagram Caption |
+| Instagram (Collection) | Backend Sync Worker + instagrapi | Video oder Bild | Instagram Caption |
 | YouTube | Telegram Bot + yt-dlp | Video | YouTube-Beschreibung |
 | Website (Rezept-Blog etc.) | Telegram Bot + Playwright | Screenshot | HTML-Text (bereinigt) |
 
@@ -261,11 +255,10 @@ Output:
 
 ```
 User → Telegram Bot (Instagram-Link | YouTube-Link | Website-URL)
-  → n8n Telegram-Trigger
+  → Backend Telegram Handler
     → URL extrahieren + source_type bestimmen
-    → Backend POST /import { url, source_type }
-      → import_queue eintragen (status: pending)
-      → Telegram-Antwort: "✅ Wird verarbeitet..."
+    → import_queue eintragen (status: pending)
+    → Telegram-Antwort: "✅ Wird verarbeitet..."
     → Queue-Worker (polling alle 5s):
 
       ── Medien herunterladen ──────────────────────────────────
@@ -300,12 +293,11 @@ User → Telegram Bot (Instagram-Link | YouTube-Link | Website-URL)
       → import_queue status: done
 ```
 
-## Import-Flow (Instagram Collection Poller)
+## Import-Flow (Instagram Collection Sync)
 
 ```
-n8n Schedule (alle 15 Min)
-  → Backend GET /instagram/sync
-    → instagrapi: Collection Items abrufen
+Backend Sync Worker (alle 15 Min)
+  → instagrapi: Collection Items abrufen
     → Duplikat-Check via source_url
     → Neue Items → import_queue (pending)
     → Queue-Worker verarbeitet (wie oben)
@@ -378,10 +370,3 @@ Vollständige Liste → `.env.example`
 | `INSTAGRAM_PASSWORD` | – | Passwort |
 | `INSTAGRAM_COLLECTION_ID` | – | ID der Saved Collection |
 
-### n8n Konfiguration
-
-| Variable | Beispiel | Beschreibung |
-|----------|---------|-------------|
-| `N8N_BASIC_AUTH_USER` | `admin` | n8n Admin-Nutzer |
-| `N8N_BASIC_AUTH_PASSWORD` | – | n8n Passwort |
-| `N8N_ENCRYPTION_KEY` | – | Für n8n-interne Verschlüsselung |

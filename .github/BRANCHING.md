@@ -113,7 +113,7 @@ did translation thing
 **Examples:**
 ```
 [backend] Add recipe translation API
-[devops] Fix n8n healthcheck timeout
+[devops] Improve PostgreSQL healthcheck timeout
 [llm] Improve Gemini extraction for video captions
 ```
 
@@ -265,7 +265,7 @@ git checkout -b release/v1.1.0 main
 git commit -m "[release] Version 1.1.0
 
 - Added recipe translation API
-- Fixed n8n healthcheck timeout
+- Improved PostgreSQL healthcheck timeout
 - Improved Gemini prompt quality"
 
 # Tag
