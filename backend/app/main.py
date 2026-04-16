@@ -16,6 +16,7 @@ from app.config import settings
 from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CATEGORIES
 from app.queue_worker import run_worker
 from app.telegram_bot import run_bot
+from app.instagram_sync_worker import SyncControl, run_instagram_sync
 from app.llm_provider import LLMProvider
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -51,11 +52,41 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Queue-Worker gestartet")
 
+    # Create Instagram sync control instance
+    sync_control = SyncControl()
+
+    # Admin notification callback for sync worker
+    async def notify_admin(message: str):
+        """Notify admin via Telegram on sync auth failure"""
+        if notify_holder[0] and settings.telegram_notify_chat_id:
+            try:
+                await notify_holder[0](
+                    chat_id=settings.telegram_notify_chat_id,
+                    success=False,
+                    error_msg=message,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to notify admin: {e}")
+
+    # Start sync worker if enabled
+    if settings.instagram_sync_enabled:
+        sync_task = asyncio.create_task(
+            run_instagram_sync(
+                sync_control=sync_control,
+                sync_interval=settings.instagram_sync_interval,
+                notify_admin=notify_admin,
+            )
+        )
+        logger.info("Instagram-Sync-Worker gestartet")
+    else:
+        sync_task = None
+        logger.info("Instagram-Sync-Worker deaktiviert (INSTAGRAM_SYNC_ENABLED=false)")
+
     # Start bot (bot will inject real callback into notify_holder)
     async def init_bot():
         def set_notify_callback(callback):
             notify_holder[0] = callback
-        await run_bot(set_notify_callback)
+        await run_bot(set_notify_callback, sync_control=sync_control)
     
     bot_task = asyncio.create_task(init_bot())
     logger.info("Telegram-Bot gestartet")
@@ -63,17 +94,23 @@ async def lifespan(app: FastAPI):
     yield
 
     # Graceful shutdown
-    logger.info("Fahre Worker und Bot herunter...")
+    logger.info("Fahre Worker, Bot und Sync herunter...")
     worker_task.cancel()
     bot_task.cancel()
+    if sync_task:
+        sync_task.cancel()
     
-    for task in [worker_task, bot_task]:
+    tasks_to_cancel = [worker_task, bot_task]
+    if sync_task:
+        tasks_to_cancel.append(sync_task)
+    
+    for task in tasks_to_cancel:
         try:
             await task
         except asyncio.CancelledError:
             pass
     
-    logger.info("Worker und Bot heruntergefahren")
+    logger.info("Worker, Bot und Sync heruntergefahren")
 
 
 app = FastAPI(

@@ -4,6 +4,13 @@ Replaces n8n Telegram integration with native FastAPI.
 
 Architecture:
   User → Bot (polling) → import_queue → run_worker → notify() → User
+  
+Instagram Sync Commands (admin-only):
+  /sync_setup    - Interactive collection selection menu
+  /sync_status   - Show current sync state and selected collection
+  /sync_enable   - Enable automatic syncing
+  /sync_disable  - Disable automatic syncing
+  /sync_now      - Trigger manual sync immediately
 """
 import asyncio
 import logging
@@ -11,8 +18,8 @@ import re
 from typing import Callable, Optional
 from urllib.parse import urlparse
 
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 from app.config import settings
 
@@ -50,6 +57,19 @@ def is_allowed(user_id: int) -> bool:
     
     allowed_str = [str(user_id) for user_id in settings.telegram_allowed_user_ids]
     return str(user_id) in allowed_str
+
+
+def is_admin(user_id: int) -> bool:
+    """
+    Prüft, ob ein User Admin-Rechte hat.
+    Nutzt TELEGRAM_ADMIN_IDS environment variable.
+    """
+    if not settings.telegram_admin_ids:
+        # No admins configured, deny all
+        return False
+    
+    admin_ids_str = [str(uid) for uid in settings.telegram_admin_ids]
+    return str(user_id) in admin_ids_str
 
 
 # ── Error Humanization ───────────────────────────────────────────────────────
@@ -249,14 +269,298 @@ async def notify(
         logger.warning(f"Failed to send notification to {chat_id}: {e}")
 
 
+# ── Instagram Sync Commands (admin-only) ─────────────────────────────────────
+async def sync_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sync_status command — show Instagram sync state."""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Nur Admin-Benutzer können Sync-Befehle nutzen")
+        logger.warning(f"Non-admin user {user_id} tried /sync_status")
+        return
+    
+    # Get sync control status (passed via context.bot_data)
+    sync_control = context.bot_data.get("sync_control")
+    if not sync_control:
+        await update.message.reply_text("⚠️ Sync-System nicht initialisiert")
+        return
+    
+    status = sync_control.get_status()
+    collection = status["selected_collection"]
+    
+    msg = "📊 Instagram Sync Status\n\n"
+    msg += f"Status: {'✅ Aktiv' if status['enabled'] else '⏸️ Inaktiv'}\n"
+    msg += f"Ausgewählte Sammlung: {collection['name'] if collection else '(keine)'}\n"
+    
+    if status["last_sync"]:
+        msg += f"Letzter Sync: {status['last_sync']}\n"
+        if status["last_stats"]:
+            stats = status["last_stats"]
+            msg += f"  └─ {stats.get('queued', 0)} neu queued, {stats.get('skipped', 0)} übersprungen"
+    else:
+        msg += "Letzter Sync: (noch kein Sync)\n"
+    
+    await update.message.reply_text(msg)
+
+
+async def sync_enable_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sync_enable command — enable automatic syncing."""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Nur Admin-Benutzer können /sync_enable nutzen")
+        return
+    
+    sync_control = context.bot_data.get("sync_control")
+    if not sync_control:
+        await update.message.reply_text("⚠️ Sync-System nicht initialisiert")
+        return
+    
+    sync_control.enable()
+    await update.message.reply_text("✅ Instagram Sync aktiviert\nNächster Sync: in 15 Minuten")
+    logger.info(f"Admin {user_id} enabled Instagram sync")
+
+
+async def sync_disable_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sync_disable command — disable automatic syncing."""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Nur Admin-Benutzer können /sync_disable nutzen")
+        return
+    
+    sync_control = context.bot_data.get("sync_control")
+    if not sync_control:
+        await update.message.reply_text("⚠️ Sync-System nicht initialisiert")
+        return
+    
+    sync_control.disable()
+    await update.message.reply_text("⏸️ Instagram Sync deaktiviert")
+    logger.info(f"Admin {user_id} disabled Instagram sync")
+
+
+async def sync_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sync_setup command — interactive collection selection menu."""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Nur Admin-Benutzer können /sync_setup nutzen")
+        return
+    
+    sync_control = context.bot_data.get("sync_control")
+    if not sync_control:
+        await update.message.reply_text("⚠️ Sync-System nicht initialisiert")
+        return
+    
+    try:
+        # Try to fetch available collections
+        from app.instagram_sync_worker import get_available_collections
+        
+        await update.message.reply_text("🔄 Lade verfügbare Instagram-Sammlungen...")
+        
+        collections = await get_available_collections()
+        
+        if not collections:
+            await update.message.reply_text(
+                "❌ Keine Instagram-Sammlungen gefunden.\n\n"
+                "Gründe:\n"
+                "1. Keine Sammlungen erstellt auf Instagram\n"
+                "2. Instagram-Authentifizierung fehlgeschlagen\n\n"
+                "Lösung:\n"
+                "1. Erstelle eine Sammlung auf Instagram (Instagram > Profil > Sammlungen)\n"
+                "2. Exportiere neue cookies.txt via 'Get cookies.txt LOCALLY'\n"
+                "3. Ersetze backend/instagram_cookies.txt\n"
+                "4. Starte den Server neu und versuche /sync_setup erneut"
+            )
+            return
+        
+        # Build inline keyboard with collection buttons
+        keyboard = []
+        for coll in collections:
+            button_text = f"{coll['collection_name']} ({coll['post_count']} posts)"
+            button = InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"select_collection_{coll['collection_id']}"
+            )
+            keyboard.append([button])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        msg = "📋 Verfügbare Instagram-Sammlungen:\n\n" \
+              "Bitte wähle eine Sammlung zum Synchronisieren aus:\n"
+        
+        await update.message.reply_text(msg, reply_markup=reply_markup)
+        logger.info(f"Admin {user_id} opened /sync_setup with {len(collections)} collections")
+    
+    except ValueError as auth_error:
+        # Instagram auth failed
+        await update.message.reply_text(
+            f"❌ Instagram-Authentifizierung fehlgeschlagen:\n\n"
+            f"{str(auth_error)}\n\n"
+            f"Lösung:\n"
+            f"1. Gehe zu instagram.com und melde dich an\n"
+            f"2. Exportiere neue cookies.txt via 'Get cookies.txt LOCALLY'\n"
+            f"3. Ersetze backend/instagram_cookies.txt\n"
+            f"4. Starte den Server neu und versuche /sync_setup erneut"
+        )
+        logger.warning(f"Instagram auth failed for /sync_setup: {auth_error}", exc_info=False)
+    
+    except Exception as e:
+        logger.exception(f"Error in /sync_setup: {e}")
+        await update.message.reply_text(f"❌ Fehler: {str(e)[:100]}\n\nBitte die Logs überprüfen")
+
+
+async def collection_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle collection selection via inline button."""
+    query = update.callback_query
+    user_id = query.from_user.id
+    
+    if not is_admin(user_id):
+        await query.answer("❌ Nur Admin", show_alert=True)
+        return
+    
+    # Extract collection ID from callback_data
+    collection_id = query.data.replace("select_collection_", "")
+    
+    sync_control = context.bot_data.get("sync_control")
+    if not sync_control:
+        await query.answer("⚠️ Sync-System nicht initialisiert", show_alert=True)
+        return
+    
+    try:
+        # Get available collections to find the selected one
+        from app.instagram_sync_worker import get_available_collections
+        
+        collections = await get_available_collections()
+        selected_coll = next((c for c in collections if c['collection_id'] == collection_id), None)
+        
+        if not selected_coll:
+            await query.answer("❌ Sammlung nicht gefunden", show_alert=True)
+            return
+        
+        # Update sync control
+        sync_control.set_collection(collection_id, selected_coll['collection_name'])
+        
+        # Update database (delete old, insert new)
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        
+        # Disable all previous collections
+        cursor.execute("""
+            UPDATE instagram_sync_collections
+            SET disabled_at = CURRENT_TIMESTAMP
+            WHERE disabled_at IS NULL
+        """)
+        
+        # Insert new selected collection
+        cursor.execute("""
+            INSERT INTO instagram_sync_collections (collection_id, collection_name, enabled_at, selected_by_telegram_id)
+            VALUES (%s, %s, CURRENT_TIMESTAMP, %s)
+            ON CONFLICT (collection_id) DO UPDATE
+            SET enabled_at = CURRENT_TIMESTAMP, disabled_at = NULL
+        """, (collection_id, selected_coll['collection_name'], str(user_id)))
+        
+        db.commit()
+        db.close()
+        
+        # Edit message to confirm selection
+        msg = f"✅ Sammlung ausgewählt:\n\n" \
+              f"📌 {selected_coll['collection_name']}\n" \
+              f"🔗 ID: {collection_id}\n" \
+              f"📊 Posts: {selected_coll['post_count']}\n\n" \
+              f"⏱️ Der Sync startet beim nächsten Poll (in ~15 Minuten)"
+        
+        await query.edit_message_text(msg)
+        await query.answer("✅ Sammlung ausgewählt", show_alert=False)
+        logger.info(f"Admin {user_id} selected collection {collection_id}")
+    
+    except Exception as e:
+        logger.exception(f"Error selecting collection: {e}")
+        await query.answer(f"❌ Fehler: {str(e)[:50]}", show_alert=True)
+
+
+async def sync_now_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sync_now command — trigger manual sync."""
+    user_id = update.effective_user.id
+    
+    if not is_admin(user_id):
+        await update.message.reply_text("❌ Nur Admin-Benutzer können /sync_now nutzen")
+        return
+    
+    sync_control = context.bot_data.get("sync_control")
+    if not sync_control:
+        await update.message.reply_text("⚠️ Sync-System nicht initialisiert")
+        return
+    
+    # Check if collection is selected
+    if not sync_control.selected_collection_id:
+        await update.message.reply_text(
+            "❌ Keine Sammlung ausgewählt!\n"
+            "Nutze /sync_setup um eine Sammlung zu wählen"
+        )
+        return
+    
+    await update.message.reply_text("🔄 Sync wird ausgelöst...")
+    
+    try:
+        # Import here to avoid circular imports
+        from app.instagram_sync_worker import run_instagram_sync
+        
+        # Run sync once
+        stats = await run_instagram_sync(sync_control, run_once=True)
+        
+        if "error" in stats:
+            await update.message.reply_text(
+                f"❌ Sync-Fehler:\n\n{stats['error']}"
+            )
+        else:
+            msg = f"📊 Sync abgeschlossen:\n" \
+                  f"- {stats.get('total_posts', 0)} Posts geprüft\n" \
+                  f"- {stats.get('queued', 0)} neue Rezepte queued\n" \
+                  f"- {stats.get('skipped', 0)} übersprungen\n" \
+                  f"- {stats.get('errors', 0)} Fehler"
+            
+            await update.message.reply_text(msg)
+        
+        logger.info(f"Admin {user_id} triggered manual sync: {stats}")
+    
+    except ValueError as auth_error:
+        # Instagram auth failed
+        await update.message.reply_text(
+            f"❌ Instagram-Authentifizierung fehlgeschlagen:\n\n"
+            f"{str(auth_error)}\n\n"
+            f"Lösung:\n"
+            f"1. Gehe zu instagram.com und melde dich an\n"
+            f"2. Exportiere neue cookies.txt via 'Get cookies.txt LOCALLY'\n"
+            f"3. Ersetze backend/instagram_cookies.txt\n"
+            f"4. Starte den Server neu und versuche /sync_now erneut"
+        )
+        logger.warning(f"Instagram auth failed for /sync_now: {auth_error}", exc_info=False)
+    
+    except Exception as e:
+        logger.exception(f"Error in /sync_now: {e}")
+        await update.message.reply_text(f"❌ Fehler: {str(e)[:100]}")
+
+
 # ── Bot Startup ──────────────────────────────────────────────────────────────
-async def run_bot(set_notify_callback: Callable[[Callable], None]) -> None:
+async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=None) -> None:
     """
     Starts the Telegram bot in polling mode.
     Accepts a callback setter to inject the notification function into the app context.
+    Accepts sync_control for Instagram sync commands.
     
     Args:
         set_notify_callback: Function that receives the notify callback for wiring
+        sync_control: SyncControl instance for /sync_* commands
     """
     if not settings.telegram_bot_token:
         logger.warning("TELEGRAM_BOT_TOKEN not set — bot not started")
@@ -264,6 +568,10 @@ async def run_bot(set_notify_callback: Callable[[Callable], None]) -> None:
     
     # Build application
     app = Application.builder().token(settings.telegram_bot_token).build()
+    
+    # Store sync_control in bot_data for use in handlers
+    if sync_control:
+        app.bot_data["sync_control"] = sync_control
     
     # Wire the notify callback for the queue worker
     # Create a closure that captures the app instance
@@ -274,6 +582,12 @@ async def run_bot(set_notify_callback: Callable[[Callable], None]) -> None:
     
     # Add handlers
     app.add_handler(CommandHandler("start", start_handler))
+    app.add_handler(CommandHandler("sync_setup", sync_setup_handler))
+    app.add_handler(CommandHandler("sync_status", sync_status_handler))
+    app.add_handler(CommandHandler("sync_enable", sync_enable_handler))
+    app.add_handler(CommandHandler("sync_disable", sync_disable_handler))
+    app.add_handler(CommandHandler("sync_now", sync_now_handler))
+    app.add_handler(CallbackQueryHandler(collection_select_callback, pattern="^select_collection_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
     logger.info("Telegram Bot gestartet (polling mode)")
