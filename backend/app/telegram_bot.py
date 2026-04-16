@@ -286,11 +286,10 @@ async def sync_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     
     status = sync_control.get_status()
-    collection = status["selected_collection"]
     
     msg = "📊 Instagram Sync Status\n\n"
     msg += f"Status: {'✅ Aktiv' if status['enabled'] else '⏸️ Inaktiv'}\n"
-    msg += f"Ausgewählte Sammlung: {collection['name'] if collection else '(keine)'}\n"
+    msg += f"Ausgewählte Sammlung: {status['collection_name'] if status['collection_id'] else '(keine)'}\n"
     
     if status["last_sync"]:
         msg += f"Letzter Sync: {status['last_sync']}\n"
