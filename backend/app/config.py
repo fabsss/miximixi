@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     instagram_session_file: str = "instagram_session.json"
     instagram_cookies_file: str = "instagram_cookies.txt"  # yt-dlp cookies export
 
+    # Instagram Sync Worker
+    instagram_sync_enabled: bool = True  # Can disable for testing
+    instagram_sync_interval: int = 900  # 15 minutes (in seconds)
+
+    # Telegram Admin IDs for sync commands
+    telegram_admin_ids: list[str] = []  # Format: "123456,789012" (comma-separated)
+
     # Temp storage for media downloads
     tmp_dir: str = "/tmp/miximixi"
 
