@@ -364,6 +364,21 @@ LLM_PROVIDER=claude python scripts/test_extraction.py --url "https://youtube.com
 LLM_PROVIDER=ollama python scripts/test_extraction.py --url "file:///tmp/recipe_video.mp4"
 ```
 
+
+## Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
 ---
 
 ## Troubleshooting

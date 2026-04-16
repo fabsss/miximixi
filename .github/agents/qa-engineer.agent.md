@@ -298,6 +298,13 @@ qa/performance-<metric>
 [qa] Fix: Race condition in concurrent recipe extraction
 ```
 
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
 ---
 
 ## Resources

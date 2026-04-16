@@ -197,6 +197,13 @@ refactor/recipe-card-component
 [frontend] Optimize image loading with lazy loading
 ```
 
+### Post-commit Sync
+**Always push after committing:**
+```bash
+git push origin main
+```
+Changes are not live until they're synced to remote.
+
 ### PR Checklist
 - [ ] Component renders correctly on desktop & mobile
 - [ ] All interactive elements tested (clicking, scrolling)
