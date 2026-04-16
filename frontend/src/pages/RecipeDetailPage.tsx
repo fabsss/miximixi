@@ -320,6 +320,7 @@ export function RecipeDetailPage() {
     mutationFn: (id: string) => deleteRecipe(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      setShowDeleteConfirm(false)
       navigate('/')
     },
   })
@@ -865,6 +866,9 @@ export function RecipeDetailPage() {
             <p className="mt-2 font-body text-sm text-[var(--mx-on-surface-variant)]">
               "{recipe.title}" wird unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
             </p>
+            {deleteMutation.isError && (
+              <p className="mt-4 font-body text-sm text-red-500">Löschen fehlgeschlagen. Bitte versuche es später erneut.</p>
+            )}
             <div className="mt-6 flex gap-3">
               <button type="button" onClick={() => setShowDeleteConfirm(false)}
                 className="flex-1 rounded-full bg-[var(--mx-surface-high)] px-4 py-2.5 text-sm font-bold text-[var(--mx-on-surface)]">Abbrechen</button>

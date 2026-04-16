@@ -89,7 +89,10 @@ export async function translateRecipe(
 }
 
 export async function deleteRecipe(recipeId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`, { method: 'DELETE' })
+  const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
   if (!response.ok) throw new Error(`Delete failed: ${response.status}`)
 }
 
