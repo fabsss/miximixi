@@ -134,6 +134,50 @@ a {
   backdrop-filter: blur(16px);
 }
 
+.mx-glass a[style*="color"] {
+  color: inherit !important;
+}
+
+/* Category color variables */
+:root,
+[data-theme="light"] {
+  --cat-vorspeisen-bg: #fbbf24;
+  --cat-vorspeisen-text: #78350f;
+  --cat-hauptspeisen-bg: #fb923c;
+  --cat-hauptspeisen-text: #7c2d12;
+  --cat-desserts-bg: #86efac;
+  --cat-desserts-text: #14532d;
+  --cat-brunch-bg: #fb7185;
+  --cat-brunch-text: #831843;
+  --cat-snacks-bg: #d8b4fe;
+  --cat-snacks-text: #581c87;
+  --cat-drinks-bg: #38bdf8;
+  --cat-drinks-text: #0c4a6e;
+}
+
+[data-theme="dark"] {
+  --cat-vorspeisen-bg: #7d6449;
+  --cat-vorspeisen-text: #fef3c7;
+  --cat-hauptspeisen-bg: #7d5538;
+  --cat-hauptspeisen-text: #fed7aa;
+  --cat-desserts-bg: #4d6a52;
+  --cat-desserts-text: #dcfce7;
+  --cat-brunch-bg: #664e5a;
+  --cat-brunch-text: #ffe4e6;
+  --cat-snacks-bg: #58445a;
+  --cat-snacks-text: #fce7f3;
+  --cat-drinks-bg: #465f6a;
+  --cat-drinks-text: #e0f2fe;
+}
+
+/* Dark mode category colors */
+[data-theme="dark"] .bg-amber-200\/90 { background-color: var(--cat-vorspeisen-bg) !important; color: var(--cat-vorspeisen-text) !important; }
+[data-theme="dark"] .bg-orange-200\/90 { background-color: var(--cat-hauptspeisen-bg) !important; color: var(--cat-hauptspeisen-text) !important; }
+[data-theme="dark"] .bg-green-200\/90 { background-color: var(--cat-desserts-bg) !important; color: var(--cat-desserts-text) !important; }
+[data-theme="dark"] .bg-rose-200\/90 { background-color: var(--cat-brunch-bg) !important; color: var(--cat-brunch-text) !important; }
+[data-theme="dark"] .bg-purple-200\/90 { background-color: var(--cat-snacks-bg) !important; color: var(--cat-snacks-text) !important; }
+[data-theme="dark"] .bg-sky-200\/90 { background-color: var(--cat-drinks-bg) !important; color: var(--cat-drinks-text) !important; }
+
 .mx-shell {
   width: min(1240px, 100% - 2rem);
   margin: 0 auto;

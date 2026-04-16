@@ -80,7 +80,8 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
             {recipeSlug && (
               <Link
                 to={`/cook/${recipeSlug}`}
-                className="hidden sm:flex items-center gap-2 rounded-xl bg-[var(--mx-primary)] px-4 py-2 text-sm font-semibold text-[var(--mx-on-primary)] shadow-md shadow-[var(--mx-primary)]/20 transition-all hover:bg-[var(--mx-primary-dim)] active:scale-95"
+                className="hidden sm:flex items-center gap-2 rounded-xl bg-[var(--mx-primary)] px-4 py-2 text-sm font-semibold shadow-md shadow-[var(--mx-primary)]/20 transition-all hover:bg-[var(--mx-primary-dim)] active:scale-95"
+                style={{ color: '#fff7f5' }}
               >
                 <span
                   className="material-symbols-outlined text-[17px]"
@@ -95,7 +96,8 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
               {recipeSlug && (
                 <Link
                   to={`/cook/${recipeSlug}`}
-                  className="sm:hidden flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-primary)] hover:bg-[var(--mx-surface-container)] transition-colors"
+                  className="sm:hidden flex h-9 w-9 items-center justify-center rounded-full bg-[var(--mx-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors"
+                  style={{ color: '#fff7f5 !important' }}
                   title="Kochmodus"
                 >
                   <span

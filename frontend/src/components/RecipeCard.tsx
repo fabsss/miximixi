@@ -9,7 +9,19 @@ interface RecipeCardProps {
   index: number
 }
 
-const tileVariants = ['aspect-[4/3]', 'aspect-[3/2]', 'aspect-[16/10]']
+const tileVariants = ['aspect-[4/3]', 'aspect-[4/3]', 'aspect-[4/3]']
+
+function getCategoryBgColor(cat: string): string {
+  switch (cat.toLowerCase()) {
+    case 'vorspeisen':   return 'bg-amber-200/90'
+    case 'hauptspeisen': return 'bg-orange-200/90'
+    case 'desserts':     return 'bg-green-200/90'
+    case 'brunch':       return 'bg-rose-200/90'
+    case 'snacks':       return 'bg-purple-200/90'
+    case 'drinks':       return 'bg-sky-200/90'
+    default:             return 'bg-white/25'
+  }
+}
 
 function HeartIcon({ filled, className }: { filled: boolean; className?: string }) {
   return (
@@ -54,9 +66,12 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
     }
   }
 
+  const primaryCategory = categories.length > 0 ? categories[0] : null
+  const bgColorClass = primaryCategory ? getCategoryBgColor(primaryCategory) : 'bg-[var(--mx-surface-container)]'
+
   return (
     <div role="link" tabIndex={0} onClick={handleClick} onKeyDown={(e) => e.key === 'Enter' && handleClick()} className="group block cursor-pointer">
-      <article className="rounded-[2rem] bg-[var(--mx-surface-container)] p-3 transition duration-500 hover:translate-y-[-2px] hover:shadow-[0_24px_52px_var(--mx-glow)]">
+      <article className={`rounded-[2rem] ${bgColorClass} p-3 transition duration-500 hover:translate-y-[-2px] hover:shadow-[0_24px_52px_var(--mx-glow)]`}>
         <div className={`relative overflow-hidden rounded-[1.6rem] ${tileClass}`}>
           <img
             src={imageUrl}
@@ -74,26 +89,12 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
           {categories.length > 0 && (
             <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
               {categories.map((cat) => (
-                <span key={cat} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${categoryChipCls(cat)}`}>
-                  <span className="material-symbols-outlined text-[10px]">{getCategoryIcon(cat)}</span>
-                  {cat}
+                <span key={cat} className={`inline-flex items-center rounded-full p-0.5 backdrop-blur-md ${categoryChipCls(cat)}`}>
+                  <span className="material-symbols-outlined text-[8px]">{getCategoryIcon(cat)}</span>
                 </span>
               ))}
             </div>
           )}
-          {/* "Zum Rezept" button – bottom right */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleClick()
-            }}
-            className="absolute bottom-2.5 right-2.5 flex items-center gap-1 rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-md hover:bg-amber-800 transition-colors active:scale-95"
-          >
-            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              restaurant
-            </span>
-            Zum Rezept
-          </button>
         </div>
 
         <div className="px-2 pb-1 pt-3">

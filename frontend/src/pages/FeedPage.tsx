@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { flushSync } from 'react-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
@@ -48,6 +49,7 @@ interface FeedPageProps {
 }
 
 export function FeedPage(_: FeedPageProps) {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
@@ -157,12 +159,12 @@ export function FeedPage(_: FeedPageProps) {
   const catBtnCls = (cat: string | null, active: boolean) => {
     if (!active) return 'flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition text-[var(--mx-on-surface)] hover:bg-[var(--mx-surface-container)]'
     const colors: Record<string, string> = {
-      'Vorspeisen':   'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200',
-      'Hauptspeisen': 'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-200',
-      'Desserts':     'bg-pink-200 text-pink-900 dark:bg-pink-900 dark:text-pink-200',
-      'Brunch':       'bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-900',
-      'Snacks':       'bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200',
-      'Drinks':       'bg-sky-200 text-sky-900 dark:bg-sky-900 dark:text-sky-200',
+      'Vorspeisen':   'bg-[var(--cat-vorspeisen-bg)] text-[var(--cat-vorspeisen-text)]',
+      'Hauptspeisen': 'bg-[var(--cat-hauptspeisen-bg)] text-[var(--cat-hauptspeisen-text)]',
+      'Desserts':     'bg-[var(--cat-desserts-bg)] text-[var(--cat-desserts-text)]',
+      'Brunch':       'bg-[var(--cat-brunch-bg)] text-[var(--cat-brunch-text)]',
+      'Snacks':       'bg-[var(--cat-snacks-bg)] text-[var(--cat-snacks-text)]',
+      'Drinks':       'bg-[var(--cat-drinks-bg)] text-[var(--cat-drinks-text)]',
     }
     const color = cat ? (colors[cat] ?? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]') : 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
     return `flex w-full items-center justify-between gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${color}`
@@ -224,7 +226,35 @@ export function FeedPage(_: FeedPageProps) {
         {/* ROTATING HERO */}
         {heroRecipe && (
           <section>
-            <div className="group relative w-full overflow-hidden rounded-[2.5rem]" style={{ aspectRatio: '21/9' }}>
+            <div
+              onClick={() => {
+                const target = `/recipes/${heroRecipe.slug || heroRecipe.id}`
+                if ('startViewTransition' in document) {
+                  document.documentElement.dataset.navdir = 'forward'
+                  ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+                    flushSync(() => navigate(target))
+                  })
+                } else {
+                  navigate(target)
+                }
+              }}
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const target = `/recipes/${heroRecipe.slug || heroRecipe.id}`
+                  if ('startViewTransition' in document) {
+                    document.documentElement.dataset.navdir = 'forward'
+                    ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+                      flushSync(() => navigate(target))
+                    })
+                  } else {
+                    navigate(target)
+                  }
+                }
+              }}
+              className="group relative w-full cursor-pointer overflow-hidden rounded-[2.5rem]"
+              style={{ aspectRatio: '21/9' }}>
               {heroImgOk ? (
                 <img
                   key={heroIndex}
@@ -238,7 +268,7 @@ export function FeedPage(_: FeedPageProps) {
                 <div className="h-full w-full bg-gradient-to-br from-[var(--mx-primary-container)] to-[var(--mx-secondary-container)]" />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-0 left-0 flex w-full flex-col items-start justify-between gap-4 p-5 md:flex-row md:items-end md:p-8">
+              <div className="absolute bottom-0 left-0 flex w-full flex-col items-start gap-4 p-5 md:p-8">
                 <div className="max-w-xl">
                   {heroRecipe.category && (
                     <span className={`mb-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-md md:text-xs ${categoryChipCls(heroRecipe.category)}`}>
@@ -257,13 +287,6 @@ export function FeedPage(_: FeedPageProps) {
                     </div>
                   )}
                 </div>
-                <Link
-                  to={`/recipes/${heroRecipe.id}`}
-                  className="flex shrink-0 items-center gap-2 self-end rounded-full bg-gradient-to-r from-[var(--mx-primary)] to-[var(--mx-primary-dim)] px-5 py-2.5 text-sm font-bold text-[var(--mx-on-primary)] shadow-xl transition-all active:scale-95"
-                >
-                  Zum Rezept
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </Link>
               </div>
             </div>
 
