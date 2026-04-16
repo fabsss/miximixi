@@ -1,12 +1,28 @@
 import { flushSync } from 'react-dom'
-import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, Outlet, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/useNavDrawer'
 
-export function AppLayout() {
+interface AppLayoutProps {
+  scrollPositions: Record<string, number>
+}
+
+export function AppLayout({ scrollPositions }: AppLayoutProps) {
   const { theme, setTheme } = useTheme()
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Restore scroll position when navigating to a page
+  useEffect(() => {
+    const path = location.pathname
+    const savedPosition = scrollPositions[path] ?? 0
+    // Use requestAnimationFrame to ensure rendering is complete
+    requestAnimationFrame(() => {
+      window.scrollTo(0, savedPosition)
+    })
+  }, [location.pathname, scrollPositions])
 
   const themeIcon = theme === 'system' ? '🖥️' : theme === 'dark' ? '🌙' : '☀️'
   const nextTheme: 'light' | 'dark' | 'system' =
@@ -24,6 +40,8 @@ export function AppLayout() {
             {recipeSlug ? (
               <button
                 onClick={() => {
+                  // Save scroll position before navigation
+                  scrollPositions[location.pathname] = window.scrollY
                   if ('startViewTransition' in document) {
                     document.documentElement.dataset.navdir = 'back'
                     ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {

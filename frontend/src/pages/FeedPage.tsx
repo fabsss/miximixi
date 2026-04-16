@@ -43,7 +43,11 @@ function CategoryNav({
 
 const PAGE_SIZE = 20
 
-export function FeedPage() {
+interface FeedPageProps {
+  scrollPositions: Record<string, number>
+}
+
+export function FeedPage(_: FeedPageProps) {
   const [search, setSearch] = useState('')
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
