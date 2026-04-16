@@ -79,6 +79,9 @@ did translation thing
 
 ## Pull Request Checklist
 
+- **ALWAYS CREATE PR IF YOU WANT TO MERGE TO MAIN** 
+- **NEVER MERGE BRANCH WITHOUT PR**
+
 ### Pre-PR: Local Testing
 
 **All domains:**
