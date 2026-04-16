@@ -104,19 +104,34 @@ async def create_import(req: ImportRequest):
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # Duplikat-Check
+        # Duplikat-Check: Prüfe ob Rezept bereits erfolgreich importiert wurde
+        cursor.execute(
+            "SELECT id, title FROM recipes WHERE source_url = %s",
+            (req.url,),
+        )
+        existing_recipe = cursor.fetchone()
+
+        if existing_recipe:
+            db.close()
+            return ImportResponse(
+                queue_id="",
+                status="done",
+                message=f"❌ Rezept '{existing_recipe['title']}' existiert bereits in der Datenbank",
+            )
+
+        # Duplikat-Check: Prüfe ob URL gerade verarbeitet wird
         cursor.execute(
             "SELECT id, status FROM import_queue WHERE source_url = %s AND status IN (%s, %s, %s)",
             (req.url, "pending", "processing", "done"),
         )
-        existing = cursor.fetchone()
+        existing_queue = cursor.fetchone()
 
-        if existing:
+        if existing_queue:
             db.close()
             return ImportResponse(
-                queue_id=existing["id"],
-                status=existing["status"],
-                message=f"URL bereits in Queue (status: {existing['status']})",
+                queue_id=existing_queue["id"],
+                status=existing_queue["status"],
+                message=f"⏳ URL wird gerade verarbeitet (status: {existing_queue['status']})",
             )
 
         queue_id = str(uuid.uuid4())
