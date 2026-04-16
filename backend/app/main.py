@@ -721,16 +721,26 @@ async def delete_recipe(recipe_id: str):
         cursor.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
         db.commit()
         db.close()
-        # Remove image directory if it exists
+
+        # Remove image directory if it exists (after DB commit)
+        # This is separate so a file deletion error doesn't trigger DB rollback issues
         recipe_dir = os.path.join(settings.images_dir, recipe_id)
-        if os.path.exists(recipe_dir):
-            shutil.rmtree(recipe_dir)
+        try:
+            if os.path.exists(recipe_dir):
+                shutil.rmtree(recipe_dir)
+        except Exception as e:
+            logger.warning(f"Failed to delete recipe images for {recipe_id}: {e}")
+            # Don't fail the whole request if image deletion fails
+
         return {"message": "Rezept geloescht"}
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
-        db.close()
+        try:
+            db.rollback()
+            db.close()
+        except Exception:
+            pass  # Connection might already be closed
         logger.error(f"Recipe delete failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
