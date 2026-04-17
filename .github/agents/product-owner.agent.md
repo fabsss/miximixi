@@ -198,6 +198,14 @@ Story 3: Recipe is searchable
 
 ---
 
+## Bug Reporting & Knowledge Management
+
+When bugs are discovered during QA or production:
+- **Bug Report Location:** Create a detailed report in `docs/bugreports/` with filename `YYYY-MM-DD_bug_title.md`
+- **Report Contents:** Root cause, severity, affected features, solution implemented, test verification
+- **Team Learning:** Bug reports help the entire team understand system fragility and prevent future regressions
+- **Closure Checklist:** Feature is not complete until associated bugs are documented and fixed
+
 ## Sprint Planning
 
 ### Sprint Structure
