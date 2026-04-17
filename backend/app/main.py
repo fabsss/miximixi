@@ -94,17 +94,31 @@ async def lifespan(app: FastAPI):
     yield
 
     # Graceful shutdown
+    # IMPORTANT: Cancel all tasks first, then await bot_task BEFORE others.
+    # The bot must call app.updater.stop() to cleanly close the getUpdates HTTP
+    # connection. If worker_task is awaited first (mid-LLM-call = 30s+), Docker's
+    # grace period expires and SIGKILL fires before the bot can close cleanly.
+    # Telegram then keeps the dead session alive for ~21 seconds, causing 409
+    # Conflicts on the next container startup.
     logger.info("Fahre Worker, Bot und Sync herunter...")
     worker_task.cancel()
     bot_task.cancel()
     if sync_task:
         sync_task.cancel()
     
-    tasks_to_cancel = [worker_task, bot_task]
-    if sync_task:
-        tasks_to_cancel.append(sync_task)
+    # Await bot first — its cleanup (updater.stop()) is fast and must complete
+    # before the process is killed to avoid 409 Conflicts on next startup.
+    try:
+        await bot_task
+    except asyncio.CancelledError:
+        pass
+    logger.info("Telegram-Bot sauber beendet")
     
-    for task in tasks_to_cancel:
+    # Then await workers (may take longer if an LLM call is in progress)
+    remaining = [worker_task]
+    if sync_task:
+        remaining.append(sync_task)
+    for task in remaining:
         try:
             await task
         except asyncio.CancelledError:
