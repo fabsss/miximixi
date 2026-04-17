@@ -3,36 +3,48 @@ These tests use mocked database connections to avoid requiring a real DB.
 """
 import pytest
 from unittest.mock import MagicMock, patch
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture(scope="module")
-def mock_client():
-    """TestClient with database connection mocked out."""
-    with patch("app.main.get_db") as mock_db:
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        # Mock the behavior of RealDictCursor for /categories/counts
-        # First call to fetchall() gets per-category counts
-        # Second call to fetchone() gets total count
-        mock_cursor.fetchall.return_value = []
-        mock_cursor.fetchone.return_value = {"count": 0}
-        mock_conn.cursor.return_value = mock_cursor
-        mock_db.return_value = mock_conn
-
-        from app.main import app
-        with TestClient(app, raise_server_exceptions=False) as client:
-            yield client
 
 
 @pytest.fixture
-def mock_client_with_error():
-    """TestClient with database connection that fails on first call."""
-    with patch("app.main.get_db") as mock_db:
-        mock_db.side_effect = Exception("DB connection failed")
-        from app.main import app
-        with TestClient(app, raise_server_exceptions=False) as client:
-            yield client
+def mock_client_fixture(client, monkeypatch):
+    """Fixture-based mocking using monkeypatch, compatible with conftest client."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    # Mock the behavior of RealDictCursor for /categories/counts
+    # First call to fetchall() gets per-category counts
+    # Second call to fetchone() gets total count
+    mock_cursor.fetchall.return_value = []
+    mock_cursor.fetchone.return_value = {"count": 0}
+    mock_conn.cursor.return_value = mock_cursor
+
+    def mock_get_db():
+        return mock_conn
+
+    monkeypatch.setattr("app.main.get_db", mock_get_db)
+    return client
+
+
+@pytest.fixture
+def mock_client_with_error_fixture(client, monkeypatch):
+    """Fixture with database connection that fails on first call."""
+    def mock_get_db_error():
+        raise Exception("DB connection failed")
+
+    monkeypatch.setattr("app.main.get_db", mock_get_db_error)
+    return client
+
+
+# Keep old fixture names for backward compatibility with test methods
+@pytest.fixture
+def mock_client(mock_client_fixture):
+    """Alias for mock_client_fixture."""
+    return mock_client_fixture
+
+
+@pytest.fixture
+def mock_client_with_error(mock_client_with_error_fixture):
+    """Alias for mock_client_with_error_fixture."""
+    return mock_client_with_error_fixture
 
 
 class TestHealthEndpoint:
