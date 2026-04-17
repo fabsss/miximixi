@@ -3,12 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   deleteRecipe,
+  deleteStepImage,
   getImageUrl,
   getRecipe,
   getStepImageUrl,
   translateRecipe,
   updateRecipe,
   uploadRecipeImage,
+  uploadStepImage,
   type RecipeUpdateRequest,
   type TranslationResponse,
 } from '../lib/api'
