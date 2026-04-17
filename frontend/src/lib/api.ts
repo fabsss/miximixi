@@ -124,6 +124,30 @@ export async function uploadRecipeImage(recipeId: string, file: File): Promise<v
   if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
 }
 
+export async function uploadStepImage(
+  recipeId: string,
+  stepId: string,
+  file: File,
+): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/steps/${stepId}/image`, {
+    method: 'POST',
+    body: form,
+  })
+  if (!response.ok) throw new Error(`Step image upload failed: ${response.status}`)
+}
+
+export async function deleteStepImage(
+  recipeId: string,
+  stepId: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/steps/${stepId}/image`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) throw new Error(`Step image delete failed: ${response.status}`)
+}
+
 export interface CategoryCountsResponse {
   counts: Record<string, number>
   total: number
