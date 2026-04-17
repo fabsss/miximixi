@@ -159,6 +159,31 @@ async def get_categories():
     return {"categories": CATEGORIES}
 
 
+@app.get("/categories/counts")
+async def get_category_counts():
+    """Returns total recipe count per category and overall total."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute(
+            "SELECT category, COUNT(*) AS count FROM recipes WHERE category IS NOT NULL GROUP BY category"
+        )
+        rows = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) AS count FROM recipes")
+        total_row = cursor.fetchone()
+        db.close()
+
+        if not total_row:
+            raise ValueError("Failed to fetch total count from database")
+
+        counts = {row["category"]: row["count"] for row in rows}
+        return {"counts": counts, "total": total_row["count"]}
+    except Exception as e:
+        db.close()
+        logger.error(f"Category counts failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── Import Endpoints ─────────────────────────────────────────────────
 @app.post("/import", response_model=ImportResponse)
 async def create_import(req: ImportRequest):
