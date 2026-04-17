@@ -640,36 +640,14 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     logger.info("Telegram Bot gestartet (polling mode)")
     
     try:
-        await app.initialize()
-        await app.start()
-        
-        # Clear any stale webhook before polling
-        # (Telegram sometimes doesn't release old polling connections)
-        try:
-            await app.bot.delete_webhook(drop_pending_updates=False)
-            logger.info("Cleared any previous webhook before polling")
-        except Exception as webhook_error:
-            logger.debug(f"Webhook cleanup: {webhook_error}")
-        
-        # Small delay to ensure Telegram processed the webhook deletion
-        await asyncio.sleep(1)
-        
-        await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-        
-        # Keep running until cancelled
-        while True:
-            await asyncio.sleep(1)
+        async with app:
+            await app.start()
+            await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+            
+            # Keep running until cancelled
+            while True:
+                await asyncio.sleep(1)
     except asyncio.CancelledError:
         logger.info("Telegram Bot shutting down...")
-        await app.updater.stop()
-        await app.stop()
-        await app.shutdown()
     except Exception as e:
         logger.exception(f"Telegram Bot error: {e}")
-        # Attempt graceful cleanup on error
-        try:
-            await app.updater.stop()
-            await app.stop()
-            await app.shutdown()
-        except Exception as cleanup_error:
-            logger.error(f"Error during cleanup: {cleanup_error}")
