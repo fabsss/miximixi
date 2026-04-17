@@ -123,3 +123,12 @@ export async function uploadRecipeImage(recipeId: string, file: File): Promise<v
   })
   if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
 }
+
+export interface CategoryCountsResponse {
+  counts: Record<string, number>
+  total: number
+}
+
+export async function getCategoryCounts(): Promise<CategoryCountsResponse> {
+  return request<CategoryCountsResponse>('/categories/counts')
+}
