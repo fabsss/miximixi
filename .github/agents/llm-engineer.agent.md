@@ -150,6 +150,9 @@ logger.info(f"Gemini input: {media_paths}, caption: {caption}")
 logger.info(f"Gemini output: {result}")
 ```
 
+## Testing and Continuous Improvement
+- **When you debug and fix a bug:** Always create a detailed bug report in `docs/bugreports/` with the format `YYYY-MM-DD_bug_title.md`. Include root cause analysis, extraction flow explanation, solution description, and files modified. This helps the team understand past issues and prevents regressions.
+
 ### Common Extraction Failures
 
 **Issue: No image extracted**
