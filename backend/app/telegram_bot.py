@@ -641,13 +641,16 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     
     try:
         async with app:
-            await app.start()
+            # Context manager handles initialize() automatically
+            # Just start polling and run forever
             await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+            
+            logger.info("Telegram Bot polling started")
             
             # Keep running until cancelled
             while True:
                 await asyncio.sleep(1)
     except asyncio.CancelledError:
-        logger.info("Telegram Bot shutting down...")
+        logger.info("Telegram Bot polling cancelled")
     except Exception as e:
         logger.exception(f"Telegram Bot error: {e}")
