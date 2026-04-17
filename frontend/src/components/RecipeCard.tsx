@@ -11,17 +11,8 @@ interface RecipeCardProps {
 
 const tileVariants = ['aspect-[4/3]', 'aspect-[4/3]', 'aspect-[4/3]']
 
-function getCategoryBgColor(cat: string): { bg: string; text: string } {
-  const bgVars: Record<string, { bg: string; text: string }> = {
-    'vorspeisen':   { bg: 'var(--cat-vorspeisen-bg)', text: 'var(--cat-vorspeisen-text)' },
-    'hauptspeisen': { bg: 'var(--cat-hauptspeisen-bg)', text: 'var(--cat-hauptspeisen-text)' },
-    'desserts':     { bg: 'var(--cat-desserts-bg)', text: 'var(--cat-desserts-text)' },
-    'brunch':       { bg: 'var(--cat-brunch-bg)', text: 'var(--cat-brunch-text)' },
-    'snacks':       { bg: 'var(--cat-snacks-bg)', text: 'var(--cat-snacks-text)' },
-    'drinks':       { bg: 'var(--cat-drinks-bg)', text: 'var(--cat-drinks-text)' },
-  }
-  const key = cat.toLowerCase()
-  return bgVars[key] ?? { bg: 'var(--mx-surface-container)', text: 'var(--mx-on-surface-variant)' }
+function getCategoryBgColor(cat: string): { classes: string } {
+  return { classes: categoryChipCls(cat) }
 }
 
 function HeartIcon({ filled, className }: { filled: boolean; className?: string }) {
@@ -70,16 +61,12 @@ export function RecipeCard({ recipe, index }: RecipeCardProps) {
   const primaryCategory = categories.length > 0 ? categories[0] : null
   const bgColorClass = primaryCategory
     ? getCategoryBgColor(primaryCategory)
-    : { bg: 'var(--mx-surface-container)', text: 'var(--mx-on-surface-variant)' }
+    : { classes: 'bg-white/25 text-white' }
 
   return (
     <div role="link" tabIndex={0} onClick={handleClick} onKeyDown={(e) => e.key === 'Enter' && handleClick()} className="group block cursor-pointer">
       <article
-        className="rounded-[2rem] p-3 transition duration-500 hover:translate-y-[-2px] hover:shadow-[0_24px_52px_var(--mx-glow)]"
-        style={{
-          backgroundColor: bgColorClass.bg,
-          color: bgColorClass.text,
-        }}
+        className={`rounded-[2rem] p-3 transition duration-500 hover:translate-y-[-2px] hover:shadow-[0_24px_52px_var(--mx-glow)] ${bgColorClass.classes}`}
       >
         <div className={`relative overflow-hidden rounded-[1.6rem] ${tileClass}`}>
           <img
