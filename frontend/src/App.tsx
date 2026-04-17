@@ -23,7 +23,7 @@ function App() {
   return (
     <Routes>
       <Route element={<AppLayout scrollPositions={scrollPositions} />}>
-        <Route path="/" element={<FeedPage scrollPositions={scrollPositions} />} />
+        <Route path="/" element={<FeedPage />} />
         <Route path="/recipes/:recipeSlug" element={<RecipeDetailPage />} />
       </Route>
       <Route path="/cook/:recipeSlug" element={<CookPage />} />
