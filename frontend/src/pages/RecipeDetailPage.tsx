@@ -15,7 +15,7 @@ import {
   type TranslationResponse,
 } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
-import type { Ingredient } from '../types'
+import type { Ingredient, Step } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 
@@ -422,6 +422,49 @@ export function RecipeDetailPage() {
   const removeStep = (idx: number) => setEditDraft((d) => d ? { ...d, steps: d.steps.filter((_, i) => i !== idx) } : d)
   const updateStep = (idx: number, field: keyof StepDraft, value: string) =>
     setEditDraft((d) => { if (!d) return d; const steps = [...d.steps]; steps[idx] = { ...steps[idx], [field]: value }; return { ...d, steps } })
+
+  const handleStepImageChange = (stepIdx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Store file and create blob preview
+    setStepImageFiles(prev => ({ ...prev, [stepIdx]: file }))
+
+    // Create blob URL for instant preview
+    const blobUrl = URL.createObjectURL(file)
+    setStepImagePreviews(prev => ({ ...prev, [stepIdx]: blobUrl }))
+
+    // Remove from deleted set if it was marked for deletion
+    setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+  }
+
+  const handleStepImageDelete = (stepIdx: number) => {
+    // Revoke blob URL if it's a pending upload
+    const preview = stepImagePreviews[stepIdx]
+    if (preview?.startsWith('blob:')) {
+      URL.revokeObjectURL(preview)
+    }
+
+    // Mark as deleted
+    setStepImageDeleted(prev => ({ ...prev, [stepIdx]: true }))
+
+    // Clear file and preview
+    setStepImageFiles(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+    setStepImagePreviews(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+  }
+
+  const handleStepImageUndo = (stepIdx: number, step: Step) => {
+    // Restore from existing step image
+    if (step.step_image_filename) {
+      setStepImagePreviews(prev => ({
+        ...prev,
+        [stepIdx]: getStepImageUrl(recipe.id, step.step_image_filename!)
+      }))
+    }
+
+    // Remove from deleted set
+    setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+  }
 
   const getDisplayAmount = (ing: Ingredient): { amount: string; unit: string | null } => {
     const scaled = ing.amount != null ? ing.amount * servingsFactor : null
