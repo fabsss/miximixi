@@ -1,5 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -48,6 +49,29 @@ class Settings(BaseSettings):
     telegram_notify_chat_id: str = ""
     telegram_allowed_user_ids: list[str] = []
     # Format: "123456,789012" (comma-separated). Empty = all users allowed.
+    
+    telegram_admin_ids: list[str] = []
+    # Format: "123456,789012" (comma-separated). For admin-only commands (/sync_*)
+
+    @field_validator("telegram_allowed_user_ids", mode="before")
+    @classmethod
+    def parse_allowed_user_ids(cls, v):
+        """Parse comma-separated user IDs from env var."""
+        if not v or v == "":
+            return []
+        if isinstance(v, str):
+            return [uid.strip() for uid in v.split(",") if uid.strip()]
+        return v if isinstance(v, list) else []
+
+    @field_validator("telegram_admin_ids", mode="before")
+    @classmethod
+    def parse_admin_ids(cls, v):
+        """Parse comma-separated admin IDs from env var."""
+        if not v or v == "":
+            return []
+        if isinstance(v, str):
+            return [uid.strip() for uid in v.split(",") if uid.strip()]
+        return v if isinstance(v, list) else []
 
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
@@ -67,9 +91,6 @@ class Settings(BaseSettings):
     # Instagram Sync Worker
     instagram_sync_enabled: bool = True  # Can disable for testing
     instagram_sync_interval: int = 900  # 15 minutes (in seconds)
-
-    # Telegram Admin IDs for sync commands
-    telegram_admin_ids: list[str] = []  # Format: "123456,789012" (comma-separated)
 
     # Temp storage for media downloads
     tmp_dir: str = "/tmp/miximixi"

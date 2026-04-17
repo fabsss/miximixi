@@ -53,10 +53,13 @@ def is_allowed(user_id: int) -> bool:
     Empty allowlist = all users allowed.
     """
     if not settings.telegram_allowed_user_ids:
+        logger.info(f"Access check for user {user_id}: ALLOWED (empty allowlist)")
         return True
     
     allowed_str = [str(user_id) for user_id in settings.telegram_allowed_user_ids]
-    return str(user_id) in allowed_str
+    is_allowed_user = str(user_id) in allowed_str
+    logger.info(f"Access check for user {user_id}: {'ALLOWED' if is_allowed_user else 'DENIED'} (allowlist: {settings.telegram_allowed_user_ids})")
+    return is_allowed_user
 
 
 def is_admin(user_id: int) -> bool:
@@ -66,10 +69,13 @@ def is_admin(user_id: int) -> bool:
     """
     if not settings.telegram_admin_ids:
         # No admins configured, deny all
+        logger.info(f"Admin check for user {user_id}: DENIED (no admins configured)")
         return False
     
     admin_ids_str = [str(uid) for uid in settings.telegram_admin_ids]
-    return str(user_id) in admin_ids_str
+    is_admin_user = str(user_id) in admin_ids_str
+    logger.info(f"Admin check for user {user_id}: {'ALLOWED' if is_admin_user else 'DENIED'} (admin list: {settings.telegram_admin_ids})")
+    return is_admin_user
 
 
 # ── Error Humanization ───────────────────────────────────────────────────────
