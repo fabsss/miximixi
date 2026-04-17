@@ -20,11 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install yt-dlp (always latest version at build time)
-# Using --no-cache to prevent caching, ensuring latest version on each rebuild
-RUN curl -L --no-cache https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp \
-    && yt-dlp --version
+# Install yt-dlp via pip (more reliable than GitHub download)
+RUN pip install --no-cache-dir yt-dlp
 
 # Install Poetry
 RUN pip install --no-cache-dir poetry==1.8.3
