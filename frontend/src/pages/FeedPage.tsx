@@ -57,6 +57,7 @@ export function FeedPage(): ReactNode {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const prevRecipeIdsRef = useRef<Set<string>>(new Set())
   const [animatingCardIds, setAnimatingCardIds] = useState<string[]>([])
+  const [removedAnimatingIds, setRemovedAnimatingIds] = useState<string[]>([])
 
   const categoriesQuery = useCategories()
   const recipesQuery = useInfiniteQuery({
@@ -171,23 +172,33 @@ export function FeedPage(): ReactNode {
 
     prevRecipeIdsRef.current = currentIds
 
-    // Update animating cards set to include both new and removed
+    // Update animating cards set to include new cards with enter animation
     // Use microtask to defer state update outside the effect synchronous phase
-    let timer: ReturnType<typeof setTimeout> | undefined
+    let enterTimer: ReturnType<typeof setTimeout> | undefined
+    let exitTimer: ReturnType<typeof setTimeout> | undefined
     if (newCardIds.size > 0 || removedCardIds.size > 0) {
       queueMicrotask(() => {
-        const combined = new Set([...newCardIds, ...removedCardIds])
-        setAnimatingCardIds(Array.from(combined))
+        // Handle removed cards with exit animation (200ms)
+        if (removedCardIds.size > 0) {
+          setRemovedAnimatingIds(Array.from(removedCardIds))
+          exitTimer = setTimeout(() => {
+            setRemovedAnimatingIds([])
+          }, 200)
+        }
 
-        // Clear animation state after the animation completes (300ms)
-        timer = setTimeout(() => {
-          setAnimatingCardIds([])
-        }, 300)
+        // Handle new cards with enter animation (300ms)
+        if (newCardIds.size > 0) {
+          setAnimatingCardIds(Array.from(newCardIds))
+          enterTimer = setTimeout(() => {
+            setAnimatingCardIds([])
+          }, 300)
+        }
       })
     }
 
     return () => {
-      if (timer !== undefined) clearTimeout(timer)
+      if (enterTimer !== undefined) clearTimeout(enterTimer)
+      if (exitTimer !== undefined) clearTimeout(exitTimer)
     }
   }, [filteredRecipes])
 
@@ -423,6 +434,19 @@ export function FeedPage(): ReactNode {
               const animationClass = isAnimating ? 'mx-card-enter' : ''
               return (
                 <div key={recipe.id} className={animationClass}>
+                  <RecipeCard recipe={recipe} index={index} />
+                </div>
+              )
+            })}
+            {/* Removed cards with exit animation */}
+            {removedAnimatingIds.map((id) => {
+              // Find the recipe from allRecipes to still render it during exit animation
+              const recipe = allRecipes.find(r => r.id === id)
+              if (!recipe) return null
+              // Use a stable index to keep consistency during animation
+              const index = allRecipes.indexOf(recipe)
+              return (
+                <div key={`removed-${id}`} className="mx-card-exit">
                   <RecipeCard recipe={recipe} index={index} />
                 </div>
               )
