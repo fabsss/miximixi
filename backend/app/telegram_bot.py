@@ -643,33 +643,17 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
         async with app:
             logger.info("Application context initialized")
             
-            # Start polling in background
-            await app.updater.start_polling(
+            # Use run_polling() instead of start_polling() to get proper error handling
+            # This is a blocking call that handles initialization, polling, and cleanup
+            logger.info("Starting Telegram Bot polling (blocking mode)...")
+            await app.run_polling(
                 allowed_updates=Update.ALL_TYPES,
-                drop_pending_updates=True  # Don't process old updates on restart
+                drop_pending_updates=True
             )
-            logger.info("Telegram Bot polling started")
-            
-            # Keep running until cancelled
-            try:
-                while True:
-                    await asyncio.sleep(1)
-            except asyncio.CancelledError:
-                logger.info("Telegram Bot received cancel signal")
-                # Give polling time to stop gracefully
-                logger.info("Stopping polling updater...")
-                await app.updater.stop()
-                logger.info("Polling updater stopped")
-                raise
                 
     except asyncio.CancelledError:
-        logger.info("Telegram Bot lifespan cleanup complete")
+        logger.info("Telegram Bot received cancel signal, shutting down")
     except Exception as e:
-        logger.exception(f"Telegram Bot unhandled error: {e}")
-        # Attempt cleanup on any fatal error
-        try:
-            if hasattr(app, 'updater'):
-                await app.updater.stop()
-                logger.info("Polling stopped after fatal error")
-        except Exception as cleanup_error:
-            logger.error(f"Cleanup error: {cleanup_error}", exc_info=True)
+        logger.exception(f"Telegram Bot fatal error: {e}")
+    finally:
+        logger.info("Telegram Bot lifespan cleanup complete")
