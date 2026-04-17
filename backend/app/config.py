@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import field_validator, Field
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,40 +50,46 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str = ""
     telegram_notify_chat_id: str = ""
-    telegram_allowed_user_ids: list[str] = []
-    # Format: "123456,789012" (comma-separated). Empty = all users allowed.
     
-    telegram_admin_ids: list[str] = []
+    # Format: "123456,789012" (comma-separated). Empty = all users allowed.
+    _telegram_allowed_user_ids_raw: str = Field(default="", validation_alias="TELEGRAM_ALLOWED_USER_IDS")
+    
     # Format: "123456,789012" (comma-separated). For admin-only commands (/sync_*)
+    _telegram_admin_ids_raw: str = Field(default="", validation_alias="TELEGRAM_ADMIN_IDS")
 
-    @field_validator("telegram_allowed_user_ids", mode="before")
+    @field_validator("_telegram_allowed_user_ids_raw", mode="before")
     @classmethod
     def parse_allowed_user_ids(cls, v):
         """Parse comma-separated user IDs from env var."""
         if not v or v == "":
-            return []
+            return ""
         if isinstance(v, str):
-            return [uid.strip() for uid in v.split(",") if uid.strip()]
-        return v if isinstance(v, list) else []
+            return v.strip()
+        return ""
 
-    @field_validator("telegram_admin_ids", mode="before")
+    @field_validator("_telegram_admin_ids_raw", mode="before")
     @classmethod
     def parse_admin_ids(cls, v):
         """Parse comma-separated admin IDs from env var."""
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        # Log raw value before parsing
-        logger.info(f"[Config] Parsing TELEGRAM_ADMIN_IDS: raw={repr(v)}, type={type(v)}")
-        
         if not v or v == "":
-            logger.info(f"[Config] TELEGRAM_ADMIN_IDS is empty, returning []")
-            return []
+            return ""
         if isinstance(v, str):
-            parsed = [uid.strip() for uid in v.split(",") if uid.strip()]
-            logger.info(f"[Config] TELEGRAM_ADMIN_IDS parsed: {parsed}")
-            return parsed
-        return v if isinstance(v, list) else []
+            return v.strip()
+        return ""
+    
+    @property
+    def telegram_allowed_user_ids(self) -> list[str]:
+        """Get allowed user IDs as a list."""
+        if not self._telegram_allowed_user_ids_raw:
+            return []
+        return [uid.strip() for uid in self._telegram_allowed_user_ids_raw.split(",") if uid.strip()]
+    
+    @property
+    def telegram_admin_ids(self) -> list[str]:
+        """Get admin IDs as a list."""
+        if not self._telegram_admin_ids_raw:
+            return []
+        return [uid.strip() for uid in self._telegram_admin_ids_raw.split(",") if uid.strip()]
 
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
@@ -109,16 +115,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# Log loaded config on startup
-import os
-raw_env_admin_ids = os.environ.get("TELEGRAM_ADMIN_IDS", "NOT_SET")
-raw_file_path = Path(__file__).parent.parent.parent / ".env"
-
-logger.warning(
-    f"[Config] Startup Debug: TELEGRAM_ADMIN_IDS\n"
-    f"  .env file: {raw_file_path} (exists={raw_file_path.exists()})\n"
-    f"  os.environ.get('TELEGRAM_ADMIN_IDS'): {repr(raw_env_admin_ids)}\n"
-    f"  Parsed into settings.telegram_admin_ids: {repr(settings.telegram_admin_ids)}\n"
-    f"  Parsed into settings.telegram_allowed_user_ids: {repr(settings.telegram_allowed_user_ids)}"
-)
