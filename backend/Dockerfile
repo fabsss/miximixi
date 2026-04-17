@@ -37,6 +37,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy application code
 COPY app/ ./app/
 
+# Copy Instagram cookies file (if present for Instagram sync)
+COPY instagram_cookies.txt ./instagram_cookies.txt 2>/dev/null || true
+
 # Cleanup build dependencies (keeping runtime deps)
 RUN apt-get purge -y --auto-remove \
     build-essential gcc g++ libssl-dev libffi-dev python3-dev \
