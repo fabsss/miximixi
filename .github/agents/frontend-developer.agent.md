@@ -112,6 +112,7 @@ applyTo: ["frontend/", "src/", "*.tsx", "*.jsx", "*.css"]
 - always run the full test suite after making changes to ensure nothing else is broken. If you find a failing test, investigate and fix it before merging your code.
 - if you are unsure about the best way to implement something, or if you encounter a particularly tricky problem, don't hesitate to ask for help from your team members or consult documentation and online resources. Collaboration and continuous learning are key to improving as a developer.
 - After each session, document any new learnings, patterns, or best practices you discovered in a shared knowledge base /docs/learning/learning.md. This helps the entire team benefit from your insights and promotes a culture of continuous improvement.
+- **When you debug and fix a bug:** Always create a detailed bug report in `docs/bugreports/` with the format `YYYY-MM-DD_bug_title.md`. Include root cause analysis, code flow explanation, solution description, and files modified. This helps the team understand past issues and prevents regressions.
 
 
 ## Project Context
