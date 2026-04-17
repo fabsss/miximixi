@@ -241,9 +241,9 @@ export function RecipeDetailPage() {
   const [fullscreenStepImage, setFullscreenStepImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const stepImageFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})
-  const [stepImageFiles, setStepImageFiles] = useState<Map<number, File>>(new Map())
-  const [stepImagePreviews, setStepImagePreviews] = useState<Map<number, string>>(new Map())
-  const [stepImageDeleted, setStepImageDeleted] = useState<Map<number, boolean>>(new Map())
+  const [stepImageFiles, setStepImageFiles] = useState<Record<number, File>>({})
+  const [stepImagePreviews, setStepImagePreviews] = useState<Record<number, string>>({})
+  const [stepImageDeleted, setStepImageDeleted] = useState<Record<number, boolean>>({})
   const bubbleTimerRef = useRef<number | null>(null)
 
 
