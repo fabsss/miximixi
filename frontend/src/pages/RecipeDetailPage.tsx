@@ -730,6 +730,7 @@ export function RecipeDetailPage() {
                           <button
                             type="button"
                             onClick={() => stepImageFileInputRefs.current[idx]?.click()}
+                            aria-label="Schritt-Bild ändern"
                             className="flex items-center gap-1 rounded-full bg-[var(--mx-primary)] px-3 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors"
                           >
                             <span className="material-symbols-outlined text-[14px]">edit</span>
@@ -738,6 +739,7 @@ export function RecipeDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleStepImageDelete(idx)}
+                            aria-label="Schritt-Bild löschen"
                             className="flex items-center gap-1 rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600 transition-colors"
                           >
                             <span className="material-symbols-outlined text-[14px]">delete</span>
