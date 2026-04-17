@@ -627,25 +627,24 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     
     set_notify_callback(notify_with_app)
     
-    # Error handler for fatal polling errors
+    # Error handler — log errors, but do NOT stop the bot on Conflict.
+    # python-telegram-bot already retries after 409 automatically.
+    # Calling updater.stop() on Conflict was self-defeating: we killed our own bot
+    # and handed victory to the competing poller.
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle fatal errors from polling."""
-        if context.error:
-            logger.exception(f"Telegram Bot error: {context.error}")
-        
-        # If it's a Conflict error (duplicate polling), stop immediately
-        if context.error and "Conflict" in str(context.error):
-            logger.critical("🚨 409 CONFLICT DETECTED - Multiple bot instances polling! Stopping immediately...")
-            try:
-                # Force stop the updater
-                await app.updater.stop()
-                logger.critical("Updater stop() called - polling should stop now")
-            except Exception as e:
-                logger.error(f"Error stopping updater: {e}")
-            # Re-raise to trigger lifespan cleanup
-            raise asyncio.CancelledError("409 Conflict - stopping bot")
+        """Handle errors from polling."""
+        if not context.error:
+            return
+        if "Conflict" in str(context.error):
+            # Another poller is active — python-telegram-bot will retry automatically.
+            # Just log and wait it out. DO NOT stop the updater.
+            logger.warning(
+                "⚠️ 409 Conflict — another poller is active. "
+                "The library will retry. Check for competing bots (n8n, other deployments)."
+            )
+        else:
+            logger.error(f"Telegram Bot error: {context.error}", exc_info=context.error)
     
-    # Register the error handler
     app.add_error_handler(error_handler)
     
     # Add handlers
@@ -673,11 +672,8 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
             except Exception as e:
                 logger.warning(f"Warning during webhook cleanup: {e}")
             
-            # Give Telegram servers time to fully timeout any old polling sessions
-            # The old session from previous deployment takes ~20 seconds to expire
-            # We wait 10 seconds to ensure it's gone before starting fresh polling
-            logger.info("Waiting for Telegram server cleanup (10 seconds, old session timeout)...")
-            await asyncio.sleep(10)
+            # Brief pause for webhook deletion to propagate on Telegram's side
+            await asyncio.sleep(2)
             
             # Start fresh polling with clean slate
             # start_polling() will handle offset tracking internally
