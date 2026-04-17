@@ -427,6 +427,12 @@ export function RecipeDetailPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Revoke old blob URL before creating new one
+    const oldPreview = stepImagePreviews[stepIdx]
+    if (oldPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(oldPreview)
+    }
+
     // Store file and create blob preview
     setStepImageFiles(prev => ({ ...prev, [stepIdx]: file }))
 
@@ -454,15 +460,25 @@ export function RecipeDetailPage() {
   }
 
   const handleStepImageUndo = (stepIdx: number, step: Step) => {
+    // Revoke any pending blob URL from file selection
+    const currentPreview = stepImagePreviews[stepIdx]
+    if (currentPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(currentPreview)
+    }
+
     // Restore from existing step image
     if (step.step_image_filename) {
       setStepImagePreviews(prev => ({
         ...prev,
         [stepIdx]: getStepImageUrl(recipe.id, step.step_image_filename!)
       }))
+    } else {
+      // No existing image - clear preview entirely
+      setStepImagePreviews(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
     }
 
-    // Remove from deleted set
+    // Clear pending file
+    setStepImageFiles(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
     setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
   }
 
