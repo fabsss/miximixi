@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator, Field
+from pydantic import Field
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,58 +52,26 @@ class Settings(BaseSettings):
     telegram_notify_chat_id: str = ""
     
     # Format: "123456,789012" (comma-separated). Empty = all users allowed.
-    telegram_allowed_user_ids: list[str] = []
+    # Stored as raw string to avoid Pydantic trying JSON parsing on list[str] fields
+    telegram_allowed_user_ids_str: str = Field(default="", validation_alias="TELEGRAM_ALLOWED_USER_IDS")
     
     # Format: "123456,789012" (comma-separated). For admin-only commands (/sync_*)
-    telegram_admin_ids: list[str] = []
+    # Stored as raw string to avoid Pydantic trying JSON parsing on list[str] fields
+    telegram_admin_ids_str: str = Field(default="", validation_alias="TELEGRAM_ADMIN_IDS")
 
-    @field_validator("telegram_allowed_user_ids", mode="before")
-    @classmethod
-    def parse_allowed_user_ids(cls, v):
-        """Parse comma-separated user IDs from env var.
-        
-        This validator runs BEFORE Pydantic type coercion, so we can:
-        - Accept raw string from env var
-        - Return a list to prevent JSON parsing
-        - Handle empty strings gracefully
-        """
-        # Empty/None → empty list
-        if not v or v == "":
+    @property
+    def telegram_allowed_user_ids(self) -> list[str]:
+        """Parse allowed user IDs from comma-separated string."""
+        if not self.telegram_allowed_user_ids_str:
             return []
-        
-        # Already a list → return as-is
-        if isinstance(v, list):
-            return v
-        
-        # String → split by comma and strip whitespace
-        if isinstance(v, str):
-            return [uid.strip() for uid in v.split(",") if uid.strip()]
-        
-        return []
-
-    @field_validator("telegram_admin_ids", mode="before")
-    @classmethod
-    def parse_admin_ids(cls, v):
-        """Parse comma-separated admin IDs from env var.
-        
-        This validator runs BEFORE Pydantic type coercion, so we can:
-        - Accept raw string from env var
-        - Return a list to prevent JSON parsing
-        - Handle empty strings gracefully
-        """
-        # Empty/None → empty list
-        if not v or v == "":
+        return [uid.strip() for uid in self.telegram_allowed_user_ids_str.split(",") if uid.strip()]
+    
+    @property
+    def telegram_admin_ids(self) -> list[str]:
+        """Parse admin IDs from comma-separated string."""
+        if not self.telegram_admin_ids_str:
             return []
-        
-        # Already a list → return as-is
-        if isinstance(v, list):
-            return v
-        
-        # String → split by comma and strip whitespace
-        if isinstance(v, str):
-            return [uid.strip() for uid in v.split(",") if uid.strip()]
-        
-        return []
+        return [uid.strip() for uid in self.telegram_admin_ids_str.split(",") if uid.strip()]
 
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
