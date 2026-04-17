@@ -59,6 +59,8 @@ export function FeedPage(_: FeedPageProps) {
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
   const mainRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const prevRecipeIdsRef = useRef<Set<string>>(new Set())
+  const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set())
 
   const categoriesQuery = useCategories()
   const recipesQuery = useInfiniteQuery({
@@ -148,6 +150,44 @@ export function FeedPage(_: FeedPageProps) {
       return searchOk && mainCatOk && tagOk && favoriteOk
     })
   }, [allRecipes, search, selectedMainCategory, selectedTags, showFavoritesOnly])
+
+  // Track new and removed cards for animations
+  useEffect(() => {
+    const currentIds = new Set(filteredRecipes.map(r => r.id))
+    const prevIds = prevRecipeIdsRef.current
+
+    // Cards that are new (in current but not in previous)
+    const newCardIds = new Set<string>()
+    currentIds.forEach(id => {
+      if (!prevIds.has(id)) {
+        newCardIds.add(id)
+      }
+    })
+
+    // Cards that were removed (in previous but not in current)
+    const removedCardIds = new Set<string>()
+    prevIds.forEach(id => {
+      if (!currentIds.has(id)) {
+        removedCardIds.add(id)
+      }
+    })
+
+    // Update animating cards set to include both new and removed
+    if (newCardIds.size > 0 || removedCardIds.size > 0) {
+      const combined = new Set([...newCardIds, ...removedCardIds])
+      setAnimatingCardIds(combined)
+
+      // Clear animation state after the animation completes (300ms)
+      const timer = setTimeout(() => {
+        setAnimatingCardIds(new Set())
+      }, 300)
+
+      prevRecipeIdsRef.current = currentIds
+      return () => clearTimeout(timer)
+    }
+
+    prevRecipeIdsRef.current = currentIds
+  }, [filteredRecipes])
 
   const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
@@ -376,9 +416,15 @@ export function FeedPage(_: FeedPageProps) {
         {/* Grid */}
         {!recipesQuery.isLoading && !recipesQuery.error && (
           <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-            {filteredRecipes.map((recipe, index) => (
-              <RecipeCard key={recipe.id} recipe={recipe} index={index} />
-            ))}
+            {filteredRecipes.map((recipe, index) => {
+              const isAnimating = animatingCardIds.has(recipe.id)
+              const animationClass = isAnimating ? 'mx-card-enter' : ''
+              return (
+                <div key={recipe.id} className={animationClass}>
+                  <RecipeCard recipe={recipe} index={index} />
+                </div>
+              )
+            })}
           </section>
         )}
 
