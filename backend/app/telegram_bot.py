@@ -667,22 +667,19 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
             # CRITICAL: Clean up stale webhook/polling state BEFORE starting new polling
             # This prevents 409 Conflict "other getUpdates request" errors
             try:
-                logger.info("Cleaning up stale webhook...")
+                logger.info("Deleting webhook (if any)...")
                 await app.bot.delete_webhook(drop_pending_updates=True)
-                logger.info("Webhook deleted successfully")
+                logger.info("Webhook cleanup done")
             except Exception as e:
-                logger.warning(f"Error deleting webhook (may be already deleted): {e}")
+                logger.warning(f"Warning during webhook cleanup: {e}")
             
-            # Get current bot offset to prevent processing old messages
-            try:
-                logger.info("Resetting polling offset...")
-                # Call getUpdates with offset=0 to clear any pending updates
-                await app.bot.get_updates(offset=-1)
-                logger.info("Polling offset reset")
-            except Exception as e:
-                logger.warning(f"Error resetting polling offset: {e}")
+            # Give Telegram servers time to process the webhook deletion
+            # and release any old polling session
+            logger.info("Waiting for Telegram server state sync (1 second)...")
+            await asyncio.sleep(1)
             
-            # Now start fresh polling with clean slate
+            # Start fresh polling with clean slate
+            # start_polling() will handle offset tracking internally
             await app.updater.start_polling(
                 allowed_updates=Update.ALL_TYPES,
                 drop_pending_updates=True
