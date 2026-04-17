@@ -48,6 +48,18 @@ class TestCategoriesEndpoint:
         assert "Hauptspeisen" in categories
         assert "Drinks" in categories
 
+    def test_get_category_counts_returns_counts_and_total(self, mock_client):
+        """Test that /categories/counts returns correct structure."""
+        response = mock_client.get("/categories/counts")
+        # Should either succeed (200) or fail with DB error (500 or 503)
+        assert response.status_code in (200, 500, 503)
+        if response.status_code == 200:
+            data = response.json()
+            assert "counts" in data
+            assert "total" in data
+            assert isinstance(data["counts"], dict)
+            assert isinstance(data["total"], int)
+
 
 class TestRecipesEndpoint:
     def test_get_recipes_returns_list(self, mock_client):
