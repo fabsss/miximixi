@@ -413,6 +413,7 @@ export function RecipeDetailPage() {
           // Don't zoom if clicking on a link
           if ((e.target as HTMLElement).closest('a')) return
           setShowFullscreenImage(true)
+          history.pushState({ imageModal: 'hero' }, '', window.location.href)
         }}>
           <img
             src={imagePreviewUrl ?? getImageUrl(recipe.id)}
@@ -780,7 +781,10 @@ export function RecipeDetailPage() {
                   {step.step_image_filename && (
                     <div
                       className="mt-3 inline-block cursor-zoom-in overflow-hidden rounded-lg"
-                      onClick={() => setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))}
+                      onClick={() => {
+                        setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))
+                        history.pushState({ imageModal: 'step' }, '', window.location.href)
+                      }}
                       style={{ width: '120px', aspectRatio: '16/9' }}
                     >
                       <img
