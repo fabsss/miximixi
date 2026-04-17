@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { flushSync } from 'react-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
@@ -44,11 +44,7 @@ function CategoryNav({
 
 const PAGE_SIZE = 20
 
-interface FeedPageProps {
-  scrollPositions: Record<string, number>
-}
-
-export function FeedPage(_: FeedPageProps) {
+export function FeedPage(): ReactNode {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
@@ -115,6 +111,7 @@ export function FeedPage(_: FeedPageProps) {
     )
     observer.observe(el)
     return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipesQuery.hasNextPage, recipesQuery.isFetchingNextPage, recipesQuery.fetchNextPage])
 
   const heroRecipe = allRecipes[heroIndex]
@@ -172,19 +169,22 @@ export function FeedPage(_: FeedPageProps) {
       }
     })
 
+    prevRecipeIdsRef.current = currentIds
+
     // Update animating cards set to include both new and removed
+    // Use microtask to defer state update outside the effect synchronous phase
     let timer: ReturnType<typeof setTimeout> | undefined
     if (newCardIds.size > 0 || removedCardIds.size > 0) {
-      const combined = new Set([...newCardIds, ...removedCardIds])
-      setAnimatingCardIds(Array.from(combined))
+      queueMicrotask(() => {
+        const combined = new Set([...newCardIds, ...removedCardIds])
+        setAnimatingCardIds(Array.from(combined))
 
-      // Clear animation state after the animation completes (300ms)
-      timer = setTimeout(() => {
-        setAnimatingCardIds([])
-      }, 300)
+        // Clear animation state after the animation completes (300ms)
+        timer = setTimeout(() => {
+          setAnimatingCardIds([])
+        }, 300)
+      })
     }
-
-    prevRecipeIdsRef.current = currentIds
 
     return () => {
       if (timer !== undefined) clearTimeout(timer)
