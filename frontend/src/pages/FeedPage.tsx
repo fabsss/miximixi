@@ -202,6 +202,15 @@ export function FeedPage(): ReactNode {
     }
   }, [filteredRecipes])
 
+  // Smooth scroll to top when filters change
+  useEffect(() => {
+    const scrollEl = mainRef.current
+    if (!scrollEl) return
+
+    // Scroll to top smoothly when any filter changes
+    scrollEl.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [selectedMainCategory, selectedTags, showFavoritesOnly, search])
+
   const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
     setSelectedTags(new Set())
