@@ -53,10 +53,13 @@ def is_allowed(user_id: int) -> bool:
     Empty allowlist = all users allowed.
     """
     if not settings.telegram_allowed_user_ids:
+        logger.info(f"Access check for user {user_id}: ALLOWED (empty allowlist)")
         return True
     
     allowed_str = [str(user_id) for user_id in settings.telegram_allowed_user_ids]
-    return str(user_id) in allowed_str
+    is_allowed_user = str(user_id) in allowed_str
+    logger.info(f"Access check for user {user_id}: {'ALLOWED' if is_allowed_user else 'DENIED'} (allowlist: {settings.telegram_allowed_user_ids})")
+    return is_allowed_user
 
 
 def is_admin(user_id: int) -> bool:
@@ -64,12 +67,28 @@ def is_admin(user_id: int) -> bool:
     Prüft, ob ein User Admin-Rechte hat.
     Nutzt TELEGRAM_ADMIN_IDS environment variable.
     """
+    # Log the raw config value  
+    logger.warning(f"[Admin Check] Raw config: admin_ids_setting={repr(settings.telegram_admin_ids)}, type={type(settings.telegram_admin_ids)}")
+    
     if not settings.telegram_admin_ids:
-        # No admins configured, deny all
+        logger.warning(f"[Admin Check] User {user_id}: DENIED — no admins configured (empty list)")
         return False
     
-    admin_ids_str = [str(uid) for uid in settings.telegram_admin_ids]
-    return str(user_id) in admin_ids_str
+    # Convert both to strings for comparison
+    user_id_str = str(user_id)
+    
+    # Log what we're searching for
+    logger.warning(f"[Admin Check] User {user_id}: checking membership")
+    logger.warning(f"[Admin Check]   looking_for: {repr(user_id_str)}")
+    logger.warning(f"[Admin Check]   admin_list: {settings.telegram_admin_ids}")
+    logger.warning(f"[Admin Check]   admin_list types: {[type(x).__name__ for x in settings.telegram_admin_ids]}")
+    
+    # Direct comparison
+    is_admin_user = user_id_str in settings.telegram_admin_ids
+    
+    logger.warning(f"[Admin Check] User {user_id}: Result={repr(is_admin_user)}")
+    
+    return is_admin_user
 
 
 # ── Error Humanization ───────────────────────────────────────────────────────
@@ -621,17 +640,20 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     logger.info("Telegram Bot gestartet (polling mode)")
     
     try:
-        await app.initialize()
-        await app.start()
-        await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-        
-        # Keep running until cancelled
-        while True:
-            await asyncio.sleep(1)
+        async with app:
+            logger.info("Application context initialized")
+            
+            # Use run_polling() instead of start_polling() to get proper error handling
+            # This is a blocking call that handles initialization, polling, and cleanup
+            logger.info("Starting Telegram Bot polling (blocking mode)...")
+            await app.run_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=True
+            )
+                
     except asyncio.CancelledError:
-        logger.info("Telegram Bot shutting down...")
-        await app.updater.stop()
-        await app.stop()
-        await app.shutdown()
+        logger.info("Telegram Bot received cancel signal, shutting down")
     except Exception as e:
-        logger.exception(f"Telegram Bot error: {e}")
+        logger.exception(f"Telegram Bot fatal error: {e}")
+    finally:
+        logger.info("Telegram Bot lifespan cleanup complete")

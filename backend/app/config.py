@@ -1,5 +1,9 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -46,8 +50,28 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str = ""
     telegram_notify_chat_id: str = ""
-    telegram_allowed_user_ids: list[str] = []
+    
     # Format: "123456,789012" (comma-separated). Empty = all users allowed.
+    # Stored as raw string to avoid Pydantic trying JSON parsing on list[str] fields
+    telegram_allowed_user_ids_str: str = Field(default="", validation_alias="TELEGRAM_ALLOWED_USER_IDS")
+    
+    # Format: "123456,789012" (comma-separated). For admin-only commands (/sync_*)
+    # Stored as raw string to avoid Pydantic trying JSON parsing on list[str] fields
+    telegram_admin_ids_str: str = Field(default="", validation_alias="TELEGRAM_ADMIN_IDS")
+
+    @property
+    def telegram_allowed_user_ids(self) -> list[str]:
+        """Parse allowed user IDs from comma-separated string."""
+        if not self.telegram_allowed_user_ids_str:
+            return []
+        return [uid.strip() for uid in self.telegram_allowed_user_ids_str.split(",") if uid.strip()]
+    
+    @property
+    def telegram_admin_ids(self) -> list[str]:
+        """Parse admin IDs from comma-separated string."""
+        if not self.telegram_admin_ids_str:
+            return []
+        return [uid.strip() for uid in self.telegram_admin_ids_str.split(",") if uid.strip()]
 
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
@@ -67,9 +91,6 @@ class Settings(BaseSettings):
     # Instagram Sync Worker
     instagram_sync_enabled: bool = True  # Can disable for testing
     instagram_sync_interval: int = 900  # 15 minutes (in seconds)
-
-    # Telegram Admin IDs for sync commands
-    telegram_admin_ids: list[str] = []  # Format: "123456,789012" (comma-separated)
 
     # Temp storage for media downloads
     tmp_dir: str = "/tmp/miximixi"

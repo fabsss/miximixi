@@ -199,6 +199,11 @@ Before marking feature "Done", verify:
 - [ ] Mobile responsive (tested on iPhone 12, Android)
 - [ ] Handles slow networks (3G simulation)
 
+---
+
+## Bug Reporting Best Practice
+- **When you identify a bug during testing:** Always create a detailed bug report in `docs/bugreports/` with the format `YYYY-MM-DD_bug_title.md`. Include: reproduction steps, actual vs expected results, severity, root cause analysis (if known), and any logs/screenshots. This helps developers understand issues faster and reduces debugging time.
+
 **Documentation:**
 - [ ] User-facing docs updated
 - [ ] Error messages clear
