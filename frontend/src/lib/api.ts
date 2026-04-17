@@ -135,7 +135,18 @@ export async function uploadStepImage(
     method: 'POST',
     body: form,
   })
-  if (!response.ok) throw new Error(`Step image upload failed: ${response.status}`)
+  if (!response.ok) {
+    let errorDetail = `Step image upload failed: ${response.status}`
+    try {
+      const errorData = await response.json()
+      if (errorData.detail) {
+        errorDetail = errorData.detail
+      }
+    } catch {
+      // If response isn't JSON, use status code message
+    }
+    throw new Error(errorDetail)
+  }
 }
 
 export async function deleteStepImage(
@@ -145,7 +156,18 @@ export async function deleteStepImage(
   const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}/steps/${stepId}/image`, {
     method: 'DELETE',
   })
-  if (!response.ok) throw new Error(`Step image delete failed: ${response.status}`)
+  if (!response.ok) {
+    let errorDetail = `Step image delete failed: ${response.status}`
+    try {
+      const errorData = await response.json()
+      if (errorData.detail) {
+        errorDetail = errorData.detail
+      }
+    } catch {
+      // If response isn't JSON, use status code message
+    }
+    throw new Error(errorDetail)
+  }
 }
 
 export interface CategoryCountsResponse {
