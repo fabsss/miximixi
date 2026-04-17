@@ -67,20 +67,27 @@ def is_admin(user_id: int) -> bool:
     Prüft, ob ein User Admin-Rechte hat.
     Nutzt TELEGRAM_ADMIN_IDS environment variable.
     """
+    # Log the raw config value  
+    logger.warning(f"[Admin Check] Raw config: admin_ids_setting={repr(settings.telegram_admin_ids)}, type={type(settings.telegram_admin_ids)}")
+    
     if not settings.telegram_admin_ids:
-        # No admins configured, deny all
-        logger.warning(f"Admin check for user {user_id}: DENIED (no admins configured) — config value: {repr(settings.telegram_admin_ids)}")
+        logger.warning(f"[Admin Check] User {user_id}: DENIED — no admins configured (empty list)")
         return False
     
+    # Convert both to strings for comparison
     user_id_str = str(user_id)
-    admin_ids_str = [str(uid) for uid in settings.telegram_admin_ids]
-    is_admin_user = user_id_str in admin_ids_str
     
-    logger.info(
-        f"Admin check for user {user_id}: {'✅ ALLOWED' if is_admin_user else '❌ DENIED'} | "
-        f"looking_for={repr(user_id_str)} | "
-        f"admin_list={admin_ids_str}"
-    )
+    # Log what we're searching for
+    logger.warning(f"[Admin Check] User {user_id}: checking membership")
+    logger.warning(f"[Admin Check]   looking_for: {repr(user_id_str)}")
+    logger.warning(f"[Admin Check]   admin_list: {settings.telegram_admin_ids}")
+    logger.warning(f"[Admin Check]   admin_list types: {[type(x).__name__ for x in settings.telegram_admin_ids]}")
+    
+    # Direct comparison
+    is_admin_user = user_id_str in settings.telegram_admin_ids
+    
+    logger.warning(f"[Admin Check] User {user_id}: Result={repr(is_admin_user)}")
+    
     return is_admin_user
 
 
