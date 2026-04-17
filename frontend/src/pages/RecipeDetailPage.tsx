@@ -15,7 +15,7 @@ import {
   type TranslationResponse,
 } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
-import type { Ingredient, Step } from '../types'
+import type { Ingredient, RecipeDetail, Step } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 
@@ -212,6 +212,38 @@ interface EditDraft {
   ingredients: IngredientDraft[]; steps: StepDraft[]
 }
 
+async function uploadStepImages(
+  recipeId: string,
+  stepImageFiles: Record<number, File>,
+  stepImageDeleted: Record<number, boolean>,
+  recipe: RecipeDetail,
+): Promise<void> {
+  // Upload new step images
+  for (const [stepIdx, file] of Object.entries(stepImageFiles)) {
+    const idx = parseInt(stepIdx)
+    const step = recipe.steps[idx]
+    if (!step) continue
+    try {
+      await uploadStepImage(recipeId, step.id, file)
+    } catch (error) {
+      console.error(`Failed to upload image for step ${idx + 1}:`, error)
+    }
+  }
+
+  // Delete step images marked for deletion
+  for (const [stepIdx, isDeleted] of Object.entries(stepImageDeleted)) {
+    if (!isDeleted) continue
+    const idx = parseInt(stepIdx)
+    const step = recipe.steps[idx]
+    if (!step) continue
+    try {
+      await deleteStepImage(recipeId, step.id)
+    } catch (error) {
+      console.error(`Failed to delete image for step ${idx + 1}:`, error)
+    }
+  }
+}
+
 // Page
 export function RecipeDetailPage() {
   const { recipeSlug } = useParams<{ recipeSlug: string }>()
@@ -261,6 +293,7 @@ export function RecipeDetailPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: RecipeUpdateRequest }) => updateRecipe(id, data),
     onSuccess: async () => {
+      // Upload pending recipe image first
       if (pendingImageFile && recipeId) {
         try {
           await uploadRecipeImage(recipeId, pendingImageFile)
@@ -270,9 +303,34 @@ export function RecipeDetailPage() {
         setPendingImageFile(null)
         setImagePreviewUrl(null)
       }
+
+      // Upload step images (new and deleted)
+      if (recipeId && (Object.keys(stepImageFiles).length > 0 || Object.keys(stepImageDeleted).length > 0)) {
+        try {
+          // Refetch recipe first to get fresh step IDs
+          const freshRecipe = await getRecipe(recipeId)
+          await uploadStepImages(recipeId, stepImageFiles, stepImageDeleted, freshRecipe)
+        } catch (error) {
+          console.error('Step image upload failed:', error)
+        }
+
+        // Revoke blob URLs
+        Object.values(stepImagePreviews).forEach((url) => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url)
+          }
+        })
+
+        // Clear step image state
+        setStepImageFiles({})
+        setStepImagePreviews({})
+        setStepImageDeleted({})
+      }
+
       await recipeQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
-      setIsEditMode(false); setEditDraft(null)
+      setIsEditMode(false)
+      setEditDraft(null)
     },
   })
 
