@@ -202,10 +202,9 @@ export function FeedPage(): ReactNode {
     }
   }, [filteredRecipes])
 
-  // Smooth scroll to top when filters change
+  // Scroll to top when filters change (CSS scroll-behavior: smooth handles animation)
   useEffect(() => {
-    // Scroll window to top smoothly when any filter changes
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo(0, 0)
   }, [selectedMainCategory, selectedTags, showFavoritesOnly, search])
 
   const handleMainCat = (cat: string | null) => {

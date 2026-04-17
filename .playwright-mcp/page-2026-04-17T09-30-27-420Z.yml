@@ -1,0 +1,310 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Miximixi Die Rezepte App" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - heading "Miximixi" [level=1] [ref=e10]
+        - paragraph [ref=e11]: Die Rezepte App
+      - navigation [ref=e13]:
+        - button "🖥️" [ref=e14]
+  - main [ref=e15]:
+    - generic [ref=e681]:
+      - complementary [ref=e1052]:
+        - navigation [ref=e1053]:
+          - paragraph [ref=e1054]: Kategorien
+          - button "Alle 18" [active] [ref=e1055]:
+            - generic [ref=e1056]: Alle
+            - generic [ref=e1057]: "18"
+          - button "Vorspeisen 2" [ref=e1058]:
+            - generic [ref=e1059]: Vorspeisen
+            - generic [ref=e1060]: "2"
+          - button "Hauptspeisen 10" [ref=e1061]:
+            - generic [ref=e1062]: Hauptspeisen
+            - generic [ref=e1063]: "10"
+          - button "Desserts 2" [ref=e1064]:
+            - generic [ref=e1065]: Desserts
+            - generic [ref=e1066]: "2"
+          - button "Brunch" [ref=e1067]:
+            - generic [ref=e1068]: Brunch
+          - button "Snacks 3" [ref=e1069]:
+            - generic [ref=e1070]: Snacks
+            - generic [ref=e1071]: "3"
+          - button "Drinks 1" [ref=e1072]:
+            - generic [ref=e1073]: Drinks
+            - generic [ref=e1074]: "1"
+      - generic [ref=e709]:
+        - generic [ref=e710]:
+          - link "Eingelegte rote Zwiebeln soup_kitchen Vorspeisen Eingelegte rote Zwiebeln schnell einfach vegetarisch beilage" [ref=e1093] [cursor=pointer]:
+            - img "Eingelegte rote Zwiebeln" [ref=e1094]
+            - generic [ref=e715]:
+              - generic [ref=e716]:
+                - generic [ref=e717]: soup_kitchen
+                - text: Vorspeisen
+              - heading "Eingelegte rote Zwiebeln" [level=2] [ref=e1095]
+              - generic [ref=e719]:
+                - generic [ref=e1096]: schnell
+                - generic [ref=e1097]: einfach
+                - generic [ref=e1098]: vegetarisch
+                - generic [ref=e1099]: beilage
+          - generic [ref=e724]:
+            - button [ref=e725]
+            - button [ref=e726]
+            - button [ref=e727]
+            - button [ref=e728]
+            - button [ref=e729]
+            - button [ref=e730]
+        - generic [ref=e731]:
+          - generic [ref=e733]:
+            - generic [ref=e734]: search
+            - textbox "Suche nach Titel oder Tag ..." [ref=e735]
+          - generic [ref=e736]:
+            - button "Favoriten" [ref=e737]:
+              - img [ref=e738]
+              - text: Favoriten
+            - button "Asian" [ref=e740]
+            - button "Asiatisch" [ref=e1100]
+            - button "Backen" [ref=e1101]
+            - button "Cocktail" [ref=e1102]
+            - button "Einfach" [ref=e1103]
+            - button "Erfrischend" [ref=e1104]
+            - button "Fisch" [ref=e1105]
+            - button "Frühling" [ref=e747]
+            - button "Healthy" [ref=e748]
+            - button "Italienisch" [ref=e749]
+            - button "Kuchen" [ref=e1106]
+            - button "Pasta" [ref=e751]
+            - button "Pilze" [ref=e752]
+            - button "Reis" [ref=e1107]
+            - button "Rhabarber" [ref=e1108]
+            - button "Salad" [ref=e755]
+            - button "Salat" [ref=e756]
+            - button "Scharf" [ref=e1109]
+            - button "Schnell" [ref=e758]
+            - button "Sommergetränk" [ref=e1110]
+            - button "Spargel" [ref=e760]
+            - button "Spicy" [ref=e761]
+            - button "Vegetarian" [ref=e762]
+            - button "Vegetarisch" [ref=e763]
+            - button "addictive" [ref=e764]
+            - button "asiatisch" [ref=e765]
+            - button "beilage" [ref=e1111]
+            - button "creamy" [ref=e767]
+            - button "crispy" [ref=e1112]
+            - button "easy" [ref=e1113]
+            - button "einfach" [ref=e770]
+            - button "gesund" [ref=e1114]
+            - button "griechisch" [ref=e772]
+            - button "nudeln" [ref=e773]
+            - button "one-pot" [ref=e774]
+            - button "pasta" [ref=e775]
+            - button "pilze" [ref=e776]
+            - button "proteinreich" [ref=e777]
+            - button "quick" [ref=e778]
+            - button "salad" [ref=e1115]
+            - button "salat" [ref=e1116]
+            - button "schnell" [ref=e781]
+            - button "spicy" [ref=e782]
+            - button "süß" [ref=e1117]
+            - button "vegan" [ref=e784]
+            - button "vegetarian" [ref=e1118]
+            - button "vegetarisch" [ref=e786]
+        - generic [ref=e787]:
+          - link [ref=e789] [cursor=pointer]:
+            - article [ref=e790]:
+              - generic [ref=e791]:
+                - img "Fasolakia (Griechische grüne Bohnen mit Kartoffeln)" [ref=e792]
+                - generic [ref=e795]: lunch_dining
+              - generic [ref=e796]:
+                - heading "Fasolakia (Griechische grüne Bohnen mit Kartoffeln)" [level=3] [ref=e797]
+                - generic [ref=e798]:
+                  - generic [ref=e799]: vegetarisch
+                  - generic [ref=e800]: vegan
+                  - generic [ref=e801]: griechisch
+          - link [ref=e1120] [cursor=pointer]:
+            - article [ref=e1121]:
+              - generic [ref=e1122]:
+                - img "Eingelegte rote Zwiebeln" [ref=e1123]
+                - generic [ref=e1126]: soup_kitchen
+              - generic [ref=e1127]:
+                - heading "Eingelegte rote Zwiebeln" [level=3] [ref=e1128]
+                - generic [ref=e1129]:
+                  - generic [ref=e1130]: schnell
+                  - generic [ref=e1131]: einfach
+                  - generic [ref=e1132]: vegetarisch
+          - link [ref=e817] [cursor=pointer]:
+            - article [ref=e818]:
+              - generic [ref=e819]:
+                - img "Veganes Mongolian Beef mit Austernpilzen" [ref=e820]
+                - generic [ref=e823]: lunch_dining
+              - generic [ref=e824]:
+                - heading "Veganes Mongolian Beef mit Austernpilzen" [level=3] [ref=e825]
+                - generic [ref=e826]:
+                  - generic [ref=e827]: vegan
+                  - generic [ref=e828]: schnell
+                  - generic [ref=e829]: einfach
+          - link [ref=e831] [cursor=pointer]:
+            - article [ref=e832]:
+              - generic [ref=e833]:
+                - img "Pilz Pasta mit karamellisierter Sahne" [ref=e834]
+                - generic [ref=e837]: lunch_dining
+              - generic [ref=e838]:
+                - heading "Pilz Pasta mit karamellisierter Sahne" [level=3] [ref=e839]
+                - generic [ref=e840]:
+                  - generic [ref=e841]: Vegetarisch
+                  - generic [ref=e842]: Schnell
+                  - generic [ref=e843]: Pasta
+          - link [ref=e1134] [cursor=pointer]:
+            - article [ref=e1135]:
+              - generic [ref=e1136]:
+                - img "Vegane Leberwurst" [ref=e1137]
+                - generic [ref=e1140]: cookie
+              - generic [ref=e1141]:
+                - heading "Vegane Leberwurst" [level=3] [ref=e1142]
+                - generic [ref=e1143]:
+                  - generic [ref=e1144]: vegan
+                  - generic [ref=e1145]: proteinreich
+                  - generic [ref=e1146]: gesund
+          - link [ref=e859] [cursor=pointer]:
+            - article [ref=e860]:
+              - generic [ref=e861]:
+                - img "One-Pot Fajita Mac&Cheese" [ref=e862]
+                - generic [ref=e865]: lunch_dining
+              - generic [ref=e866]:
+                - heading "One-Pot Fajita Mac&Cheese" [level=3] [ref=e867]
+                - generic [ref=e868]:
+                  - generic [ref=e869]: vegan
+                  - generic [ref=e870]: proteinreich
+                  - generic [ref=e871]: one-pot
+          - link [ref=e1148] [cursor=pointer]:
+            - article [ref=e1149]:
+              - generic [ref=e1150]:
+                - img "Crispy Potato Salad" [ref=e1151]
+                - generic [ref=e1154]: cookie
+              - generic [ref=e1155]:
+                - heading "Crispy Potato Salad" [level=3] [ref=e1156]
+                - generic [ref=e1157]:
+                  - generic [ref=e1158]: vegetarian
+                  - generic [ref=e1159]: crispy
+                  - generic [ref=e1160]: salad
+          - link [ref=e887] [cursor=pointer]:
+            - article [ref=e888]:
+              - generic [ref=e889]:
+                - img "Crispy Chili Rice Salad" [ref=e890]
+                - generic [ref=e893]: lunch_dining
+              - generic [ref=e894]:
+                - heading "Crispy Chili Rice Salad" [level=3] [ref=e895]
+                - generic [ref=e896]:
+                  - generic [ref=e897]: Spicy
+                  - generic [ref=e898]: Salad
+                  - generic [ref=e899]: Vegetarian
+          - link [ref=e901] [cursor=pointer]:
+            - article [ref=e902]:
+              - generic [ref=e903]:
+                - img "Veganes „Butter Chicken“" [ref=e904]
+                - generic [ref=e907]: lunch_dining
+              - generic [ref=e908]:
+                - heading "Veganes „Butter Chicken“" [level=3] [ref=e909]
+                - generic [ref=e910]:
+                  - generic [ref=e911]: vegan
+                  - generic [ref=e912]: asiatisch
+                  - generic [ref=e913]: schnell
+          - link [ref=e1162] [cursor=pointer]:
+            - article [ref=e1163]:
+              - generic [ref=e1164]:
+                - img "Knuspriger Reis mit scharfem Thunfisch" [ref=e1165]
+                - generic [ref=e1168]: cookie
+              - generic [ref=e1169]:
+                - heading "Knuspriger Reis mit scharfem Thunfisch" [level=3] [ref=e1170]
+                - generic [ref=e1171]:
+                  - generic [ref=e1172]: Asiatisch
+                  - generic [ref=e1173]: Fisch
+                  - generic [ref=e1174]: Reis
+          - link [ref=e1176] [cursor=pointer]:
+            - article [ref=e1177]:
+              - generic [ref=e1178]:
+                - img "Healthy Crunch Avocado Salad" [ref=e1179]
+                - generic [ref=e1182]: soup_kitchen
+              - generic [ref=e1183]:
+                - heading "Healthy Crunch Avocado Salad" [level=3] [ref=e1184]
+                - generic [ref=e1185]:
+                  - generic [ref=e1186]: vegetarisch
+                  - generic [ref=e1187]: vegan
+                  - generic [ref=e1188]: schnell
+          - link [ref=e1190] [cursor=pointer]:
+            - article [ref=e1191]:
+              - generic [ref=e1192]:
+                - img "Basilikum-Spritz" [ref=e1193]
+                - generic [ref=e1196]: local_drink
+              - generic [ref=e1197]:
+                - heading "Basilikum-Spritz" [level=3] [ref=e1198]
+                - generic [ref=e1199]:
+                  - generic [ref=e1200]: Sommergetränk
+                  - generic [ref=e1201]: Einfach
+                  - generic [ref=e1202]: Erfrischend
+          - link [ref=e1204] [cursor=pointer]:
+            - article [ref=e1205]:
+              - generic [ref=e1206]:
+                - img "Rhabarber Tarte" [ref=e1207]
+                - generic [ref=e1210]: icecream
+              - generic [ref=e1211]:
+                - heading "Rhabarber Tarte" [level=3] [ref=e1212]
+                - generic [ref=e1213]:
+                  - generic [ref=e1214]: vegetarisch
+                  - generic [ref=e1215]: Kuchen
+                  - generic [ref=e1216]: Rhabarber
+          - link [ref=e971] [cursor=pointer]:
+            - article [ref=e972]:
+              - generic [ref=e973]:
+                - img "5-Minuten Erdnuss-Chili-Nudeln" [ref=e974]
+                - generic [ref=e977]: lunch_dining
+              - generic [ref=e978]:
+                - heading "5-Minuten Erdnuss-Chili-Nudeln" [level=3] [ref=e979]
+                - generic [ref=e980]:
+                  - generic [ref=e981]: schnell
+                  - generic [ref=e982]: einfach
+                  - generic [ref=e983]: asiatisch
+          - link [ref=e985] [cursor=pointer]:
+            - article [ref=e986]:
+              - generic [ref=e987]:
+                - img "Ofenkartoffel-Spargel-Salat" [ref=e988]
+                - generic [ref=e991]: lunch_dining
+              - generic [ref=e992]:
+                - heading "Ofenkartoffel-Spargel-Salat" [level=3] [ref=e993]
+                - generic [ref=e994]:
+                  - generic [ref=e995]: vegetarisch
+                  - generic [ref=e996]: Salat
+                  - generic [ref=e997]: Spargel
+          - link [ref=e999] [cursor=pointer]:
+            - article [ref=e1000]:
+              - generic [ref=e1001]:
+                - img "Overloaded (vegan) Korean Beef Fries" [ref=e1002]
+                - img [ref=e1004]
+                - generic [ref=e1008]: lunch_dining
+              - generic [ref=e1009]:
+                - heading "Overloaded (vegan) Korean Beef Fries" [level=3] [ref=e1010]
+                - generic [ref=e1011]:
+                  - generic [ref=e1012]: vegan
+                  - generic [ref=e1013]: schnell
+          - link [ref=e1015] [cursor=pointer]:
+            - article [ref=e1016]:
+              - generic [ref=e1017]:
+                - img "Creamy Dan Dan Noodles" [ref=e1018]
+                - img [ref=e1020]
+                - generic [ref=e1024]: lunch_dining
+              - generic [ref=e1025]:
+                - heading "Creamy Dan Dan Noodles" [level=3] [ref=e1026]
+                - generic [ref=e1027]:
+                  - generic [ref=e1028]: creamy
+                  - generic [ref=e1029]: spicy
+                  - generic [ref=e1030]: addictive
+          - link [ref=e1218] [cursor=pointer]:
+            - article [ref=e1219]:
+              - generic [ref=e1220]:
+                - img "Knusprige Nutella-Waffeln" [ref=e1221]
+                - generic [ref=e1224]: icecream
+              - generic [ref=e1225]:
+                - heading "Knusprige Nutella-Waffeln" [level=3] [ref=e1226]
+                - generic [ref=e1227]:
+                  - generic [ref=e1228]: vegetarisch
+                  - generic [ref=e1229]: schnell
+                  - generic [ref=e1230]: süß
