@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     telegram_allowed_user_ids: list[str] = []
     # Format: "123456,789012" (comma-separated). Empty = all users allowed.
 
+    # Frontend URL for deep links in Telegram notifications
+    frontend_url: str = "https://miximixi.example.com"
+
     # Worker
     worker_max_concurrent: int = 3
     # 1 = seriell (für lokale LLMs: Ollama, Gemma3n — nur ein Modell)

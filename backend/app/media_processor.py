@@ -46,6 +46,11 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     """
     Lädt Medien via yt-dlp herunter (Instagram, YouTube, öffentliche Posts).
     Extrahiert zusätzlich die Beschreibung/Caption als raw_source_text.
+
+    Fehlerbehandlung:
+    - 404 / "not available" / "Seite nicht gefunden" → Link nicht gefunden
+    - Cookie / Auth / "login" / "unauthorized" → Authentication-Fehler
+    - Andere Fehler → Generischer Download-Fehler
     """
     import asyncio
 
@@ -82,12 +87,24 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     try:
         result = await asyncio.wait_for(asyncio.to_thread(_download), timeout=130)
     except Exception as e:
-        logger.error(f"yt-dlp Fehler ({url}): {e}")
+        logger.error(f"yt-dlp Timeout ({url}): {e}")
         return DownloadResult(description=description)
 
     if result.returncode != 0:
-        logger.error(f"yt-dlp Fehler ({url}): {result.stderr[:500]}")
-        return DownloadResult(description=description)
+        stderr = result.stderr.lower()
+
+        # Klassifiziere Fehler
+        if any(x in stderr for x in ["404", "not available", "not found", "does not exist", "removed"]):
+            logger.error(f"yt-dlp Fehler: Link nicht gefunden ({url})")
+            raise ValueError(f"Link nicht gefunden (404). URL existiert nicht oder wurde gelöscht: {url}")
+
+        elif any(x in stderr for x in ["cookie", "unauthorized", "403", "access denied", "login required", "private", "authentication failed", "session expired"]):
+            logger.error(f"yt-dlp Fehler: Authentifizierung fehlgeschlagen ({url})")
+            raise ValueError(f"Authentifizierung fehlgeschlagen. Cookie könnte abgelaufen sein. Bitte den Admin kontaktieren und neue Cookies exportieren.")
+
+        else:
+            logger.error(f"yt-dlp Fehler ({url}): {result.stderr[:500]}")
+            return DownloadResult(description=description)
 
     media_paths = [
         str(f) for f in Path(output_dir).iterdir()

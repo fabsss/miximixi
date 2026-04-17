@@ -178,17 +178,27 @@ async def process_job(job: dict, notify_callback=None) -> None:
         raw_source_text = job.get("caption") or download.description or ""
         media_paths = download.media_paths
 
+        # If no media found, check if we have caption/description for fallback
+        if not media_paths and not raw_source_text:
+            raise ValueError(f"Keine Medien und keine Caption verfügbar: {source_url}")
+
         if not media_paths:
-            raise ValueError(f"Keine Medien herunterladbar: {source_url}")
+            logger.info(f"Kein Video/Bild herunterladbar, verwende nur Caption/Beschreibung")
 
         # 2. Medien für LLM vorbereiten (läuft im Thread Pool, um AsyncIO Event Loop nicht zu blockieren)
-        if settings.llm_provider == "gemini":
-            llm_media = await asyncio.to_thread(prepare_media_for_gemini, media_paths)
-        else:
-            llm_media = await asyncio.to_thread(prepare_media_for_frames, media_paths, tmp_job_dir)
+        llm_media = []
+        if media_paths:
+            if settings.llm_provider == "gemini":
+                llm_media = await asyncio.to_thread(prepare_media_for_gemini, media_paths)
+            else:
+                llm_media = await asyncio.to_thread(prepare_media_for_frames, media_paths, tmp_job_dir)
+
+        # Allow extraction with caption only if no media available
+        if not llm_media and not raw_source_text:
+            raise ValueError("Keine Medien und keine Caption/Beschreibung zum Extrahieren verfügbar")
 
         if not llm_media:
-            raise ValueError("Keine verwertbaren Medien nach Verarbeitung")
+            logger.info("Keine verwertbaren Medien – versuche Rezept aus Caption/Text zu extrahieren")
 
         # 3. LLM-Extraktion (blockierend - läuft im Thread Pool)
         logger.info(f"Starte LLM-Extraktion (im Thread Pool)...")
