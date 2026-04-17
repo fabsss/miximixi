@@ -78,23 +78,23 @@ def humanize_error(error: str) -> str:
     Konvertiert technische Fehler in benutzerfreundliche Deutsche Meldungen.
     """
     error_lower = error.lower()
-    
-    # Download & connectivity errors
-    if any(w in error_lower for w in ["download", "404", "not found", "connection", "timeout"]):
+
+    # Link nicht gefunden (404 / URL existiert nicht)
+    if any(w in error_lower for w in ["404", "not found", "link nicht gefunden", "does not exist", "removed", "existiert nicht"]):
+        return "❌ Der Link existiert nicht mehr oder wurde gelöscht. Bitte einen anderen probieren."
+
+    # Authentifizierung/Cookie Fehler
+    if any(w in error_lower for w in ["cookie", "unauthorized", "authentication", "session expired", "login required", "access denied"]):
+        return "❌ Authentifizierung fehlgeschlagen. Cookie könnte abgelaufen sein. Bitte den Admin kontaktieren."
+
+    # Andere Download & connectivity errors
+    if any(w in error_lower for w in ["download", "connection", "timeout"]):
         return "❌ Video/Seite konnte nicht heruntergeladen werden. Bitte später erneut versuchen."
-    
-    # Instagram & auth errors
-    if any(w in error_lower for w in ["instagram", "cookie", "unauthorized", "403", "access"]):
-        return "❌ Zugriff fehlgeschlagen. Das könnte ein Cookie-Fehler sein. Bitte den Admin kontaktieren."
-    
+
     # Recipe extraction errors
     if any(w in error_lower for w in ["recipe", "extract", "parsing", "json", "no recipe"]):
         return "❌ Kein Rezept im Video/auf der Seite gefunden. Bitte ein anderes probieren."
-    
-    # Timeout
-    if "timeout" in error_lower:
-        return "❌ Verarbeitung hat zu lange gedauert. Bitte später erneut versuchen."
-    
+
     # Generic fallback
     return f"❌ Technischer Fehler: {error[:100]}"
 
@@ -241,29 +241,44 @@ async def notify(
     chat_id: Optional[str],
     success: bool,
     recipe_title: Optional[str] = None,
+    recipe_id: Optional[str] = None,
     error_msg: Optional[str] = None,
     source_url: Optional[str] = None,
     app: Optional[Application] = None,
 ) -> None:
     """
     Sends a notification to the user after job completion.
-    
+
     Args:
         chat_id: Telegram chat ID (user ID) or None for no user notification
         success: True if extraction succeeded
         recipe_title: Extracted recipe title (if success)
+        recipe_id: Recipe ID for creating deep link
         error_msg: Error message (if not success)
         source_url: Original URL for logging/context
         app: Telegram Application instance (injected from run_bot)
     """
     if not chat_id or not app:
         return
-    
+
+    import re
+
+    def _generate_slug(title: str) -> str:
+        """Generiert einen URL-sicheren Slug aus dem Rezepttitel (same as backend)."""
+        slug = title.lower().strip()
+        slug = re.sub(r'[^\w\s-]', '', slug)
+        slug = re.sub(r'[-\s]+', '-', slug)
+        return slug.strip('-')
+
     try:
-        if success and recipe_title:
+        if success and recipe_title and recipe_id:
+            slug = f"{_generate_slug(recipe_title)}-{recipe_id}"
+            recipe_url = f"{settings.frontend_url}/recipes/{slug}"
+
+            # Create clickable link in Telegram (using markdown link format)
             text = (
                 f"✅ Rezept erfolgreich importiert!\n\n"
-                f"📖 *{recipe_title}*\n\n"
+                f"📖 [{recipe_title}]({recipe_url})\n\n"
                 f"Schau es dir jetzt in der App an und viel Spaß beim Kochen! 🍳"
             )
         else:
@@ -272,7 +287,7 @@ async def notify(
                 f"{humanized_error}\n\n"
                 f"Wenn das Problem weiterhin besteht, kontaktiere den Admin."
             )
-        
+
         await app.bot.send_message(
             chat_id=int(chat_id),
             text=text,

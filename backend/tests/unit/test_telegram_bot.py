@@ -84,14 +84,17 @@ def test_humanize_error_download():
     """TC7: Error-Text humanisierung — Download-Fehler"""
     from app.telegram_bot import humanize_error
 
-    errors = [
-        "Failed to download video from yt-dlp",
-        "HTTP 404: Page not found",
-        "Connection timeout while downloading",
-    ]
-    for error in errors:
-        result = humanize_error(error)
-        assert "Video" in result or "heruntergeladen" in result, f"Failed for {error}"
+    # Test link not found error
+    result = humanize_error("HTTP 404: Page not found")
+    assert "existiert nicht" in result or "gelöscht" in result, f"404 error not handled correctly: {result}"
+
+    # Test connection error
+    result = humanize_error("Connection timeout while downloading")
+    assert "heruntergeladen" in result, f"Connection error not handled correctly: {result}"
+
+    # Test generic download error
+    result = humanize_error("Failed to download video from yt-dlp")
+    assert "heruntergeladen" in result or "Fehler" in result, f"Generic download error not handled: {result}"
 
 
 def test_humanize_error_unknown():
