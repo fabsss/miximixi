@@ -366,6 +366,11 @@ export function RecipeDetailPage() {
 
   const cancelEditMode = () => {
     // Revoke all blob URLs before clearing state
+    // Recipe image blob URL
+    if (imagePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreviewUrl)
+    }
+    // Step image blob URLs
     Object.values(stepImagePreviews).forEach((url) => {
       if (url.startsWith('blob:')) {
         URL.revokeObjectURL(url)
