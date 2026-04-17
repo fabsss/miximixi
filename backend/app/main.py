@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CATEGORIES
+from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CategoryCountsResponse, CATEGORIES
 from app.queue_worker import run_worker
 from app.telegram_bot import run_bot
 from app.instagram_sync_worker import SyncControl, run_instagram_sync
@@ -159,29 +159,34 @@ async def get_categories():
     return {"categories": CATEGORIES}
 
 
-@app.get("/categories/counts")
+@app.get("/categories/counts", response_model=CategoryCountsResponse)
 async def get_category_counts():
     """Returns total recipe count per category and overall total."""
-    db = get_db()
-    cursor = db.cursor(cursor_factory=RealDictCursor)
+    def _fetch_counts():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            cursor.execute(
+                "SELECT category, COUNT(*) AS count FROM recipes WHERE category IS NOT NULL GROUP BY category"
+            )
+            rows = cursor.fetchall()
+            cursor.execute("SELECT COUNT(*) AS count FROM recipes")
+            total_row = cursor.fetchone()
+
+            if not total_row:
+                raise ValueError("Failed to fetch total count from database")
+
+            counts = {row["category"]: row["count"] for row in rows}
+            return {"counts": counts, "total": total_row["count"]}
+        finally:
+            db.close()
+
     try:
-        cursor.execute(
-            "SELECT category, COUNT(*) AS count FROM recipes WHERE category IS NOT NULL GROUP BY category"
-        )
-        rows = cursor.fetchall()
-        cursor.execute("SELECT COUNT(*) AS count FROM recipes")
-        total_row = cursor.fetchone()
-        db.close()
-
-        if not total_row:
-            raise ValueError("Failed to fetch total count from database")
-
-        counts = {row["category"]: row["count"] for row in rows}
-        return {"counts": counts, "total": total_row["count"]}
+        result = await asyncio.to_thread(_fetch_counts)
+        return result
     except Exception as e:
-        db.close()
         logger.error(f"Category counts failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to fetch category counts")
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────
