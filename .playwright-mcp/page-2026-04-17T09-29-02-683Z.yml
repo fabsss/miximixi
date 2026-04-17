@@ -1,0 +1,288 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - button "Zurück" [ref=e391]:
+          - generic [ref=e8]: arrow_back
+        - link "Miximixi Die Rezepte App" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - heading "Miximixi" [level=1] [ref=e10]
+          - paragraph [ref=e11]: Die Rezepte App
+      - generic [ref=e12]:
+        - link "restaurant Kochmodus" [ref=e392] [cursor=pointer]:
+          - /url: /cook/fasolakia-griechische-grüne-bohnen-mit-kartoffeln-b3f9e303-55fa-42a8-bdee-33b5b182729f
+          - generic [ref=e393]: restaurant
+          - text: Kochmodus
+        - navigation [ref=e13]:
+          - button "🖥️" [ref=e14]
+  - main [ref=e15]:
+    - generic [ref=e394]:
+      - generic [ref=e396]:
+        - img "Fasolakia (Griechische grüne Bohnen mit Kartoffeln)" [ref=e397]
+        - generic:
+          - generic:
+            - generic:
+              - generic: lunch_dining
+              - text: Hauptspeisen
+          - generic:
+            - generic: vegetarisch
+            - generic: vegan
+            - generic: griechisch
+            - generic: einfach
+            - generic: schnell
+          - heading "Fasolakia (Griechische grüne Bohnen mit Kartoffeln)" [level=2]
+          - generic:
+            - generic:
+              - generic: schedule
+              - generic: 10 min + 20 min
+            - generic:
+              - generic: people
+              - generic: 2 Portionen
+            - link "link www.instagram.com" [ref=e398] [cursor=pointer]:
+              - /url: https://www.instagram.com/reel/DHVJpDzSQrE/?igsh=MXA2ZTk2YWQ1N3Fzbg==
+              - generic [ref=e399]: link
+              - generic [ref=e400]: www.instagram.com
+      - generic [ref=e401]:
+        - button "edit Bearbeiten" [ref=e402]:
+          - generic [ref=e403]: edit
+          - text: Bearbeiten
+        - button "translate Übersetzen" [ref=e404]:
+          - generic [ref=e405]: translate
+          - text: Übersetzen
+        - button "Zu Favoriten" [ref=e406]:
+          - img [ref=e407]
+      - generic [ref=e409]:
+        - complementary [ref=e410]:
+          - generic [ref=e411]:
+            - generic [ref=e412]:
+              - heading "Zutaten" [level=3] [ref=e413]
+              - generic [ref=e414]:
+                - button "Imperial" [ref=e415]
+                - button "Metrisch" [ref=e416]
+            - generic [ref=e417]:
+              - generic [ref=e418]:
+                - generic [ref=e419]: Portionen anpassen
+                - generic [ref=e420]: 2 Personen
+              - slider [ref=e421] [cursor=pointer]: "2"
+            - list [ref=e424]:
+              - listitem [ref=e425] [cursor=pointer]:
+                - generic [ref=e426]: Zwiebeln
+                - generic [ref=e427]: 2 medium
+              - listitem [ref=e428] [cursor=pointer]:
+                - generic [ref=e429]: Knoblauchzehen
+                - generic [ref=e430]: 5 Stück
+              - listitem [ref=e431] [cursor=pointer]:
+                - generic [ref=e432]: Rote Chilischote
+                - generic [ref=e433]: 1 Stück
+              - listitem [ref=e434] [cursor=pointer]:
+                - generic [ref=e435]: Petersilie
+                - generic [ref=e436]: 1 Bund
+              - listitem [ref=e437] [cursor=pointer]:
+                - generic [ref=e438]: Kleine Kartoffeln
+                - generic [ref=e439]: 10 Stück
+              - listitem [ref=e440] [cursor=pointer]:
+                - generic [ref=e441]: Grüne Bohnen
+                - generic [ref=e442]: 600 g
+              - listitem [ref=e443] [cursor=pointer]:
+                - generic [ref=e444]: Griechisches Olivenöl
+                - generic [ref=e445]: 59.1 ml
+              - listitem [ref=e446] [cursor=pointer]:
+                - generic [ref=e447]: Tomatenmark
+                - generic [ref=e448]: 2 EL
+              - listitem [ref=e449] [cursor=pointer]:
+                - generic [ref=e450]: Gehackte Tomaten
+                - generic [ref=e451]: 400 g
+              - listitem [ref=e452] [cursor=pointer]:
+                - generic [ref=e453]: Salz
+                - generic [ref=e454]: nach Geschmack
+              - listitem [ref=e455] [cursor=pointer]:
+                - generic [ref=e456]: Schwarzer Pfeffer
+                - generic [ref=e457]: nach Geschmack
+              - listitem [ref=e458] [cursor=pointer]:
+                - generic [ref=e459]: Gemüsebrühe
+                - generic [ref=e460]: 473.2 ml
+              - listitem [ref=e461] [cursor=pointer]:
+                - generic [ref=e462]: Baguette
+                - generic [ref=e463]: 1 Stück
+              - listitem [ref=e464] [cursor=pointer]:
+                - generic [ref=e465]: Feta Käse
+                - generic [ref=e466]: 100 g
+          - generic [ref=e468]:
+            - generic [ref=e469]: lightbulb
+            - generic [ref=e470]:
+              - strong [ref=e471]: Chef's Note
+              - paragraph [ref=e472]: Noch keine Notizen …
+              - button "Notiz hinzufügen" [ref=e473]
+        - generic [ref=e474]:
+          - heading "Anleitung" [level=3] [ref=e475]
+          - list [ref=e476]:
+            - listitem [ref=e477]:
+              - generic [ref=e478]: "1"
+              - paragraph [ref=e479]:
+                - button "Zwiebeln" [ref=e481]
+                - text: Zwiebeln fein würfeln.
+            - listitem [ref=e483]:
+              - generic [ref=e484]: "2"
+              - paragraph [ref=e485]:
+                - button "Knoblauchzehen" [ref=e487]
+                - text: Knoblauch hacken.
+            - listitem [ref=e489]:
+              - generic [ref=e490]: "3"
+              - paragraph [ref=e491]:
+                - button "Rote Chilischote" [ref=e493]
+                - text: Chilischote hacken.
+            - listitem [ref=e495]:
+              - generic [ref=e496]: "4"
+              - paragraph [ref=e497]:
+                - button "Petersilie" [ref=e499]
+                - text: Petersilie hacken.
+            - listitem [ref=e501]:
+              - generic [ref=e502]: "5"
+              - paragraph [ref=e503]:
+                - button "Kleine Kartoffeln" [ref=e505]
+                - text: Kartoffeln schälen.
+            - listitem [ref=e507]:
+              - generic [ref=e508]: "6"
+              - paragraph [ref=e509]:
+                - button "Kleine Kartoffeln" [ref=e511]
+                - text: Kartoffeln halbieren.
+            - listitem [ref=e513]:
+              - generic [ref=e514]: "7"
+              - paragraph [ref=e515]:
+                - text: Die Enden
+                - button "Grüne Bohnen" [ref=e517]
+                - text: grünen Bohnen abschneiden.
+            - listitem [ref=e519]:
+              - generic [ref=e520]: "8"
+              - paragraph [ref=e521]:
+                - button "Grüne Bohnen" [ref=e523]
+                - text: Grüne Bohnen gründlich waschen.
+            - listitem [ref=e525]:
+              - generic [ref=e526]: "9"
+              - paragraph [ref=e527]:
+                - button "Griechisches Olivenöl" [ref=e529]
+                - text: Olivenöl in eine Pfanne geben und erhitzen.
+            - listitem [ref=e531]:
+              - generic [ref=e532]: "10"
+              - paragraph [ref=e533]:
+                - button "Zwiebeln" [ref=e535]
+                - text: Zwiebeln und
+                - button "Knoblauchzehen" [ref=e537]
+                - text: Knoblauch in die Pfanne geben und einige Minuten andünsten.
+            - listitem [ref=e539]:
+              - generic [ref=e540]: "11"
+              - paragraph [ref=e541]:
+                - button "Rote Chilischote" [ref=e543]
+                - text: Chili
+                - button "Petersilie" [ref=e545]
+                - text: Petersilie hinzufügen.
+            - listitem [ref=e547]:
+              - generic [ref=e548]: "12"
+              - paragraph [ref=e549]:
+                - button "Tomatenmark" [ref=e551]
+                - text: Tomatenmark hinzufügen.
+            - listitem [ref=e553]:
+              - generic [ref=e554]: "13"
+              - paragraph [ref=e555]: Alles gut vermischen.
+            - listitem [ref=e557]:
+              - generic [ref=e558]: "14"
+              - paragraph [ref=e559]:
+                - button "Kleine Kartoffeln" [ref=e561]
+                - text: Kartoffeln hinzufügen.
+            - listitem [ref=e563]:
+              - generic [ref=e564]: "15"
+              - paragraph [ref=e565]:
+                - button "Gehackte Tomaten" [ref=e567]
+                - text: Gehackte Tomaten hinzufügen.
+            - listitem [ref=e569]:
+              - generic [ref=e570]: "16"
+              - paragraph [ref=e571]:
+                - button "Salz" [ref=e573]
+                - text: Salz
+                - button "Schwarzer Pfeffer" [ref=e575]
+                - text: schwarzem Pfeffer würzen.
+            - listitem [ref=e577]:
+              - generic [ref=e578]: "17"
+              - paragraph [ref=e579]: Gut umrühren, um die Zutaten zu vermengen.
+            - listitem [ref=e581]:
+              - generic [ref=e582]: "18"
+              - paragraph [ref=e583]:
+                - button "Gemüsebrühe" [ref=e585]
+                - text: Gemüsebrühe eingießen.
+            - listitem [ref=e587]:
+              - generic [ref=e588]: "19"
+              - paragraph [ref=e589]: Zum Kochen bringen, dann die Hitze reduzieren, abdecken und 10 Minuten köcheln lassen.
+              - generic [ref=e592]:
+                - generic [ref=e593]: timer
+                - generic [ref=e594]:
+                  - generic [ref=e595]: Zeit
+                  - generic [ref=e596]: 10:00
+                - generic [ref=e597]:
+                  - button "add" [ref=e598]:
+                    - generic [ref=e599]: add
+                  - button "remove" [ref=e600]:
+                    - generic [ref=e601]: remove
+                - button "Start" [ref=e603]
+            - listitem [ref=e604]:
+              - generic [ref=e605]: "20"
+              - paragraph [ref=e606]: Die Pfanne aufdecken.
+            - listitem [ref=e608]:
+              - generic [ref=e609]: "21"
+              - paragraph [ref=e610]:
+                - button "Grüne Bohnen" [ref=e612]
+                - text: Grüne Bohnen hinzufügen.
+            - listitem [ref=e614]:
+              - generic [ref=e615]: "22"
+              - paragraph [ref=e616]: Die Bohnen mit den anderen Zutaten vermischen und vorsichtig in die Flüssigkeit drücken.
+            - listitem [ref=e618]:
+              - generic [ref=e619]: "23"
+              - paragraph [ref=e620]: Die Pfanne erneut abdecken und weitere 10 Minuten köcheln lassen.
+              - generic [ref=e623]:
+                - generic [ref=e624]: timer
+                - generic [ref=e625]:
+                  - generic [ref=e626]: Zeit
+                  - generic [ref=e627]: 10:00
+                - generic [ref=e628]:
+                  - button "add" [ref=e629]:
+                    - generic [ref=e630]: add
+                  - button "remove" [ref=e631]:
+                    - generic [ref=e632]: remove
+                - button "Start" [ref=e634]
+            - listitem [ref=e635]:
+              - generic [ref=e636]: "24"
+              - paragraph [ref=e637]: Aufdecken und den Garzustand prüfen.
+            - listitem [ref=e639]:
+              - generic [ref=e640]: "25"
+              - paragraph [ref=e641]:
+                - button "Baguette" [ref=e643]
+                - text: Baguette für das Servieren aufschneiden.
+            - listitem [ref=e645]:
+              - generic [ref=e646]: "26"
+              - paragraph [ref=e647]: Weitere 10 Minuten köcheln lassen, bis alles gar ist.
+              - generic [ref=e650]:
+                - generic [ref=e651]: timer
+                - generic [ref=e652]:
+                  - generic [ref=e653]: Zeit
+                  - generic [ref=e654]: 10:00
+                - generic [ref=e655]:
+                  - button "add" [ref=e656]:
+                    - generic [ref=e657]: add
+                  - button "remove" [ref=e658]:
+                    - generic [ref=e659]: remove
+                - button "Start" [ref=e661]
+            - listitem [ref=e662]:
+              - generic [ref=e663]: "27"
+              - paragraph [ref=e664]: Auf Tellern servieren.
+            - listitem [ref=e666]:
+              - generic [ref=e667]: "28"
+              - paragraph [ref=e668]:
+                - text: Eine
+                - button "Baguette" [ref=e670]
+                - text: Baguette hinzufügen.
+            - listitem [ref=e672]:
+              - generic [ref=e673]: "29"
+              - paragraph [ref=e674]:
+                - button "Feta Käse" [ref=e676]
+                - text: Feta Käse darüber bröseln.
+      - generic:
+        - img "Fasolakia (Griechische grüne Bohnen mit Kartoffeln)"
