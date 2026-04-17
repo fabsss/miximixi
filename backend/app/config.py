@@ -1,6 +1,9 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -106,3 +109,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Log loaded config on startup
+import os
+raw_env_admin_ids = os.environ.get("TELEGRAM_ADMIN_IDS", "NOT_SET")
+raw_file_path = Path(__file__).parent.parent.parent / ".env"
+
+logger.warning(
+    f"[Config] Startup Debug: TELEGRAM_ADMIN_IDS\n"
+    f"  .env file: {raw_file_path} (exists={raw_file_path.exists()})\n"
+    f"  os.environ.get('TELEGRAM_ADMIN_IDS'): {repr(raw_env_admin_ids)}\n"
+    f"  Parsed into settings.telegram_admin_ids: {repr(settings.telegram_admin_ids)}\n"
+    f"  Parsed into settings.telegram_allowed_user_ids: {repr(settings.telegram_allowed_user_ids)}"
+)
