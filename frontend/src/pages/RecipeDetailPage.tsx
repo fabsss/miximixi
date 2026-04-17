@@ -200,7 +200,13 @@ function StepTimer({ minutes }: { minutes: number }) {
 
 // Types
 interface IngredientDraft { name: string; amount: string; unit: string; group_name: string }
-interface StepDraft { text: string; time_minutes: string }
+interface StepDraft {
+  text: string
+  time_minutes: string
+  step_image_file?: File | null          // pending file to upload
+  step_image_deleted?: boolean            // marks existing image for deletion
+  step_image_preview?: string | null      // preview URL (blob or existing)
+}
 interface EditDraft {
   title: string; category: string; servings: string; prep_time: string; cook_time: string; tags: string
   ingredients: IngredientDraft[]; steps: StepDraft[]
@@ -234,6 +240,10 @@ export function RecipeDetailPage() {
   const [showFullscreenImage, setShowFullscreenImage] = useState(false)
   const [fullscreenStepImage, setFullscreenStepImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const stepImageFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})
+  const [stepImageFiles, setStepImageFiles] = useState<Map<number, File>>(new Map())
+  const [stepImagePreviews, setStepImagePreviews] = useState<Map<number, string>>(new Map())
+  const [stepImageDeleted, setStepImageDeleted] = useState<Map<number, boolean>>(new Map())
   const bubbleTimerRef = useRef<number | null>(null)
 
 
