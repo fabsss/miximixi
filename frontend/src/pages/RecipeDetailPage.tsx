@@ -699,6 +699,78 @@ export function RecipeDetailPage() {
                       className="block w-full resize-none rounded-lg bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30" />
                     <input value={step.time_minutes} onChange={(e) => updateStep(idx, 'time_minutes', e.target.value)} type="number" placeholder="Zeit (min, optional)"
                       className={`${miniInputCls} w-36`} />
+                  {/* Step Picture */}
+                  <div className="mt-2">
+                    <p className={`${labelCls} mb-2`}>Schritt-Bild</p>
+                    {stepImageDeleted[idx] ? (
+                      // State 3: Marked for deletion
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-[67px] w-[120px] flex-shrink-0 rounded-lg bg-[var(--mx-surface-container)] opacity-50"
+                          style={{ aspectRatio: '16/9' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleStepImageUndo(idx, recipe.steps[idx])}
+                          className="text-xs font-semibold text-[var(--mx-primary)] hover:underline"
+                        >
+                          Rückgängig
+                        </button>
+                      </div>
+                    ) : stepImagePreviews[idx] ? (
+                      // State 2: Existing or new preview
+                      <div className="relative inline-block">
+                        <img
+                          src={stepImagePreviews[idx]}
+                          alt="Schritt Vorschau"
+                          className="h-[67px] w-[120px] rounded-lg object-cover"
+                          style={{ aspectRatio: '16/9' }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => stepImageFileInputRefs.current[idx]?.click()}
+                            className="flex items-center gap-1 rounded-full bg-[var(--mx-primary)] px-3 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                            Ändern
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStepImageDelete(idx)}
+                            className="flex items-center gap-1 rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // State 1: Empty placeholder
+                      <div className="flex flex-col items-center gap-2">
+                        <div
+                          className="h-[67px] w-[120px] rounded-lg bg-[var(--mx-surface-container)] border-2 border-dashed border-[var(--mx-outline-variant)]"
+                          style={{ aspectRatio: '16/9' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => stepImageFileInputRefs.current[idx]?.click()}
+                          className="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--mx-outline-variant)] px-3 py-1.5 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:border-[var(--mx-primary)] hover:text-[var(--mx-primary)] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">add_a_photo</span>
+                          Bild hinzufügen
+                        </button>
+                      </div>
+                    )}
+                    <input
+                      ref={(el) => {
+                        if (el) stepImageFileInputRefs.current[idx] = el
+                      }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleStepImageChange(idx, e)}
+                      className="hidden"
+                    />
+                  </div>
                   </div>
                   <button onClick={() => removeStep(idx)} className="mt-1 flex-shrink-0 rounded-full p-1 text-red-400 hover:bg-red-500/10 transition-colors">
                     <span className="material-symbols-outlined text-[16px]">close</span>
