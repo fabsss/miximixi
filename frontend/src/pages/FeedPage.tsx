@@ -60,7 +60,7 @@ export function FeedPage(_: FeedPageProps) {
   const mainRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const prevRecipeIdsRef = useRef<Set<string>>(new Set())
-  const [animatingCardIds, setAnimatingCardIds] = useState<Set<string>>(new Set())
+  const [animatingCardIds, setAnimatingCardIds] = useState<string[]>([])
 
   const categoriesQuery = useCategories()
   const recipesQuery = useInfiniteQuery({
@@ -173,20 +173,22 @@ export function FeedPage(_: FeedPageProps) {
     })
 
     // Update animating cards set to include both new and removed
+    let timer: ReturnType<typeof setTimeout> | undefined
     if (newCardIds.size > 0 || removedCardIds.size > 0) {
       const combined = new Set([...newCardIds, ...removedCardIds])
-      setAnimatingCardIds(combined)
+      setAnimatingCardIds(Array.from(combined))
 
       // Clear animation state after the animation completes (300ms)
-      const timer = setTimeout(() => {
-        setAnimatingCardIds(new Set())
+      timer = setTimeout(() => {
+        setAnimatingCardIds([])
       }, 300)
-
-      prevRecipeIdsRef.current = currentIds
-      return () => clearTimeout(timer)
     }
 
     prevRecipeIdsRef.current = currentIds
+
+    return () => {
+      if (timer !== undefined) clearTimeout(timer)
+    }
   }, [filteredRecipes])
 
   const handleMainCat = (cat: string | null) => {
@@ -417,7 +419,7 @@ export function FeedPage(_: FeedPageProps) {
         {!recipesQuery.isLoading && !recipesQuery.error && (
           <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
             {filteredRecipes.map((recipe, index) => {
-              const isAnimating = animatingCardIds.has(recipe.id)
+              const isAnimating = animatingCardIds.includes(recipe.id)
               const animationClass = isAnimating ? 'mx-card-enter' : ''
               return (
                 <div key={recipe.id} className={animationClass}>
