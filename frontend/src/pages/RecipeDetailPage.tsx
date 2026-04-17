@@ -351,11 +351,33 @@ export function RecipeDetailPage() {
         text: s.text, time_minutes: s.time_minutes != null ? String(s.time_minutes) : '',
       })),
     })
+    // Initialize step image previews with existing images
+    const previews: Record<number, string> = {}
+    recipe.steps?.forEach((step, idx) => {
+      if (step.step_image_filename) {
+        previews[idx] = getStepImageUrl(recipe.id, step.step_image_filename)
+      }
+    })
+    setStepImagePreviews(previews)
+    setStepImageFiles({})
+    setStepImageDeleted({})
     setIsEditMode(true)
   }
 
   const cancelEditMode = () => {
-    setEditDraft(null); setIsEditMode(false); setPendingImageFile(null); setImagePreviewUrl(null)
+    // Revoke all blob URLs before clearing state
+    Object.values(stepImagePreviews).forEach((url) => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url)
+      }
+    })
+    setEditDraft(null)
+    setIsEditMode(false)
+    setPendingImageFile(null)
+    setImagePreviewUrl(null)
+    setStepImageFiles({})
+    setStepImagePreviews({})
+    setStepImageDeleted({})
   }
 
   const saveEdit = () => {
