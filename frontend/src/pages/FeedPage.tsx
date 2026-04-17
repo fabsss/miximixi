@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { flushSync } from 'react-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
-import { useCategories } from '../lib/useCategories'
+import { useCategories, useCategoryCounts } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 import { useNavDrawer } from '../context/useNavDrawer'
@@ -60,6 +60,7 @@ export function FeedPage(): ReactNode {
   const [removedAnimatingIds, setRemovedAnimatingIds] = useState<string[]>([])
 
   const categoriesQuery = useCategories()
+  const categoryCountsQuery = useCategoryCounts()
   const recipesQuery = useInfiniteQuery({
     queryKey: ['recipes'],
     queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number),
@@ -117,13 +118,7 @@ export function FeedPage(): ReactNode {
 
   const heroRecipe = allRecipes[heroIndex]
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const r of allRecipes) {
-      if (r.category) counts[r.category] = (counts[r.category] ?? 0) + 1
-    }
-    return counts
-  }, [allRecipes])
+  const categoryCounts = categoryCountsQuery.data?.counts ?? {}
 
   const availableTags = useMemo(() => {
     const tags = new Set<string>()
@@ -257,7 +252,7 @@ export function FeedPage(): ReactNode {
             categories={categoriesQuery.data ?? []}
             categoryCounts={categoryCounts}
             selectedMainCategory={selectedMainCategory}
-            recipesCount={allRecipes.length}
+            recipesCount={categoryCountsQuery.data?.total ?? allRecipes.length}
             onSelect={handleMainCat}
             catBtnCls={catBtnCls}
           />
@@ -271,7 +266,7 @@ export function FeedPage(): ReactNode {
             categories={categoriesQuery.data ?? []}
             categoryCounts={categoryCounts}
             selectedMainCategory={selectedMainCategory}
-            recipesCount={allRecipes.length}
+            recipesCount={categoryCountsQuery.data?.total ?? allRecipes.length}
             onSelect={handleMainCat}
             catBtnCls={catBtnCls}
           />
