@@ -52,44 +52,58 @@ class Settings(BaseSettings):
     telegram_notify_chat_id: str = ""
     
     # Format: "123456,789012" (comma-separated). Empty = all users allowed.
-    _telegram_allowed_user_ids_raw: str = Field(default="", validation_alias="TELEGRAM_ALLOWED_USER_IDS")
+    telegram_allowed_user_ids: list[str] = []
     
     # Format: "123456,789012" (comma-separated). For admin-only commands (/sync_*)
-    _telegram_admin_ids_raw: str = Field(default="", validation_alias="TELEGRAM_ADMIN_IDS")
+    telegram_admin_ids: list[str] = []
 
-    @field_validator("_telegram_allowed_user_ids_raw", mode="before")
+    @field_validator("telegram_allowed_user_ids", mode="before")
     @classmethod
     def parse_allowed_user_ids(cls, v):
-        """Parse comma-separated user IDs from env var."""
+        """Parse comma-separated user IDs from env var.
+        
+        This validator runs BEFORE Pydantic type coercion, so we can:
+        - Accept raw string from env var
+        - Return a list to prevent JSON parsing
+        - Handle empty strings gracefully
+        """
+        # Empty/None → empty list
         if not v or v == "":
-            return ""
+            return []
+        
+        # Already a list → return as-is
+        if isinstance(v, list):
+            return v
+        
+        # String → split by comma and strip whitespace
         if isinstance(v, str):
-            return v.strip()
-        return ""
+            return [uid.strip() for uid in v.split(",") if uid.strip()]
+        
+        return []
 
-    @field_validator("_telegram_admin_ids_raw", mode="before")
+    @field_validator("telegram_admin_ids", mode="before")
     @classmethod
     def parse_admin_ids(cls, v):
-        """Parse comma-separated admin IDs from env var."""
+        """Parse comma-separated admin IDs from env var.
+        
+        This validator runs BEFORE Pydantic type coercion, so we can:
+        - Accept raw string from env var
+        - Return a list to prevent JSON parsing
+        - Handle empty strings gracefully
+        """
+        # Empty/None → empty list
         if not v or v == "":
-            return ""
+            return []
+        
+        # Already a list → return as-is
+        if isinstance(v, list):
+            return v
+        
+        # String → split by comma and strip whitespace
         if isinstance(v, str):
-            return v.strip()
-        return ""
-    
-    @property
-    def telegram_allowed_user_ids(self) -> list[str]:
-        """Get allowed user IDs as a list."""
-        if not self._telegram_allowed_user_ids_raw:
-            return []
-        return [uid.strip() for uid in self._telegram_allowed_user_ids_raw.split(",") if uid.strip()]
-    
-    @property
-    def telegram_admin_ids(self) -> list[str]:
-        """Get admin IDs as a list."""
-        if not self._telegram_admin_ids_raw:
-            return []
-        return [uid.strip() for uid in self._telegram_admin_ids_raw.split(",") if uid.strip()]
+            return [uid.strip() for uid in v.split(",") if uid.strip()]
+        
+        return []
 
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
