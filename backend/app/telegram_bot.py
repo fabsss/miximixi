@@ -627,6 +627,20 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     
     set_notify_callback(notify_with_app)
     
+    # Error handler for fatal polling errors
+    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle fatal errors from polling."""
+        logger.exception(f"Telegram Bot error: {context.error}")
+        
+        # If it's a Conflict error (duplicate polling), stop immediately
+        if context.error and "Conflict" in str(context.error):
+            logger.critical("409 Conflict detected - stopping polling to prevent duplicate instances")
+            # Stop the updater to prevent retry loops
+            await app.updater.stop()
+    
+    # Register the error handler
+    app.add_error_handler(error_handler)
+    
     # Add handlers
     app.add_handler(CommandHandler("start", start_handler))
     app.add_handler(CommandHandler("sync_setup", sync_setup_handler))
