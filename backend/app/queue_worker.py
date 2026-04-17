@@ -59,12 +59,20 @@ def _save_recipe_to_db(
     raw_source_text: str,
     extraction_status: str,
     queue_id: str,
+    db=None,
 ) -> None:
     """
     Speichert Rezept + Zutaten + Schritte in der Datenbank.
     Läuft im Thread Pool via asyncio.to_thread() — blockierend!
+    
+    Args:
+        db: Optional database connection. If None, creates a new one.
     """
-    db = get_db_connection()
+    should_close = False
+    if db is None:
+        db = get_db_connection()
+        should_close = True
+    
     cursor = db.cursor()
 
     try:
@@ -142,7 +150,8 @@ def _save_recipe_to_db(
         raise
 
     finally:
-        db.close()
+        if should_close:
+            db.close()
 
 
 async def process_job(job: dict, notify_callback=None) -> None:
@@ -254,6 +263,7 @@ async def process_job(job: dict, notify_callback=None) -> None:
             raw_source_text,
             extraction_status,
             queue_id,
+            db,
         )
 
         logger.info(
