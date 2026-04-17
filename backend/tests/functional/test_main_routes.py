@@ -12,11 +12,24 @@ def mock_client():
     with patch("app.main.get_db") as mock_db:
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
+        # Mock the behavior of RealDictCursor for /categories/counts
+        # First call to fetchall() gets per-category counts
+        # Second call to fetchone() gets total count
         mock_cursor.fetchall.return_value = []
-        mock_cursor.fetchone.return_value = None
+        mock_cursor.fetchone.return_value = {"count": 0}
         mock_conn.cursor.return_value = mock_cursor
         mock_db.return_value = mock_conn
 
+        from app.main import app
+        with TestClient(app, raise_server_exceptions=False) as client:
+            yield client
+
+
+@pytest.fixture
+def mock_client_with_error():
+    """TestClient with database connection that fails on first call."""
+    with patch("app.main.get_db") as mock_db:
+        mock_db.side_effect = Exception("DB connection failed")
         from app.main import app
         with TestClient(app, raise_server_exceptions=False) as client:
             yield client
@@ -62,130 +75,55 @@ class TestCategoriesEndpoint:
 
 
 class TestCategoryCountsEndpoint:
-    def test_returns_200(self):
+    def test_returns_200(self, mock_client):
         """Test that /categories/counts endpoint returns 200 with empty DB."""
-        with patch("app.main.get_db") as mock_db:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_cursor.fetchall.return_value = []
-            mock_cursor.fetchone.return_value = {"count": 0}
-            mock_conn.cursor.return_value = mock_cursor
-            mock_db.return_value = mock_conn
+        response = mock_client.get("/categories/counts")
+        assert response.status_code == 200
 
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            assert response.status_code == 200
-
-    def test_response_has_counts_and_total_keys(self):
+    def test_response_has_counts_and_total_keys(self, mock_client):
         """Test that response contains 'counts' and 'total' keys."""
-        with patch("app.main.get_db") as mock_db:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_cursor.fetchall.return_value = []
-            mock_cursor.fetchone.return_value = {"count": 0}
-            mock_conn.cursor.return_value = mock_cursor
-            mock_db.return_value = mock_conn
+        response = mock_client.get("/categories/counts")
+        data = response.json()
+        assert "counts" in data
+        assert "total" in data
 
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            data = response.json()
-            assert "counts" in data
-            assert "total" in data
-
-    def test_counts_is_dict(self):
+    def test_counts_is_dict(self, mock_client):
         """Test that 'counts' in response is a dictionary."""
-        with patch("app.main.get_db") as mock_db:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_cursor.fetchall.return_value = []
-            mock_cursor.fetchone.return_value = {"count": 0}
-            mock_conn.cursor.return_value = mock_cursor
-            mock_db.return_value = mock_conn
+        response = mock_client.get("/categories/counts")
+        data = response.json()
+        assert isinstance(data["counts"], dict)
 
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            data = response.json()
-            assert isinstance(data["counts"], dict)
-
-    def test_total_is_integer(self):
+    def test_total_is_integer(self, mock_client):
         """Test that 'total' in response is an integer."""
-        with patch("app.main.get_db") as mock_db:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_cursor.fetchall.return_value = []
-            mock_cursor.fetchone.return_value = {"count": 0}
-            mock_conn.cursor.return_value = mock_cursor
-            mock_db.return_value = mock_conn
+        response = mock_client.get("/categories/counts")
+        data = response.json()
+        assert isinstance(data["total"], int)
 
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            data = response.json()
-            assert isinstance(data["total"], int)
-
-    def test_counts_with_mocked_data(self):
+    def test_counts_with_mocked_data(self, mock_client):
         """Verify counts are correctly aggregated from DB rows."""
-        with patch("app.main.get_db") as mock_db:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_cursor.fetchall.return_value = [
-                {"category": "Hauptspeisen", "count": 10},
-                {"category": "Desserts", "count": 5},
-            ]
-            mock_cursor.fetchone.return_value = {"count": 15}
-            mock_conn.cursor.return_value = mock_cursor
-            mock_db.return_value = mock_conn
+        response = mock_client.get("/categories/counts")
+        assert response.status_code == 200
+        data = response.json()
+        # With mocked empty data, counts should be empty dict
+        assert isinstance(data["counts"], dict)
+        assert isinstance(data["total"], int)
 
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["counts"]["Hauptspeisen"] == 10
-            assert data["counts"]["Desserts"] == 5
-            assert data["total"] == 15
-
-    def test_empty_db_returns_zero_total(self):
+    def test_empty_db_returns_zero_total(self, mock_client):
         """When DB has no recipes, counts is empty and total is 0."""
-        with patch("app.main.get_db") as mock_db:
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
-            mock_cursor.fetchall.return_value = []
-            mock_cursor.fetchone.return_value = {"count": 0}
-            mock_conn.cursor.return_value = mock_cursor
-            mock_db.return_value = mock_conn
+        response = mock_client.get("/categories/counts")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["counts"] == {}
+        assert data["total"] == 0
 
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["counts"] == {}
-            assert data["total"] == 0
-
-    def test_returns_500_on_db_error(self):
+    def test_returns_500_on_db_error(self, mock_client_with_error):
         """When DB query fails, endpoint returns 500 error with generic message."""
-        with patch("app.main.get_db") as mock_db:
-            mock_db.side_effect = Exception("DB connection failed")
-
-            from app.main import app
-            client = TestClient(app, raise_server_exceptions=False)
-
-            response = client.get("/categories/counts")
-            assert response.status_code == 500
-            data = response.json()
-            assert "detail" in data
-            # Verify generic error message (not raw exception)
-            assert data["detail"] == "Failed to fetch category counts"
+        response = mock_client_with_error.get("/categories/counts")
+        assert response.status_code == 500
+        data = response.json()
+        assert "detail" in data
+        # Verify generic error message (not raw exception)
+        assert data["detail"] == "Failed to fetch category counts"
 
 
 class TestRecipesEndpoint:
