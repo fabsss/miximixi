@@ -51,6 +51,100 @@ def get_db_connection():
     )
 
 
+def _save_recipe_to_db(
+    recipe_id: str,
+    recipe_data,
+    image_filename: Optional[str],
+    source_url: str,
+    raw_source_text: str,
+    extraction_status: str,
+    queue_id: str,
+) -> None:
+    """
+    Speichert Rezept + Zutaten + Schritte in der Datenbank.
+    Läuft im Thread Pool via asyncio.to_thread() — blockierend!
+    """
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        # 1. Insert Recipe
+        cursor.execute(
+            """
+            INSERT INTO recipes (id, title, lang, category, servings, prep_time, cook_time, tags, image_filename, source_url, source_label, raw_source_text, llm_provider_used, extraction_status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                recipe_id,
+                recipe_data.title,
+                recipe_data.lang,
+                recipe_data.category,
+                recipe_data.servings,
+                recipe_data.prep_time,
+                recipe_data.cook_time,
+                recipe_data.tags,
+                image_filename,
+                source_url,
+                _extract_source_label(source_url),
+                raw_source_text,
+                settings.llm_provider,
+                extraction_status,
+            ),
+        )
+
+        # 2. Insert Ingredients
+        for ingredient in recipe_data.ingredients:
+            cursor.execute(
+                """
+                INSERT INTO ingredients (recipe_id, sort_order, name, amount, unit)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    recipe_id,
+                    ingredient.id,
+                    ingredient.name,
+                    ingredient.amount,
+                    ingredient.unit,
+                ),
+            )
+
+        # 3. Insert Steps
+        for step in recipe_data.steps:
+            cursor.execute(
+                """
+                INSERT INTO steps (recipe_id, sort_order, text, time_minutes)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    recipe_id,
+                    step.id,
+                    step.text,
+                    step.time_minutes,
+                ),
+            )
+
+        # 4. Update import_queue: set status to 'done' and link recipe_id
+        cursor.execute(
+            """
+            UPDATE import_queue
+            SET status = %s, recipe_id = %s, updated_at = now()
+            WHERE id = %s
+            """,
+            ("done", recipe_id, queue_id),
+        )
+
+        db.commit()
+        logger.info(f"Rezept {recipe_id} erfolgreich in DB gespeichert")
+
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Fehler beim Speichern in DB: {e}")
+        raise
+
+    finally:
+        db.close()
+
+
 async def process_job(job: dict, notify_callback=None) -> None:
     """
     Verarbeitet einen einzelnen Import-Job.
@@ -87,35 +181,37 @@ async def process_job(job: dict, notify_callback=None) -> None:
         if not media_paths:
             raise ValueError(f"Keine Medien herunterladbar: {source_url}")
 
-        # 2. Medien für LLM vorbereiten
+        # 2. Medien für LLM vorbereiten (läuft im Thread Pool, um AsyncIO Event Loop nicht zu blockieren)
         if settings.llm_provider == "gemini":
-            llm_media = prepare_media_for_gemini(media_paths)
+            llm_media = await asyncio.to_thread(prepare_media_for_gemini, media_paths)
         else:
-            llm_media = prepare_media_for_frames(media_paths, tmp_job_dir)
+            llm_media = await asyncio.to_thread(prepare_media_for_frames, media_paths, tmp_job_dir)
 
         if not llm_media:
             raise ValueError("Keine verwertbaren Medien nach Verarbeitung")
 
-        # 3. LLM-Extraktion
-        extraction = llm.extract_recipe(llm_media, raw_source_text)
+        # 3. LLM-Extraktion (blockierend - läuft im Thread Pool)
+        logger.info(f"Starte LLM-Extraktion (im Thread Pool)...")
+        extraction = await asyncio.to_thread(llm.extract_recipe, llm_media, raw_source_text)
         recipe_data = extraction.recipe
         logger.info(f"Rezept extrahiert: '{recipe_data.title}'")
 
         # Recipe ID früh generieren (wird für Step-Frame-Namen benötigt)
         recipe_id = str(uuid.uuid4())
 
-        # 3b. Step-Frame-Extraktion (für wichtige Arbeitsschritte)
+        # 3b. Step-Frame-Extraktion (für wichtige Arbeitsschritte, läuft im Thread Pool)
         if recipe_data.steps and media_paths and any(is_video(p) for p in media_paths):
             video_path = next((p for p in media_paths if is_video(p)), None)
             if video_path:
                 for step in recipe_data.steps:
                     if step.step_timestamp:
                         try:
-                            step_image_filename = extract_frame_at_timestamp(
-                                video_path=video_path,
-                                timestamp=step.step_timestamp,
-                                recipe_id=recipe_id,
-                                step_id=step.id
+                            step_image_filename = await asyncio.to_thread(
+                                extract_frame_at_timestamp,
+                                video_path,
+                                step.step_timestamp,
+                                recipe_id,
+                                step.id
                             )
                             step.step_image_filename = step_image_filename
                             if step_image_filename:
@@ -127,10 +223,10 @@ async def process_job(job: dict, notify_callback=None) -> None:
         image_filename: Optional[str] = None
         extraction_status = "success"
 
-        cover_path = _resolve_cover(extraction, media_paths, llm_media, tmp_job_dir)
+        cover_path = await asyncio.to_thread(_resolve_cover, extraction, media_paths, llm_media, tmp_job_dir)
         if cover_path:
             try:
-                image_filename = save_cover_to_storage(cover_path, recipe_id)
+                image_filename = await asyncio.to_thread(save_cover_to_storage, cover_path, recipe_id)
             except Exception as e:
                 logger.warning(f"Titelbild-Speicherung fehlgeschlagen: {e}")
                 extraction_status = "partial"
@@ -138,61 +234,17 @@ async def process_job(job: dict, notify_callback=None) -> None:
             logger.info("Kein Titelbild – image_filename bleibt NULL")
             extraction_status = "partial"
 
-        # 5. Rezept in der Datenbank speichern
-        cursor.execute(
-            """
-            INSERT INTO recipes (
-                id, title, lang, category, servings, prep_time, cook_time, tags,
-                image_filename, source_url, source_label, raw_source_text,
-                llm_provider_used, extraction_status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                recipe_id,
-                recipe_data.title,
-                recipe_data.lang,
-                recipe_data.category,
-                recipe_data.servings,
-                recipe_data.prep_time,
-                recipe_data.cook_time,
-                recipe_data.tags,
-                image_filename,
-                source_url,
-                _extract_source_label(source_url),
-                raw_source_text or None,
-                settings.llm_provider,
-                extraction_status,
-            ),
+        # 5-8. Speichere Rezept + Zutaten + Schritte in der Datenbank (läuft im Thread Pool)
+        await asyncio.to_thread(
+            _save_recipe_to_db,
+            recipe_id,
+            recipe_data,
+            image_filename,
+            source_url,
+            raw_source_text,
+            extraction_status,
+            queue_id,
         )
-
-        # 6. Zutaten speichern
-        if recipe_data.ingredients:
-            for ing in recipe_data.ingredients:
-                cursor.execute(
-                    """
-                    INSERT INTO ingredients (recipe_id, sort_order, name, amount, unit, group_name)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (recipe_id, ing.id, ing.name, ing.amount, ing.unit, ing.group_name),
-                )
-
-        # 7. Schritte speichern
-        if recipe_data.steps:
-            for step in recipe_data.steps:
-                cursor.execute(
-                    """
-                    INSERT INTO steps (recipe_id, sort_order, text, time_minutes, step_image_filename)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (recipe_id, step.id, step.text, step.time_minutes, step.step_image_filename),
-                )
-
-        # 8. Import-Queue-Status auf "done" setzen
-        cursor.execute(
-            "UPDATE import_queue SET status = %s, recipe_id = %s WHERE id = %s",
-            ("done", recipe_id, queue_id),
-        )
-        db.commit()
 
         logger.info(
             f"Job {queue_id} ✓  recipe_id={recipe_id}  status={extraction_status}"
