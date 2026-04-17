@@ -673,10 +673,11 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
             except Exception as e:
                 logger.warning(f"Warning during webhook cleanup: {e}")
             
-            # Give Telegram servers time to process the webhook deletion
-            # and release any old polling session
-            logger.info("Waiting for Telegram server state sync (1 second)...")
-            await asyncio.sleep(1)
+            # Give Telegram servers time to fully timeout any old polling sessions
+            # The old session from previous deployment takes ~20 seconds to expire
+            # We wait 10 seconds to ensure it's gone before starting fresh polling
+            logger.info("Waiting for Telegram server cleanup (10 seconds, old session timeout)...")
+            await asyncio.sleep(10)
             
             # Start fresh polling with clean slate
             # start_polling() will handle offset tracking internally
