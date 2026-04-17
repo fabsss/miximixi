@@ -643,17 +643,26 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
         async with app:
             logger.info("Application context initialized")
             
-            # Use run_polling() instead of start_polling() to get proper error handling
-            # This is a blocking call that handles initialization, polling, and cleanup
-            logger.info("Starting Telegram Bot polling (blocking mode)...")
-            await app.run_polling(
+            # Start polling in background (don't use run_polling - that creates its own event loop)
+            # We're already inside FastAPI's uvicorn event loop
+            await app.updater.start_polling(
                 allowed_updates=Update.ALL_TYPES,
                 drop_pending_updates=True
             )
+            logger.info("Telegram Bot polling started")
+            
+            # Keep the task alive without blocking the event loop
+            # asyncio.Event().wait() yields control but waits forever (event never set)
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                logger.info("Telegram Bot received cancel signal, stopping polling...")
+                await app.updater.stop()
+                raise
                 
     except asyncio.CancelledError:
-        logger.info("Telegram Bot received cancel signal, shutting down")
+        logger.info("Telegram Bot shutdown complete")
     except Exception as e:
-        logger.exception(f"Telegram Bot fatal error: {e}")
+        logger.exception(f"Telegram Bot error: {e}")
     finally:
-        logger.info("Telegram Bot lifespan cleanup complete")
+        logger.info("Telegram Bot lifespan cleanup")
