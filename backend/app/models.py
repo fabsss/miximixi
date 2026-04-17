@@ -88,3 +88,8 @@ class TranslationResponse(BaseModel):
     title: str
     ingredients: list[dict]  # [{id, name}, ...]
     steps: list[dict]        # [{id, text}, ...]
+
+
+class CategoryCountsResponse(BaseModel):
+    counts: dict[str, int]
+    total: int
