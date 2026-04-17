@@ -3,17 +3,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   deleteRecipe,
+  deleteStepImage,
   getImageUrl,
   getRecipe,
   getStepImageUrl,
   translateRecipe,
   updateRecipe,
   uploadRecipeImage,
+  uploadStepImage,
   type RecipeUpdateRequest,
   type TranslationResponse,
 } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
-import type { Ingredient } from '../types'
+import type { Ingredient, RecipeDetail, Step } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 
@@ -198,10 +200,48 @@ function StepTimer({ minutes }: { minutes: number }) {
 
 // Types
 interface IngredientDraft { name: string; amount: string; unit: string; group_name: string }
-interface StepDraft { text: string; time_minutes: string }
+interface StepDraft {
+  text: string
+  time_minutes: string
+  step_image_file?: File | null          // pending file to upload
+  step_image_deleted?: boolean            // marks existing image for deletion
+  step_image_preview?: string | null      // preview URL (blob or existing)
+}
 interface EditDraft {
   title: string; category: string; servings: string; prep_time: string; cook_time: string; tags: string
   ingredients: IngredientDraft[]; steps: StepDraft[]
+}
+
+async function uploadStepImages(
+  recipeId: string,
+  stepImageFiles: Record<number, File>,
+  stepImageDeleted: Record<number, boolean>,
+  recipe: RecipeDetail,
+): Promise<void> {
+  // Upload new step images
+  for (const [stepIdx, file] of Object.entries(stepImageFiles)) {
+    const idx = parseInt(stepIdx)
+    const step = recipe.steps[idx]
+    if (!step) continue
+    try {
+      await uploadStepImage(recipeId, step.id, file)
+    } catch (error) {
+      console.error(`Failed to upload image for step ${idx + 1}:`, error)
+    }
+  }
+
+  // Delete step images marked for deletion
+  for (const [stepIdx, isDeleted] of Object.entries(stepImageDeleted)) {
+    if (!isDeleted) continue
+    const idx = parseInt(stepIdx)
+    const step = recipe.steps[idx]
+    if (!step) continue
+    try {
+      await deleteStepImage(recipeId, step.id)
+    } catch (error) {
+      console.error(`Failed to delete image for step ${idx + 1}:`, error)
+    }
+  }
 }
 
 // Page
@@ -232,6 +272,10 @@ export function RecipeDetailPage() {
   const [showFullscreenImage, setShowFullscreenImage] = useState(false)
   const [fullscreenStepImage, setFullscreenStepImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const stepImageFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})
+  const [stepImageFiles, setStepImageFiles] = useState<Record<number, File>>({})
+  const [stepImagePreviews, setStepImagePreviews] = useState<Record<number, string>>({})
+  const [stepImageDeleted, setStepImageDeleted] = useState<Record<number, boolean>>({})
   const bubbleTimerRef = useRef<number | null>(null)
 
 
@@ -249,6 +293,7 @@ export function RecipeDetailPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: RecipeUpdateRequest }) => updateRecipe(id, data),
     onSuccess: async () => {
+      // Upload pending recipe image first
       if (pendingImageFile && recipeId) {
         try {
           await uploadRecipeImage(recipeId, pendingImageFile)
@@ -258,9 +303,34 @@ export function RecipeDetailPage() {
         setPendingImageFile(null)
         setImagePreviewUrl(null)
       }
+
+      // Upload step images (new and deleted)
+      if (recipeId && (Object.keys(stepImageFiles).length > 0 || Object.keys(stepImageDeleted).length > 0)) {
+        try {
+          // Refetch recipe first to get fresh step IDs
+          const freshRecipe = await getRecipe(recipeId)
+          await uploadStepImages(recipeId, stepImageFiles, stepImageDeleted, freshRecipe)
+        } catch (error) {
+          console.error('Step image upload failed:', error)
+        }
+
+        // Revoke blob URLs
+        Object.values(stepImagePreviews).forEach((url) => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url)
+          }
+        })
+
+        // Clear step image state
+        setStepImageFiles({})
+        setStepImagePreviews({})
+        setStepImageDeleted({})
+      }
+
       await recipeQuery.refetch()
       queryClient.invalidateQueries({ queryKey: ['recipes'] })
-      setIsEditMode(false); setEditDraft(null)
+      setIsEditMode(false)
+      setEditDraft(null)
     },
   })
 
@@ -339,11 +409,38 @@ export function RecipeDetailPage() {
         text: s.text, time_minutes: s.time_minutes != null ? String(s.time_minutes) : '',
       })),
     })
+    // Initialize step image previews with existing images
+    const previews: Record<number, string> = {}
+    recipe.steps?.forEach((step, idx) => {
+      if (step.step_image_filename) {
+        previews[idx] = getStepImageUrl(recipe.id, step.step_image_filename)
+      }
+    })
+    setStepImagePreviews(previews)
+    setStepImageFiles({})
+    setStepImageDeleted({})
     setIsEditMode(true)
   }
 
   const cancelEditMode = () => {
-    setEditDraft(null); setIsEditMode(false); setPendingImageFile(null); setImagePreviewUrl(null)
+    // Revoke all blob URLs before clearing state
+    // Recipe image blob URL
+    if (imagePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreviewUrl)
+    }
+    // Step image blob URLs
+    Object.values(stepImagePreviews).forEach((url) => {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url)
+      }
+    })
+    setEditDraft(null)
+    setIsEditMode(false)
+    setPendingImageFile(null)
+    setImagePreviewUrl(null)
+    setStepImageFiles({})
+    setStepImagePreviews({})
+    setStepImageDeleted({})
   }
 
   const saveEdit = () => {
@@ -383,6 +480,65 @@ export function RecipeDetailPage() {
   const removeStep = (idx: number) => setEditDraft((d) => d ? { ...d, steps: d.steps.filter((_, i) => i !== idx) } : d)
   const updateStep = (idx: number, field: keyof StepDraft, value: string) =>
     setEditDraft((d) => { if (!d) return d; const steps = [...d.steps]; steps[idx] = { ...steps[idx], [field]: value }; return { ...d, steps } })
+
+  const handleStepImageChange = (stepIdx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Revoke old blob URL before creating new one
+    const oldPreview = stepImagePreviews[stepIdx]
+    if (oldPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(oldPreview)
+    }
+
+    // Store file and create blob preview
+    setStepImageFiles(prev => ({ ...prev, [stepIdx]: file }))
+
+    // Create blob URL for instant preview
+    const blobUrl = URL.createObjectURL(file)
+    setStepImagePreviews(prev => ({ ...prev, [stepIdx]: blobUrl }))
+
+    // Remove from deleted set if it was marked for deletion
+    setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+  }
+
+  const handleStepImageDelete = (stepIdx: number) => {
+    // Revoke blob URL if it's a pending upload
+    const preview = stepImagePreviews[stepIdx]
+    if (preview?.startsWith('blob:')) {
+      URL.revokeObjectURL(preview)
+    }
+
+    // Mark as deleted
+    setStepImageDeleted(prev => ({ ...prev, [stepIdx]: true }))
+
+    // Clear file and preview
+    setStepImageFiles(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+    setStepImagePreviews(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+  }
+
+  const handleStepImageUndo = (stepIdx: number, step: Step) => {
+    // Revoke any pending blob URL from file selection
+    const currentPreview = stepImagePreviews[stepIdx]
+    if (currentPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(currentPreview)
+    }
+
+    // Restore from existing step image
+    if (step.step_image_filename) {
+      setStepImagePreviews(prev => ({
+        ...prev,
+        [stepIdx]: getStepImageUrl(recipe.id, step.step_image_filename!)
+      }))
+    } else {
+      // No existing image - clear preview entirely
+      setStepImagePreviews(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+    }
+
+    // Clear pending file
+    setStepImageFiles(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+    setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
+  }
 
   const getDisplayAmount = (ing: Ingredient): { amount: string; unit: string | null } => {
     const scaled = ing.amount != null ? ing.amount * servingsFactor : null
@@ -601,6 +757,80 @@ export function RecipeDetailPage() {
                       className="block w-full resize-none rounded-lg bg-[var(--mx-surface-container)] px-3 py-2 font-body text-sm text-[var(--mx-on-surface)] outline-none focus:ring-2 focus:ring-[var(--mx-primary)]/30" />
                     <input value={step.time_minutes} onChange={(e) => updateStep(idx, 'time_minutes', e.target.value)} type="number" placeholder="Zeit (min, optional)"
                       className={`${miniInputCls} w-36`} />
+                  {/* Step Picture */}
+                  <div className="mt-2">
+                    <p className={`${labelCls} mb-2`}>Schritt-Bild</p>
+                    {stepImageDeleted[idx] ? (
+                      // State 3: Marked for deletion
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-[67px] w-[120px] flex-shrink-0 rounded-lg bg-[var(--mx-surface-container)] opacity-50"
+                          style={{ aspectRatio: '16/9' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleStepImageUndo(idx, recipe.steps[idx])}
+                          className="text-xs font-semibold text-[var(--mx-primary)] hover:underline"
+                        >
+                          Rückgängig
+                        </button>
+                      </div>
+                    ) : stepImagePreviews[idx] ? (
+                      // State 2: Existing or new preview
+                      <div className="relative inline-block">
+                        <img
+                          src={stepImagePreviews[idx]}
+                          alt="Schritt Vorschau"
+                          className="h-[67px] w-[120px] rounded-lg object-cover"
+                          style={{ aspectRatio: '16/9' }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => stepImageFileInputRefs.current[idx]?.click()}
+                            aria-label="Schritt-Bild ändern"
+                            className="flex items-center gap-1 rounded-full bg-[var(--mx-primary)] px-3 py-1.5 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                            Ändern
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStepImageDelete(idx)}
+                            aria-label="Schritt-Bild löschen"
+                            className="flex items-center gap-1 rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // State 1: Empty placeholder
+                      <div className="flex flex-col items-center gap-2">
+                        <div
+                          className="h-[67px] w-[120px] rounded-lg bg-[var(--mx-surface-container)] border-2 border-dashed border-[var(--mx-outline-variant)]"
+                          style={{ aspectRatio: '16/9' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => stepImageFileInputRefs.current[idx]?.click()}
+                          className="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--mx-outline-variant)] px-3 py-1.5 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:border-[var(--mx-primary)] hover:text-[var(--mx-primary)] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">add_a_photo</span>
+                          Bild hinzufügen
+                        </button>
+                      </div>
+                    )}
+                    <input
+                      ref={(el) => {
+                        if (el) stepImageFileInputRefs.current[idx] = el
+                      }}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleStepImageChange(idx, e)}
+                      className="hidden"
+                    />
+                  </div>
                   </div>
                   <button onClick={() => removeStep(idx)} className="mt-1 flex-shrink-0 rounded-full p-1 text-red-400 hover:bg-red-500/10 transition-colors">
                     <span className="material-symbols-outlined text-[16px]">close</span>
