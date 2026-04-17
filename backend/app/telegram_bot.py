@@ -664,16 +664,32 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
         async with app:
             logger.info("Application context initialized")
             
-            # Start polling in background (don't use run_polling - that creates its own event loop)
-            # We're already inside FastAPI's uvicorn event loop
+            # CRITICAL: Clean up stale webhook/polling state BEFORE starting new polling
+            # This prevents 409 Conflict "other getUpdates request" errors
+            try:
+                logger.info("Cleaning up stale webhook...")
+                await app.bot.delete_webhook(drop_pending_updates=True)
+                logger.info("Webhook deleted successfully")
+            except Exception as e:
+                logger.warning(f"Error deleting webhook (may be already deleted): {e}")
+            
+            # Get current bot offset to prevent processing old messages
+            try:
+                logger.info("Resetting polling offset...")
+                # Call getUpdates with offset=0 to clear any pending updates
+                await app.bot.get_updates(offset=-1)
+                logger.info("Polling offset reset")
+            except Exception as e:
+                logger.warning(f"Error resetting polling offset: {e}")
+            
+            # Now start fresh polling with clean slate
             await app.updater.start_polling(
                 allowed_updates=Update.ALL_TYPES,
                 drop_pending_updates=True
             )
-            logger.info("Telegram Bot polling started")
+            logger.info("Telegram Bot polling started (clean slate)")
             
             # Keep the task alive without blocking the event loop
-            # asyncio.Event().wait() yields control but waits forever (event never set)
             try:
                 await asyncio.Event().wait()
             except asyncio.CancelledError:
