@@ -261,7 +261,7 @@ export function FeedPage(): ReactNode {
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:block lg:sticky lg:top-28 lg:w-52 lg:flex-shrink-0">
-        <nav className="rounded-[2rem] bg-[var(--mx-surface-low)] p-4 space-y-1">
+        <nav className="rounded-[2rem] bg-[var(--cat-sidebar-bg)] p-4 space-y-1">
           <CategoryNav
             categories={categoriesQuery.data ?? []}
             categoryCounts={categoryCounts}

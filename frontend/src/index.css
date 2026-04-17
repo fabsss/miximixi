@@ -142,21 +142,23 @@ a {
   color: inherit !important;
 }
 
-/* Category color variables */
+/* Category color variables – SINGLE SOURCE OF TRUTH */
 :root,
 [data-theme="light"] {
-  --cat-vorspeisen-bg: #fbbf24;
-  --cat-vorspeisen-text: #78350f;
-  --cat-hauptspeisen-bg: #fb923c;
-  --cat-hauptspeisen-text: #7c2d12;
-  --cat-desserts-bg: #86efac;
-  --cat-desserts-text: #14532d;
-  --cat-brunch-bg: #fb7185;
-  --cat-brunch-text: #831843;
-  --cat-snacks-bg: #d8b4fe;
-  --cat-snacks-text: #581c87;
-  --cat-drinks-bg: #38bdf8;
-  --cat-drinks-text: #0c4a6e;
+  --cat-vorspeisen-bg: #f3d5a5;
+  --cat-vorspeisen-text: #8b5a1a;
+  --cat-hauptspeisen-bg: #f5d4b3;
+  --cat-hauptspeisen-text: #8b4a1a;
+  --cat-desserts-bg: #e8d4f1;
+  --cat-desserts-text: #6a3a6a;
+  --cat-brunch-bg: #f5d4de;
+  --cat-brunch-text: #7a3a4a;
+  --cat-snacks-bg: #d4f1d4;
+  --cat-snacks-text: #2d6b2d;
+  --cat-drinks-bg: #d4e8f5;
+  --cat-drinks-text: #3a5a7a;
+  /* Sidebar background in light mode matches card container */
+  --cat-sidebar-bg: transparent;
 }
 
 [data-theme="dark"] {
@@ -164,23 +166,19 @@ a {
   --cat-vorspeisen-text: #fef3c7;
   --cat-hauptspeisen-bg: #7d5538;
   --cat-hauptspeisen-text: #fed7aa;
-  --cat-desserts-bg: #4d6a52;
-  --cat-desserts-text: #dcfce7;
+  --cat-desserts-bg: #58445a;
+  --cat-desserts-text: #fce7f3;
   --cat-brunch-bg: #664e5a;
   --cat-brunch-text: #ffe4e6;
-  --cat-snacks-bg: #58445a;
-  --cat-snacks-text: #fce7f3;
+  --cat-snacks-bg: #4d6a52;
+  --cat-snacks-text: #dcfce7;
   --cat-drinks-bg: #465f6a;
   --cat-drinks-text: #e0f2fe;
+  /* Sidebar background in dark mode matches card container */
+  --cat-sidebar-bg: var(--mx-surface-low);
 }
 
-/* Dark mode category colors */
-[data-theme="dark"] .bg-amber-200\/90 { background-color: var(--cat-vorspeisen-bg) !important; color: var(--cat-vorspeisen-text) !important; }
-[data-theme="dark"] .bg-orange-200\/90 { background-color: var(--cat-hauptspeisen-bg) !important; color: var(--cat-hauptspeisen-text) !important; }
-[data-theme="dark"] .bg-green-200\/90 { background-color: var(--cat-desserts-bg) !important; color: var(--cat-desserts-text) !important; }
-[data-theme="dark"] .bg-rose-200\/90 { background-color: var(--cat-brunch-bg) !important; color: var(--cat-brunch-text) !important; }
-[data-theme="dark"] .bg-purple-200\/90 { background-color: var(--cat-snacks-bg) !important; color: var(--cat-snacks-text) !important; }
-[data-theme="dark"] .bg-sky-200\/90 { background-color: var(--cat-drinks-bg) !important; color: var(--cat-drinks-text) !important; }
+/* Category colors are now directly referenced via CSS variables in all components */
 
 .mx-shell {
   width: min(1240px, 100% - 2rem);
