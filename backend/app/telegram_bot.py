@@ -69,12 +69,18 @@ def is_admin(user_id: int) -> bool:
     """
     if not settings.telegram_admin_ids:
         # No admins configured, deny all
-        logger.info(f"Admin check for user {user_id}: DENIED (no admins configured)")
+        logger.warning(f"Admin check for user {user_id}: DENIED (no admins configured) — config value: {repr(settings.telegram_admin_ids)}")
         return False
     
+    user_id_str = str(user_id)
     admin_ids_str = [str(uid) for uid in settings.telegram_admin_ids]
-    is_admin_user = str(user_id) in admin_ids_str
-    logger.info(f"Admin check for user {user_id}: {'ALLOWED' if is_admin_user else 'DENIED'} (admin list: {settings.telegram_admin_ids})")
+    is_admin_user = user_id_str in admin_ids_str
+    
+    logger.info(
+        f"Admin check for user {user_id}: {'✅ ALLOWED' if is_admin_user else '❌ DENIED'} | "
+        f"looking_for={repr(user_id_str)} | "
+        f"admin_list={admin_ids_str}"
+    )
     return is_admin_user
 
 

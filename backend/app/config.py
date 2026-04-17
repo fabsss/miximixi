@@ -67,10 +67,19 @@ class Settings(BaseSettings):
     @classmethod
     def parse_admin_ids(cls, v):
         """Parse comma-separated admin IDs from env var."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Log raw value before parsing
+        logger.info(f"[Config] Parsing TELEGRAM_ADMIN_IDS: raw={repr(v)}, type={type(v)}")
+        
         if not v or v == "":
+            logger.info(f"[Config] TELEGRAM_ADMIN_IDS is empty, returning []")
             return []
         if isinstance(v, str):
-            return [uid.strip() for uid in v.split(",") if uid.strip()]
+            parsed = [uid.strip() for uid in v.split(",") if uid.strip()]
+            logger.info(f"[Config] TELEGRAM_ADMIN_IDS parsed: {parsed}")
+            return parsed
         return v if isinstance(v, list) else []
 
     # Frontend URL for deep links in Telegram notifications
