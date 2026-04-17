@@ -63,16 +63,16 @@ services:
       - proxy
 
   # ── Ollama (CPU-only LLM) ─────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: miximixi-ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - /mnt/data/nobackup/miximixi/ollama-models:/root/.ollama
-    networks:
-      - miximixi
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: miximixi-ollama
+  #   restart: unless-stopped
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - /mnt/data/nobackup/miximixi/ollama-models:/root/.ollama
+  #   networks:
+  #     - miximixi
 
   # ── PostgreSQL Database ────────────────────────────────────
   db:
