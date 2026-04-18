@@ -18,6 +18,12 @@ os.environ["DATABASE_URL"] = "postgresql://miximixi:miximixi@localhost:5432/mixi
 os.environ["IMAGES_DIR"] = _images_dir
 os.environ["TMP_DIR"] = _tmp_dir
 
+# Disable Telegram bot in tests — prevents real polling sessions that cause
+# 409 Conflict on the production server. Settings loads ../../.env which
+# contains the real bot token, and TestClient runs the full lifespan.
+os.environ["TELEGRAM_BOT_TOKEN"] = ""
+os.environ["INSTAGRAM_SYNC_ENABLED"] = "false"
+
 # Force reload of app modules to pick up environment variables
 if "app.config" in sys.modules:
     del sys.modules["app.config"]
