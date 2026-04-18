@@ -7,7 +7,6 @@ Multi-user ready: currently single admin (env var), scales to multi-user with au
 import asyncio
 import logging
 import psycopg2
-import instaloader
 from datetime import datetime
 from typing import Optional, Dict, List, Callable
 from psycopg2.extras import RealDictCursor
@@ -85,6 +84,15 @@ async def get_available_collections() -> List[Dict]:
         def _fetch_sync() -> List[Dict]:
             L = _get_loader()  # Already has sessionid cookie set on its requests.Session
 
+            # The sessionid cookie determines the authenticated account — not INSTAGRAM_USERNAME.
+            # INSTAGRAM_USERNAME is only used as a label. Collections are owned by whoever
+            # exported instagram_cookies.txt. Log this clearly to avoid confusion.
+            logger.info(
+                f"Fetching collections for session owner (cookies.txt account). "
+                f"INSTAGRAM_USERNAME env var is set to: {repr(settings.instagram_username)} "
+                f"(this is just a label — it does NOT control which account is used)"
+            )
+
             # Instagram private mobile API — same endpoint the app uses for saved collections.
             # collection_types:
             #   "ALL_MEDIA_AUTO_COLLECTION" = the default "All" saved posts folder
@@ -124,7 +132,8 @@ async def get_available_collections() -> List[Dict]:
                 result.append({
                     "collection_id": str(item.get("collection_id", "")),
                     "collection_name": item.get("collection_name", ""),
-                    "post_count": item.get("media_count") or 0,
+                    # API returns 'collection_media_count', not 'media_count'
+                    "post_count": item.get("collection_media_count") or item.get("media_count") or 0,
                 })
             return result
 
@@ -173,60 +182,100 @@ async def get_monitored_collection(user_id: Optional[int] = None) -> Optional[Di
 
 async def fetch_collection_posts(collection_id: str) -> List[Dict]:
     """
-    Fetch posts from specified Instagram collection using instaloader.
-    
+    Fetch posts from a specific Instagram saved collection via the private mobile API.
+
+    instaloader.Collection does not exist as a public class — we use
+    /api/v1/feed/collection/{id}/posts/ directly, consistent with get_available_collections().
+
     Args:
-        collection_id: Instagram collection ID (numeric)
-    
-    Returns: [{"post_id": "ABC123", "url": "https://...", "caption": "...", "owner": "@username"}]
-    Raises: ValueError if collection not found or not accessible, or auth fails
+        collection_id: Instagram collection ID (numeric string)
+
+    Returns: [{"post_id": "ABC123", "url": "https://...", "caption": "...", "owner": "username"}]
+    Raises: ValueError if auth fails or collection is not accessible
     """
     try:
-        L = _get_loader()
-        
-        # Fetch collection
-        try:
-            collection = instaloader.Collection(L.context, int(collection_id))
-        except Exception as e:
-            error_msg = str(e).lower()
-            if "not found" in error_msg or "does not exist" in error_msg:
-                raise ValueError(f"Instagram collection {collection_id} not found or not accessible")
-            raise
-        
-        posts = []
-        post_count = 0
-        
-        # Iterate over posts in collection (up to last 100)
-        try:
-            for post in collection.get_posts():
-                post_count += 1
-                if post_count > 100:  # Limit to prevent rate limiting
-                    logger.info(f"Limited collection fetch to 100 most recent posts")
+        def _fetch_sync() -> List[Dict]:
+            L = _get_loader()
+
+            url = f"https://www.instagram.com/api/v1/feed/collection/{collection_id}/posts/"
+            headers = {
+                "User-Agent": (
+                    "Instagram 276.0.0.19.101 Android (33/13; 420dpi; 1080x2340; "
+                    "Google/google; Pixel 6; oriole; oriole; en_US; 458229258)"
+                ),
+                "X-IG-App-ID": "936619743392459",
+                "Accept": "application/json",
+            }
+
+            posts = []
+            max_id = None
+
+            while len(posts) < 100:
+                params = {}
+                if max_id:
+                    params["max_id"] = max_id
+
+                resp = L.context._session.get(url, params=params, headers=headers)
+
+                if resp.status_code in (401, 403):
+                    raise ValueError(
+                        f"Instagram authentication failed (HTTP {resp.status_code}). "
+                        "Your cookies may have expired."
+                    )
+                resp.raise_for_status()
+
+                data = resp.json()
+
+                for item in data.get("items", []):
+                    # Items may be wrapped in a "media" key or be the media object directly
+                    media = item.get("media", item)
+                    shortcode = media.get("code") or media.get("shortcode")
+                    if not shortcode:
+                        continue
+
+                    caption_data = media.get("caption") or {}
+                    caption = caption_data.get("text", "") if isinstance(caption_data, dict) else ""
+
+                    user_data = media.get("user") or {}
+                    owner = user_data.get("username", "")
+
+                    taken_at = media.get("taken_at")
+                    timestamp = None
+                    if taken_at:
+                        from datetime import datetime, timezone
+                        timestamp = datetime.fromtimestamp(taken_at, tz=timezone.utc).isoformat()
+
+                    posts.append({
+                        "post_id": shortcode,
+                        "url": f"https://www.instagram.com/p/{shortcode}/",
+                        "caption": caption,
+                        "owner": owner,
+                        "timestamp": timestamp,
+                    })
+
+                # Pagination
+                next_max_id = data.get("next_max_id")
+                if not next_max_id or not data.get("more_available", False):
                     break
-                
-                posts.append({
-                    "post_id": post.shortcode,
-                    "url": f"https://www.instagram.com/p/{post.shortcode}/",
-                    "caption": post.caption or "",
-                    "owner": post.owner_username,
-                    "timestamp": post.date_utc.isoformat() if post.date_utc else None,
-                })
-        except Exception as e:
-            logger.warning(f"Error iterating collection posts: {e}")
-        
+                max_id = next_max_id
+
+            return posts
+
+        loop = asyncio.get_event_loop()
+        posts = await loop.run_in_executor(None, _fetch_sync)
         logger.info(f"Fetched {len(posts)} posts from collection {collection_id}")
         return posts
-    
+
     except ValueError:
         raise
     except Exception as e:
-        error_msg = str(e).lower()
-        if "sessionid" in error_msg or "auth" in error_msg or "cookie" in error_msg:
+        error_msg = str(e)
+        if any(w in error_msg.lower() for w in ["sessionid", "cookie", "auth", "401", "403"]):
             raise ValueError(
                 f"Instagram authentication failed. Your cookies may have expired. "
-                f"Error: {str(e)}"
+                f"Error: {error_msg}"
             )
-        raise ValueError(f"Failed to fetch collection posts: {str(e)}")
+        raise ValueError(f"Failed to fetch collection posts: {error_msg}")
 
 
 async def has_recipe(caption: str) -> bool:
