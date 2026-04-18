@@ -591,11 +591,19 @@ async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
 
         # Replace steps if provided
         if req.steps is not None:
+            # Preserve existing step_image_filename values by sort_order
+            cursor.execute(
+                "SELECT sort_order, step_image_filename FROM steps WHERE recipe_id = %s",
+                (recipe_id,)
+            )
+            existing_images = {row['sort_order']: row['step_image_filename'] for row in cursor.fetchall()}
+
             cursor.execute("DELETE FROM steps WHERE recipe_id = %s", (recipe_id,))
             for step in req.steps:
                 cursor.execute(
-                    "INSERT INTO steps (id, recipe_id, sort_order, text, time_minutes) VALUES (%s, %s, %s, %s, %s)",
-                    (str(uuid.uuid4()), recipe_id, step.sort_order, step.text, step.time_minutes),
+                    "INSERT INTO steps (id, recipe_id, sort_order, text, time_minutes, step_image_filename) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (str(uuid.uuid4()), recipe_id, step.sort_order, step.text, step.time_minutes,
+                     existing_images.get(step.sort_order)),
                 )
 
         db.commit()
@@ -823,6 +831,86 @@ async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
         raise
     except Exception as e:
         logger.error(f"Image upload failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/recipes/{recipe_id}/steps/{step_id}/image")
+async def upload_step_image(recipe_id: str, step_id: str, file: UploadFile = File(...)):
+    """Upload or replace a step image."""
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT id FROM steps WHERE id = %s AND recipe_id = %s",
+            (step_id, recipe_id)
+        )
+        if not cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=404, detail="Schritt nicht gefunden")
+
+        recipe_dir = os.path.join(settings.images_dir, recipe_id)
+        os.makedirs(recipe_dir, exist_ok=True)
+        filename = f"step-{step_id}.jpg"
+        image_path = os.path.join(recipe_dir, filename)
+        with open(image_path, "wb") as out:
+            shutil.copyfileobj(file.file, out)
+
+        cursor.execute(
+            "UPDATE steps SET step_image_filename = %s WHERE id = %s",
+            (filename, step_id)
+        )
+        db.commit()
+        db.close()
+        return {"message": "Schritt-Bild hochgeladen", "image_url": f"/images/{recipe_id}/{filename}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        try:
+            db.rollback()
+        except:
+            pass
+        db.close()
+        logger.error(f"Step image upload failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/recipes/{recipe_id}/steps/{step_id}/image")
+async def delete_step_image(recipe_id: str, step_id: str):
+    """Delete a step image."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute(
+            "SELECT step_image_filename FROM steps WHERE id = %s AND recipe_id = %s",
+            (step_id, recipe_id)
+        )
+        row = cursor.fetchone()
+        if not row:
+            db.close()
+            raise HTTPException(status_code=404, detail="Schritt nicht gefunden")
+
+        filename = row['step_image_filename']
+        if filename:
+            image_path = os.path.join(settings.images_dir, recipe_id, filename)
+            if os.path.exists(image_path):
+                os.remove(image_path)
+
+        cursor.execute(
+            "UPDATE steps SET step_image_filename = NULL WHERE id = %s",
+            (step_id,)
+        )
+        db.commit()
+        db.close()
+        return {"message": "Schritt-Bild gelöscht"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        try:
+            db.rollback()
+        except:
+            pass
+        db.close()
+        logger.error(f"Step image delete failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
