@@ -69,33 +69,62 @@ def get_db_connection():
 
 async def get_available_collections() -> List[Dict]:
     """
-    Fetch all available Instagram collections for authenticated account.
-    Uses instaloader Profile.get_collections() to enumerate saved collections.
-    
+    Fetch all available Instagram saved collections via Instagram's private mobile API.
+    Uses the authenticated requests.Session from instaloader (sessionid cookie).
+
+    instaloader.Profile has no get_collections() method — we call /api/v1/collections/list/
+    directly with mobile app headers, which is what Instagram's own app uses.
+
     Returns: [{"collection_id": "123", "collection_name": "Favorite Recipes", "post_count": 45}]
     Raises: ValueError if Instagram auth fails (expired cookie, invalid account)
     """
     try:
-        L = _get_loader()
         logger.info("Fetching collections from Instagram")
-
-        if not settings.instagram_username:
-            raise ValueError("INSTAGRAM_USERNAME is not configured in .env")
 
         # instaloader is synchronous — run in thread pool to avoid blocking the event loop
         def _fetch_sync() -> List[Dict]:
-            profile = instaloader.Profile.from_username(L.context, settings.instagram_username)
+            L = _get_loader()  # Already has sessionid cookie set on its requests.Session
+
+            # Instagram private mobile API — same endpoint the app uses for saved collections.
+            # collection_types:
+            #   "ALL_MEDIA_AUTO_COLLECTION" = the default "All" saved posts folder
+            #   "MEDIA" = custom named saved collections (what the user creates)
+            url = "https://www.instagram.com/api/v1/collections/list/"
+            params = {
+                "collection_types": '["ALL_MEDIA_AUTO_COLLECTION","MEDIA"]',
+                "query": "",
+                "include_public_only": "0",
+            }
+            headers = {
+                # Mobile app User-Agent is required — the desktop UA returns 400/403 here
+                "User-Agent": (
+                    "Instagram 276.0.0.19.101 Android (33/13; 420dpi; 1080x2340; "
+                    "Google/google; Pixel 6; oriole; oriole; en_US; 458229258)"
+                ),
+                "X-IG-App-ID": "936619743392459",
+                "Accept": "application/json",
+            }
+
+            resp = L.context._session.get(url, params=params, headers=headers)
+
+            if resp.status_code in (401, 403):
+                raise ValueError(
+                    f"Instagram authentication failed (HTTP {resp.status_code}). "
+                    "Your cookies may have expired. "
+                    "Please export new cookies from instagram.com and restart the server."
+                )
+            resp.raise_for_status()
+
+            data = resp.json()
             result = []
-            for collection in profile.get_collections():
-                # Try to read media_count from internal node (not guaranteed by all versions)
-                try:
-                    post_count = collection._node.get("media_count", 0)
-                except Exception:
-                    post_count = 0
+            for item in data.get("items", []):
+                # Skip the auto-generated "All" collection (not user-created)
+                if item.get("collection_type") == "ALL_MEDIA_AUTO_COLLECTION":
+                    continue
                 result.append({
-                    "collection_id": collection.collection_id,
-                    "collection_name": collection.name,
-                    "post_count": post_count,
+                    "collection_id": str(item.get("collection_id", "")),
+                    "collection_name": item.get("collection_name", ""),
+                    "post_count": item.get("media_count") or 0,
                 })
             return result
 
@@ -108,7 +137,7 @@ async def get_available_collections() -> List[Dict]:
         raise
     except Exception as e:
         error_msg = str(e)
-        if "sessionid" in error_msg.lower() or "cookie" in error_msg.lower() or "login" in error_msg.lower():
+        if any(w in error_msg.lower() for w in ["sessionid", "cookie", "login", "auth", "401", "403"]):
             raise ValueError(
                 f"Instagram authentication failed: {error_msg}. "
                 f"Your cookies may have expired. "
