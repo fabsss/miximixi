@@ -660,40 +660,41 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     logger.info("Telegram Bot gestartet (polling mode)")
     
     try:
-        async with app:
-            logger.info("Application context initialized")
-            
-            # CRITICAL: Clean up stale webhook/polling state BEFORE starting new polling
-            # This prevents 409 Conflict "other getUpdates request" errors
-            try:
-                logger.info("Deleting webhook (if any)...")
-                await app.bot.delete_webhook(drop_pending_updates=True)
-                logger.info("Webhook cleanup done")
-            except Exception as e:
-                logger.warning(f"Warning during webhook cleanup: {e}")
-            
-            # Brief pause for webhook deletion to propagate on Telegram's side
-            await asyncio.sleep(2)
-            
-            # Start fresh polling with clean slate
-            # start_polling() will handle offset tracking internally
-            await app.updater.start_polling(
-                allowed_updates=Update.ALL_TYPES,
-                drop_pending_updates=True
-            )
-            logger.info("Telegram Bot polling started (clean slate)")
-            
-            # Keep the task alive without blocking the event loop
-            try:
-                await asyncio.Event().wait()
-            except asyncio.CancelledError:
-                logger.info("Telegram Bot received cancel signal, stopping polling...")
-                await app.updater.stop()
-                raise
-                
+        # PTB v21 correct lifecycle: initialize → start → poll → stop → shutdown
+        # 'async with app:' only does initialize()+shutdown() — it does NOT call start()
+        # Without app.start(), the update dispatch loop never runs and handlers never fire.
+        await app.initialize()
+        await app.start()  # Starts the update processor so handlers actually dispatch
+        
+        # start_polling internally calls deleteWebhook when drop_pending_updates=True,
+        # so no manual deleteWebhook call is needed here.
+        await app.updater.start_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
+        logger.info("Telegram Bot polling started")
+        
+        # Keep alive until the task is cancelled by lifespan shutdown
+        await asyncio.Event().wait()
+        
     except asyncio.CancelledError:
-        logger.info("Telegram Bot shutdown complete")
+        logger.info("Telegram Bot shutdown signal received")
     except Exception as e:
-        logger.exception(f"Telegram Bot error: {e}")
+        logger.exception(f"Telegram Bot fatal error: {e}")
     finally:
-        logger.info("Telegram Bot lifespan cleanup")
+        # Guaranteed cleanup regardless of how we got here.
+        # Order matters: stop polling first, then stop app processor, then tear down.
+        logger.info("Telegram Bot cleaning up...")
+        try:
+            await app.updater.stop()
+        except Exception as e:
+            logger.warning(f"Error stopping updater: {e}")
+        try:
+            await app.stop()
+        except Exception as e:
+            logger.warning(f"Error stopping application: {e}")
+        try:
+            await app.shutdown()
+        except Exception as e:
+            logger.warning(f"Error shutting down: {e}")
+        logger.info("Telegram Bot shutdown complete")
