@@ -290,14 +290,17 @@ async def notify(
         return slug.strip('-')
 
     try:
+        import html as html_module
         if success and recipe_title and recipe_id:
             slug = f"{_generate_slug(recipe_title)}-{recipe_id}"
             recipe_url = f"{settings.frontend_url}/recipes/{slug}"
 
-            # Create clickable link in Telegram (using markdown link format)
+            # Use HTML parse mode — Markdown breaks on titles with parentheses/special chars
+            safe_title = html_module.escape(recipe_title)
+            safe_url = html_module.escape(recipe_url)
             text = (
                 f"✅ Rezept erfolgreich importiert!\n\n"
-                f"📖 [{recipe_title}]({recipe_url})\n\n"
+                f'📖 <a href="{safe_url}">{safe_title}</a>\n\n'
                 f"Schau es dir jetzt in der App an und viel Spaß beim Kochen! 🍳"
             )
         else:
@@ -310,7 +313,7 @@ async def notify(
         await app.bot.send_message(
             chat_id=int(chat_id),
             text=text,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         logger.info(f"Notification sent to {chat_id}: success={success}")
     except Exception as e:
