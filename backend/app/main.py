@@ -56,8 +56,9 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Queue-Worker gestartet")
 
-    # Create Instagram sync control instance
+    # Create Instagram sync control instance and restore previously selected collection
     sync_control = SyncControl()
+    sync_control.restore_from_db()
 
     # Admin notification callback for sync worker
     async def notify_admin(message: str):

@@ -44,6 +44,45 @@ class SyncControl:
         logger.info(f"Instagram collection selected: {collection_name} ({collection_id})")
         return True
     
+    def restore_from_db(self) -> bool:
+        """
+        Restore previously selected collection (and enabled state) from the database.
+        Called once at startup so the selection survives container restarts.
+
+        Returns True if a collection was found and restored, False otherwise.
+        """
+        try:
+            db = get_db_connection()
+            try:
+                cursor = db.cursor(cursor_factory=RealDictCursor)
+                cursor.execute("""
+                    SELECT collection_id, collection_name
+                    FROM instagram_sync_collections
+                    WHERE enabled_at IS NOT NULL AND disabled_at IS NULL
+                    LIMIT 1
+                """)
+                row = cursor.fetchone()
+            finally:
+                db.close()
+
+            if row:
+                self.selected_collection_id = row["collection_id"]
+                self.selected_collection_name = row["collection_name"]
+                # Re-enable sync automatically if a collection was previously configured
+                self.enabled = True
+                logger.info(
+                    f"Restored Instagram sync state from DB: "
+                    f"collection={row['collection_name']} ({row['collection_id']}), enabled=True"
+                )
+                return True
+            else:
+                logger.info("No previously selected Instagram collection found in DB — starting fresh")
+                return False
+        except Exception as e:
+            # DB might not be ready yet on very first startup — non-fatal
+            logger.warning(f"Could not restore Instagram sync state from DB: {e}")
+            return False
+
     def get_status(self) -> dict:
         """Get current sync status"""
         return {
