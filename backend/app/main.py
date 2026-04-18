@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 
@@ -911,6 +912,69 @@ async def delete_step_image(recipe_id: str, step_id: str):
             pass
         db.close()
         logger.error(f"Step image delete failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/recipes/{recipe_id}/sync-step-images")
+async def sync_recipe_step_images(recipe_id: str):
+    """
+    Sync existing step image files from disk to database for a specific recipe.
+
+    Scans /data/recipe-images/{recipe_id}/ for step-*.jpg files and updates
+    the corresponding steps in the database with the filename.
+
+    Use this to recover step images for recipes imported before step image support
+    was fully integrated.
+    """
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Verify recipe exists
+        cursor.execute("SELECT id FROM recipes WHERE id = %s", (recipe_id,))
+        if not cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        recipe_dir = os.path.join(settings.images_dir, recipe_id)
+        if not os.path.isdir(recipe_dir):
+            db.close()
+            return {"message": "Bildverzeichnis existiert nicht", "updated": 0}
+
+        # Pattern: step-{sort_order}-frame.jpg
+        step_pattern = re.compile(r'^step-(\d+)-frame\.jpg$')
+        updated_count = 0
+
+        # Find all step image files in this recipe directory
+        for filename in sorted(os.listdir(recipe_dir)):
+            match = step_pattern.match(filename)
+            if not match:
+                continue
+
+            step_sort_order = int(match.group(1))
+
+            # Update database
+            cursor.execute(
+                "UPDATE steps SET step_image_filename = %s WHERE recipe_id = %s AND sort_order = %s",
+                (filename, recipe_id, step_sort_order)
+            )
+
+            if cursor.rowcount > 0:
+                updated_count += 1
+                logger.info(f"Synced step image: {recipe_id} step {step_sort_order} → {filename}")
+
+        db.commit()
+        db.close()
+        return {"message": "Schritt-Bilder synchronisiert", "updated": updated_count}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        try:
+            db.rollback()
+        except:
+            pass
+        db.close()
+        logger.error(f"Step image sync failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
