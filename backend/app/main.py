@@ -23,6 +23,9 @@ from app.llm_provider import LLMProvider
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+# Suppress httpx INFO logs — they log full URLs including the bot token in plain text
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 def generate_slug(title: str) -> str:
     """Generiert einen URL-sicheren Slug aus dem Rezepttitel."""
