@@ -120,14 +120,15 @@ def _save_recipe_to_db(
         for step in recipe_data.steps:
             cursor.execute(
                 """
-                INSERT INTO steps (recipe_id, sort_order, text, time_minutes)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO steps (recipe_id, sort_order, text, time_minutes, step_image_filename)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
                 (
                     recipe_id,
                     step.id,
                     step.text,
                     step.time_minutes,
+                    step.step_image_filename,
                 ),
             )
 
