@@ -70,32 +70,51 @@ def get_db_connection():
 async def get_available_collections() -> List[Dict]:
     """
     Fetch all available Instagram collections for authenticated account.
-    Uses instaloader to enumerate user's saved collections.
+    Uses instaloader Profile.get_collections() to enumerate saved collections.
     
     Returns: [{"collection_id": "123", "collection_name": "Favorite Recipes", "post_count": 45}]
     Raises: ValueError if Instagram auth fails (expired cookie, invalid account)
     """
     try:
         L = _get_loader()
-        
-        # For now, return empty list as placeholder
-        # Instagram doesn't provide a direct API to list collections
-        # TODO: Implement via web scraping if needed
         logger.info("Fetching collections from Instagram")
-        return []
-    
-    except ValueError as e:
-        # Auth error (cookie expired, etc.)
+
+        if not settings.instagram_username:
+            raise ValueError("INSTAGRAM_USERNAME is not configured in .env")
+
+        # instaloader is synchronous — run in thread pool to avoid blocking the event loop
+        def _fetch_sync() -> List[Dict]:
+            profile = instaloader.Profile.from_username(L.context, settings.instagram_username)
+            result = []
+            for collection in profile.get_collections():
+                # Try to read media_count from internal node (not guaranteed by all versions)
+                try:
+                    post_count = collection._node.get("media_count", 0)
+                except Exception:
+                    post_count = 0
+                result.append({
+                    "collection_id": collection.collection_id,
+                    "collection_name": collection.name,
+                    "post_count": post_count,
+                })
+            return result
+
+        loop = asyncio.get_event_loop()
+        collections = await loop.run_in_executor(None, _fetch_sync)
+        logger.info(f"Found {len(collections)} Instagram collections")
+        return collections
+
+    except ValueError:
+        raise
+    except Exception as e:
         error_msg = str(e)
-        if "sessionid" in error_msg or "cookie" in error_msg.lower():
+        if "sessionid" in error_msg.lower() or "cookie" in error_msg.lower() or "login" in error_msg.lower():
             raise ValueError(
                 f"Instagram authentication failed: {error_msg}. "
                 f"Your cookies may have expired. "
                 f"Please export new cookies from instagram.com and restart the server."
             )
-        raise
-    except Exception as e:
-        raise ValueError(f"Failed to connect to Instagram: {str(e)}")
+        raise ValueError(f"Failed to fetch Instagram collections: {error_msg}")
 
 
 async def get_monitored_collection(user_id: Optional[int] = None) -> Optional[Dict]:
