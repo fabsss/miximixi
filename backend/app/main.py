@@ -915,6 +915,66 @@ async def delete_step_image(recipe_id: str, step_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/recipes/{recipe_id}/debug-step-images")
+async def debug_recipe_step_images(recipe_id: str):
+    """
+    Debug endpoint: Show what step image files exist on disk and in database.
+    """
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        # Verify recipe exists
+        cursor.execute("SELECT id FROM recipes WHERE id = %s", (recipe_id,))
+        if not cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        recipe_dir = os.path.join(settings.images_dir, recipe_id)
+
+        # Get steps from database
+        cursor.execute(
+            "SELECT sort_order, step_image_filename FROM steps WHERE recipe_id = %s ORDER BY sort_order",
+            (recipe_id,)
+        )
+        db_steps = {row['sort_order']: row['step_image_filename'] for row in cursor.fetchall()}
+        db.close()
+
+        # Get files from disk
+        disk_files = []
+        if os.path.isdir(recipe_dir):
+            step_pattern = re.compile(r'^step-(\d+)-frame\.jpg$')
+            for filename in sorted(os.listdir(recipe_dir)):
+                match = step_pattern.match(filename)
+                if match:
+                    disk_files.append({
+                        "filename": filename,
+                        "sort_order": int(match.group(1))
+                    })
+
+        return {
+            "recipe_id": recipe_id,
+            "recipe_dir": recipe_dir,
+            "directory_exists": os.path.isdir(recipe_dir),
+            "disk_files": disk_files,
+            "db_steps": {str(k): v for k, v in db_steps.items()},
+            "mismatches": [
+                f"Step {s['sort_order']}: file exists on disk but not in DB"
+                for s in disk_files
+                if db_steps.get(s['sort_order']) is None
+            ]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        try:
+            db.close()
+        except:
+            pass
+        logger.error(f"Debug step images failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/recipes/{recipe_id}/sync-step-images")
 async def sync_recipe_step_images(recipe_id: str):
     """
