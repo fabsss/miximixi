@@ -777,14 +777,16 @@ export function RecipeDetailPage() {
                       </div>
                     ) : stepImagePreviews[idx] ? (
                       // State 2: Existing or new preview
-                      <div className="relative inline-block">
-                        <img
-                          src={stepImagePreviews[idx]}
-                          alt="Schritt Vorschau"
-                          className="h-[67px] w-[120px] rounded-lg object-cover"
-                          style={{ aspectRatio: '16/9' }}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <img
+                            src={stepImagePreviews[idx]}
+                            alt="Schritt Vorschau"
+                            className="h-[67px] w-[120px] rounded-lg object-cover"
+                            style={{ aspectRatio: '16/9' }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
                           <button
                             type="button"
                             onClick={() => stepImageFileInputRefs.current[idx]?.click()}
@@ -801,25 +803,20 @@ export function RecipeDetailPage() {
                             className="flex items-center gap-1 rounded-full bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600 transition-colors"
                           >
                             <span className="material-symbols-outlined text-[14px]">delete</span>
+                            Löschen
                           </button>
                         </div>
                       </div>
                     ) : (
                       // State 1: Empty placeholder
-                      <div className="flex flex-col items-center gap-2">
-                        <div
-                          className="h-[67px] w-[120px] rounded-lg bg-[var(--mx-surface-container)] border-2 border-dashed border-[var(--mx-outline-variant)]"
-                          style={{ aspectRatio: '16/9' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => stepImageFileInputRefs.current[idx]?.click()}
-                          className="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--mx-outline-variant)] px-3 py-1.5 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:border-[var(--mx-primary)] hover:text-[var(--mx-primary)] transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">add_a_photo</span>
-                          Bild hinzufügen
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => stepImageFileInputRefs.current[idx]?.click()}
+                        className="flex items-center justify-center gap-2 h-[67px] w-[120px] rounded-lg bg-[var(--mx-surface-container)] border-2 border-dashed border-[var(--mx-outline-variant)] hover:border-[var(--mx-primary)] hover:bg-[var(--mx-primary)]/5 transition-colors"
+                        style={{ aspectRatio: '16/9' }}
+                      >
+                        <span className="material-symbols-outlined text-[20px] text-[var(--mx-on-surface-variant)]">add_a_photo</span>
+                      </button>
                     )}
                     <input
                       ref={(el) => {
