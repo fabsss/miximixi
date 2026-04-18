@@ -278,6 +278,7 @@ async def process_job(job: dict, notify_callback=None) -> None:
                     chat_id=telegram_chat_id,
                     success=True,
                     recipe_title=recipe_data.title,
+                    recipe_id=recipe_id,
                 )
                 # Null the chat_id after notification (privacy-first)
                 cursor = db.cursor()
