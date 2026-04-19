@@ -657,8 +657,8 @@ export function RecipeDetailPage() {
               onClick={() => { if (!recipeId) return; updateMutation.mutate({ id: recipeId, data: { rating: recipe.rating === 1 ? 0 : 1 } }) }}
               disabled={updateMutation.isPending}
               title={recipe.rating === 1 ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
-              className={`flex items-center justify-center rounded-full p-2 transition-all active:scale-95 disabled:opacity-50 ${recipe.rating === 1 ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]'}`}>
-              <HeartIcon filled={recipe.rating === 1} className="h-4 w-4" />
+              className={`flex items-center justify-center rounded-full p-3 transition-all active:scale-95 disabled:opacity-50 ${recipe.rating === 1 ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-surface-high)] text-[var(--mx-on-surface)]'}`}>
+              <HeartIcon filled={recipe.rating === 1} className="h-6 w-6" />
             </button>
 
           </>
@@ -868,7 +868,16 @@ export function RecipeDetailPage() {
             {recipe.servings && (
               <div className="mb-6">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-[var(--mx-on-surface-variant)]">Portionen anpassen</span>
+                  {actualServings !== baseServings ? (
+                    <button
+                      onClick={() => setDisplayServings(null)}
+                      className="text-xs font-medium text-[var(--mx-primary)] hover:underline active:opacity-70 transition-opacity"
+                    >
+                      Portion zurücksetzen
+                    </button>
+                  ) : (
+                    <span className="text-xs font-medium text-[var(--mx-on-surface-variant)]">Portionen</span>
+                  )}
                   <span className="text-sm font-bold text-[var(--mx-primary)]">{actualServings} {actualServings === 1 ? 'Person' : 'Personen'}</span>
                 </div>
                 <input type="range" min={1} max={Math.max(baseServings * 4, 12)} step={1} value={actualServings}

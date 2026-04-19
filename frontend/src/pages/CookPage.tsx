@@ -71,6 +71,23 @@ export function CookPage() {
   const [highlightedRef, setHighlightedRef] = useState<string | null>(null)
   const bubbleTimerRef = useRef<number | null>(null)
 
+  // Prevent screen timeout while cooking
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return
+    let sentinel: WakeLockSentinel | null = null
+
+    const acquire = () =>
+      navigator.wakeLock.request('screen').then((s) => { sentinel = s }).catch(() => {})
+
+    acquire()
+    const onVisible = () => { if (document.visibilityState === 'visible') acquire() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      sentinel?.release()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
   const handleGoToRecipe = () => {
     if ('startViewTransition' in document) {
       document.documentElement.dataset.navdir = 'forward'
