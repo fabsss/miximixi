@@ -893,7 +893,7 @@ export function RecipeDetailPage() {
                       Portion zurücksetzen
                     </button>
                   )}
-                  <span className="text-sm font-bold text-[var(--mx-primary)]">{actualServings} {actualServings === 1 ? 'Person' : 'Personen'}</span>
+                  <span className="ml-auto text-sm font-bold text-[var(--mx-primary)]">{actualServings} {actualServings === 1 ? 'Person' : 'Personen'}</span>
                 </div>
                 <input type="range" min={1} max={Math.max(baseServings * 4, 12)} step={1} value={actualServings}
                   onChange={(e) => setDisplayServings(parseInt(e.target.value))}
