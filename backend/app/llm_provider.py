@@ -33,9 +33,9 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15"}
+    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15:08"}
   ],
-  "cover_timestamp": "MM:SS"
+  "cover_timestamp": "MM:SS:FF"
 }
 
 Wichtig:
@@ -44,10 +44,24 @@ Wichtig:
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
-- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für besonders wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Wähle den Moment, in dem dieser Schritt am deutlichsten zu sehen ist.
+- "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
+  Vergib einen Timestamp AUSSCHLIESSLICH für Schritte, die ALLE folgenden Kriterien erfüllen:
+  a) Wirklich wichtige, charakteristische Kochaktion (z.B. Teig formen, Fleisch anbraten, Garnieren – NICHT simples Rühren oder Würzen)
+  b) Die Aktion ist gut und klar im Video sichtbar (im Vordergrund, nicht im Hintergrund oder teilweise verdeckt)
+  c) Das Bild bietet echten visuellen Mehrwert – der Schritt ist ohne Bild schwer vorstellbar
+  NULL für: einfaches Würzen, kurzes Umrühren ohne Technik, Wartezeiten, Schritte die im Video kaum zu sehen sind.
+  Wähle den Frame, in dem die Aktion am schärfsten und deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
-- "cover_timestamp" = Timestamp im Format "MM:SS" des Moments, in dem das fertige Gericht am appetitlichsten zu sehen ist. Bevorzuge Momente, in denen das fertige Gericht OHNE Text/Überschriften zu sehen ist. Falls jeder Moment Text enthält, nutze den Moment mit dem wenigsten oder unauffälligsten Text. NULL wenn kein geeigneter Moment vorhanden.
+- "cover_timestamp" = Timestamp im Format "MM:SS:FF" des besten Moments für das Titelbild.
+  WICHTIG – Wähle zwingend einen STATISCHEN Moment:
+  • Kamera steht still, keine Kamerabewegung oder Schwenk
+  • Kein Motion Blur – keine schnellen Bewegungen im Bild
+  • Hände oder Utensilien bewegen sich nicht aktiv (kein Rühren, Gießen, Schneiden)
+  • Ideal: fertig angerichtetes Gericht ruhig auf Teller/Brett/Tisch präsentiert
+  • Bevorzuge Momente OHNE eingeblendeten Text oder Überschriften
+  Falls jeder Moment Text enthält: Moment mit wenigstem/unauffälligstem Text wählen.
+  Falls kein statischer Moment vorhanden: im Ausnahmefall auch einen leicht bewegten Moment wählen – ein suboptimales Bild ist besser als kein Bild. Nur NULL wenn gar kein brauchbarer Moment im Video zu finden ist.
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
 
@@ -69,7 +83,7 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15"}
+    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15:08"}
   ],
   "cover_frame_index": 2
 }
@@ -80,10 +94,18 @@ Wichtig:
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
-- "step_timestamp" = Timestamp im Format "MM:SS" AUSSCHLIESSLICH für besonders wichtige/visuelle Arbeitsschritte (z.B. Schneiden, Braten, Rühren, Backen). NULL für Schritte ohne visuellen Bezug (z.B. "Mit Salz würzen"). Nutze die Bilder um den Moment zu identifizieren, wo dieser Schritt am deutlichsten zu sehen ist.
+- "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
+  Vergib einen Timestamp AUSSCHLIESSLICH für Schritte, die ALLE folgenden Kriterien erfüllen:
+  a) Wirklich wichtige, charakteristische Kochaktion (z.B. Teig formen, Fleisch anbraten, Garnieren – NICHT simples Rühren oder Würzen)
+  b) Die Aktion ist in den übergebenen Bildern klar und deutlich sichtbar (im Vordergrund, nicht verdeckt)
+  c) Das Bild bietet echten visuellen Mehrwert – der Schritt ist ohne Bild schwer vorstellbar
+  NULL für: einfaches Würzen, kurzes Umrühren ohne Technik, Wartezeiten, Schritte die in den Bildern nicht klar erkennbar sind.
+  Nutze die übergebenen Bilder um den Moment zu identifizieren, wo die Aktion am schärfsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
-- "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt. NULL wenn kein geeignetes Bild vorhanden.
+- "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt.
+  Bevorzuge Bilder mit STATISCHEM Inhalt – scharfes Bild ohne sichtbare Bewegungsunschärfe, keine aktiven Handbewegungen, Gericht ruhig präsentiert.
+  NULL wenn kein geeignetes Bild vorhanden.
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
 
