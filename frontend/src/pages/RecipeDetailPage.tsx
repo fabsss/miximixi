@@ -885,15 +885,13 @@ export function RecipeDetailPage() {
             {recipe.servings && (
               <div className="mb-6">
                 <div className="mb-2 flex items-center justify-between">
-                  {actualServings !== baseServings ? (
+                  {actualServings !== baseServings && (
                     <button
                       onClick={() => setDisplayServings(null)}
                       className="text-xs font-medium text-[var(--mx-primary)] hover:underline active:opacity-70 transition-opacity"
                     >
                       Portion zurücksetzen
                     </button>
-                  ) : (
-                    <span className="text-xs font-medium text-[var(--mx-on-surface-variant)]">Portionen</span>
                   )}
                   <span className="text-sm font-bold text-[var(--mx-primary)]">{actualServings} {actualServings === 1 ? 'Person' : 'Personen'}</span>
                 </div>
