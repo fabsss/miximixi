@@ -45,11 +45,13 @@ Wichtig:
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
-  Vergib einen Timestamp AUSSCHLIESSLICH für Schritte, die ALLE folgenden Kriterien erfüllen:
-  a) Wirklich wichtige, charakteristische Kochaktion (z.B. Teig formen, Fleisch anbraten, Garnieren – NICHT simples Rühren oder Würzen)
-  b) Die Aktion ist gut und klar im Video sichtbar (im Vordergrund, nicht im Hintergrund oder teilweise verdeckt)
-  c) Das Bild bietet echten visuellen Mehrwert – der Schritt ist ohne Bild schwer vorstellbar
-  NULL für: einfaches Würzen, kurzes Umrühren ohne Technik, Wartezeiten, Schritte die im Video kaum zu sehen sind.
+  STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
+  Stelle dir vor jedem Schritt diese Kontrollfragen:
+  1. Ist die Aktion dieses Schritts das HAUPTMOTIV des Frames – nicht Nebenaktion oder Hintergrund?
+  2. Würde ein Leser den Frame sehen und SOFORT verstehen, was in diesem Schritt zu tun ist?
+  3. Zeigt dieser Frame etwas, das sich von allen anderen bereits vergebenen Step-Frames klar unterscheidet?
+  Nur wenn alle drei Fragen mit JA beantwortet werden: Timestamp vergeben.
+  NULL für: Würzen/Salzen, einfaches Umrühren, Zutaten hinzufügen, Wartezeiten, Schritte die im Video kaum sichtbar sind, Schritte deren Frame einem bereits vergebenen sehr ähnlich sieht.
   Wähle den Frame, in dem die Aktion am schärfsten und deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
@@ -95,11 +97,13 @@ Wichtig:
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
-  Vergib einen Timestamp AUSSCHLIESSLICH für Schritte, die ALLE folgenden Kriterien erfüllen:
-  a) Wirklich wichtige, charakteristische Kochaktion (z.B. Teig formen, Fleisch anbraten, Garnieren – NICHT simples Rühren oder Würzen)
-  b) Die Aktion ist in den übergebenen Bildern klar und deutlich sichtbar (im Vordergrund, nicht verdeckt)
-  c) Das Bild bietet echten visuellen Mehrwert – der Schritt ist ohne Bild schwer vorstellbar
-  NULL für: einfaches Würzen, kurzes Umrühren ohne Technik, Wartezeiten, Schritte die in den Bildern nicht klar erkennbar sind.
+  STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
+  Stelle dir vor jedem Schritt diese Kontrollfragen:
+  1. Ist die Aktion dieses Schritts das HAUPTMOTIV des Frames – nicht Nebenaktion oder Hintergrund?
+  2. Würde ein Leser den Frame sehen und SOFORT verstehen, was in diesem Schritt zu tun ist?
+  3. Zeigt dieser Frame etwas, das sich von allen anderen bereits vergebenen Step-Frames klar unterscheidet?
+  Nur wenn alle drei Fragen mit JA beantwortet werden: Timestamp vergeben.
+  NULL für: Würzen/Salzen, einfaches Umrühren, Zutaten hinzufügen, Wartezeiten, Schritte die in den Bildern kaum sichtbar sind, Schritte deren Frame einem bereits vergebenen sehr ähnlich sieht.
   Nutze die übergebenen Bilder um den Moment zu identifizieren, wo die Aktion am schärfsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
