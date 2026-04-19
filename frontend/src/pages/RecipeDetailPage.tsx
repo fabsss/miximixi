@@ -278,6 +278,23 @@ export function RecipeDetailPage() {
   const [stepImageDeleted, setStepImageDeleted] = useState<Record<number, boolean>>({})
   const bubbleTimerRef = useRef<number | null>(null)
 
+  // Prevent screen timeout while viewing a recipe
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return
+    let sentinel: WakeLockSentinel | null = null
+
+    const acquire = () =>
+      navigator.wakeLock.request('screen').then((s) => { sentinel = s }).catch(() => {})
+
+    acquire()
+    const onVisible = () => { if (document.visibilityState === 'visible') acquire() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      sentinel?.release()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', recipeId],
