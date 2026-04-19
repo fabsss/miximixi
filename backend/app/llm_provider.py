@@ -45,7 +45,7 @@ Wichtig:
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
-  Vergib einen Timestamp AUSSCHLIESSLICH für max. 2–3 Schritte, die ALLE folgenden Kriterien erfüllen:
+  Vergib einen Timestamp AUSSCHLIESSLICH für Schritte, die ALLE folgenden Kriterien erfüllen:
   a) Wirklich wichtige, charakteristische Kochaktion (z.B. Teig formen, Fleisch anbraten, Garnieren – NICHT simples Rühren oder Würzen)
   b) Die Aktion ist gut und klar im Video sichtbar (im Vordergrund, nicht im Hintergrund oder teilweise verdeckt)
   c) Das Bild bietet echten visuellen Mehrwert – der Schritt ist ohne Bild schwer vorstellbar
@@ -95,7 +95,7 @@ Wichtig:
 - Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
-  Vergib einen Timestamp AUSSCHLIESSLICH für max. 2–3 Schritte, die ALLE folgenden Kriterien erfüllen:
+  Vergib einen Timestamp AUSSCHLIESSLICH für Schritte, die ALLE folgenden Kriterien erfüllen:
   a) Wirklich wichtige, charakteristische Kochaktion (z.B. Teig formen, Fleisch anbraten, Garnieren – NICHT simples Rühren oder Würzen)
   b) Die Aktion ist in den übergebenen Bildern klar und deutlich sichtbar (im Vordergrund, nicht verdeckt)
   c) Das Bild bietet echten visuellen Mehrwert – der Schritt ist ohne Bild schwer vorstellbar
