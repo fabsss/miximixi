@@ -197,10 +197,10 @@ export function FeedPage(): ReactNode {
     }
   }, [filteredRecipes])
 
-  // Scroll to top when filters change (CSS scroll-behavior: smooth handles animation)
+  // Scroll to top on major filter changes, but NOT on tag toggle (user may be mid-scroll selecting tags)
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [selectedMainCategory, selectedTags, showFavoritesOnly, search])
+  }, [selectedMainCategory, showFavoritesOnly, search])
 
   const handleMainCat = (cat: string | null) => {
     setSelectedMainCategory(cat)
