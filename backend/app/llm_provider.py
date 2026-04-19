@@ -61,7 +61,7 @@ Wichtig:
   • Ideal: fertig angerichtetes Gericht ruhig auf Teller/Brett/Tisch präsentiert
   • Bevorzuge Momente OHNE eingeblendeten Text oder Überschriften
   Falls jeder Moment Text enthält: Moment mit wenigstem/unauffälligstem Text wählen.
-  Falls kein geeigneter statischer Moment vorhanden: NULL.
+  Falls kein statischer Moment vorhanden: im Ausnahmefall auch einen leicht bewegten Moment wählen – ein suboptimales Bild ist besser als kein Bild. Nur NULL wenn gar kein brauchbarer Moment im Video zu finden ist.
 - Falls kein Rezept erkennbar: {"error": "Kein Rezept gefunden"}
 """
 
