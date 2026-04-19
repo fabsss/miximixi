@@ -18,7 +18,7 @@ class Step(BaseModel):
     id: int
     text: str
     time_minutes: int | None = None
-    step_timestamp: str | None = None  # "MM:SS" - timestamp im Video für diesen Schritt
+    step_timestamp: str | None = None  # "MM:SS" oder "MM:SS:FF" - timestamp im Video für diesen Schritt
     step_image_filename: str | None = None  # Dateiname des extrahierten Frame-Bildes
 
 
@@ -36,7 +36,7 @@ class ExtractedRecipe(BaseModel):
 
 class ExtractionResult(BaseModel):
     recipe: ExtractedRecipe
-    # Gemini: Timestamp des besten Frames ("MM:SS"), None = kein gutes Bild gefunden
+    # Gemini: Timestamp des besten Frames ("MM:SS" oder "MM:SS:FF"), None = kein gutes Bild gefunden
     cover_timestamp: str | None = None
     # Andere Provider: Index (0-4) des besten Frames aus ffmpeg-Extraktion, None = kein gutes Bild
     cover_frame_index: int | None = None

@@ -320,20 +320,64 @@ def prepare_media_for_frames(media_paths: list[str], tmp_dir: str) -> list[str]:
     return image_paths
 
 
+# ── Timestamp-Parsing mit Frame-Genauigkeit ───────────────────────────
+
+def get_video_fps(video_path: str) -> float:
+    """Liest die FPS aus den Video-Metadaten via ffprobe."""
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", video_path],
+            capture_output=True, text=True, check=True,
+        )
+        data = json.loads(probe.stdout)
+        for stream in data.get("streams", []):
+            if stream.get("codec_type") == "video":
+                fps_str = stream.get("r_frame_rate", "30/1")
+                num, den = fps_str.split("/")
+                fps = float(num) / max(float(den), 1)
+                return fps if fps > 0 else 30.0
+    except Exception as e:
+        logger.warning(f"FPS-Erkennung fehlgeschlagen ({video_path}): {e}")
+    return 30.0
+
+
+def timestamp_to_seek(timestamp: str, fps: float = 30.0) -> str:
+    """
+    Konvertiert einen Timestamp in einen ffmpeg-kompatiblen Seek-String.
+
+    Unterstützte Formate:
+      "MM:SS"     → unverändert weitergegeben
+      "MM:SS:FF"  → Frame FF wird in Dezimalsekunden umgerechnet (FF/fps)
+    """
+    parts = timestamp.strip().split(":")
+    if len(parts) == 3:
+        try:
+            mm, ss, ff = int(parts[0]), int(parts[1]), int(parts[2])
+            total_seconds = mm * 60 + ss + ff / fps
+            return f"{total_seconds:.3f}"
+        except ValueError:
+            logger.warning(f"Ungültiges Timestamp-Format: {timestamp}")
+    return timestamp
+
+
 # ── Titelbild-Extraktion ──────────────────────────────────────────────
 
 def extract_cover_frame_at_timestamp(video_path: str, timestamp: str, output_dir: str) -> str | None:
     """
-    Extrahiert einen einzelnen Cover-Frame bei einem bestimmten Timestamp (MM:SS).
+    Extrahiert einen einzelnen Cover-Frame bei einem bestimmten Timestamp.
+    Unterstützt "MM:SS" und "MM:SS:FF" (Frame-genaue Angabe).
     Wird für den Gemini-Pfad verwendet: Gemini liefert den besten Timestamp.
     """
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "cover.jpg")
     try:
+        fps = get_video_fps(video_path)
+        seek = timestamp_to_seek(timestamp, fps)
+        logger.info(f"Cover-Frame bei Timestamp {timestamp!r} (seek={seek}s, fps={fps:.2f})")
         subprocess.run(
             [
                 "ffmpeg",
-                "-ss", timestamp,
+                "-ss", seek,
                 "-i", video_path,
                 "-vframes", "1",
                 "-q:v", "2",
@@ -398,15 +442,13 @@ def extract_frame_at_timestamp(video_path: str, timestamp: str, recipe_id: str, 
 
     Args:
         video_path: Pfad zur Videodatei
-        timestamp: Format "MM:SS" oder "M:SS"
+        timestamp: Format "MM:SS" oder "MM:SS:FF" (Frame-genaue Angabe)
         recipe_id: ID des Rezepts
         step_id: ID des Schritts
 
     Returns:
         Dateiname des gespeicherten Frames oder None bei Fehler
     """
-    import shutil
-
     if not is_video(video_path):
         logger.warning(f"extract_frame_at_timestamp: {video_path} ist kein Video")
         return None
@@ -415,19 +457,21 @@ def extract_frame_at_timestamp(video_path: str, timestamp: str, recipe_id: str, 
         recipe_dir = os.path.join(settings.images_dir, recipe_id)
         os.makedirs(recipe_dir, exist_ok=True)
 
-        # Frame-Dateiname: step-{step_id}-frame.jpg (z.B. step-2-frame.jpg)
         frame_filename = f"step-{step_id}-frame.jpg"
         output_path = os.path.join(recipe_dir, frame_filename)
 
-        # ffmpeg: Frame bei Timestamp extrahieren
+        fps = get_video_fps(video_path)
+        seek = timestamp_to_seek(timestamp, fps)
+        logger.info(f"Step {step_id} Frame bei Timestamp {timestamp!r} (seek={seek}s, fps={fps:.2f})")
+
         cmd = [
             "ffmpeg",
-            "-ss", timestamp,           # Seek to timestamp
+            "-ss", seek,
             "-i", video_path,
-            "-vframes", "1",             # Extract only 1 frame
-            "-q:v", "2",                 # High quality
-            "-y",                        # Overwrite without asking
-            output_path
+            "-vframes", "1",
+            "-q:v", "2",
+            "-y",
+            output_path,
         ]
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -436,7 +480,7 @@ def extract_frame_at_timestamp(video_path: str, timestamp: str, recipe_id: str, 
             logger.error(f"ffmpeg frame extraction fehlgeschlagen: {result.stderr}")
             return None
 
-        logger.info(f"Frame extrahiert: {output_path} (timestamp: {timestamp})")
+        logger.info(f"Frame extrahiert: {output_path}")
         return frame_filename
 
     except subprocess.TimeoutExpired:
