@@ -1,5 +1,7 @@
 import { flushSync } from 'react-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { GlobalTimerButton } from './GlobalTimerButton'
+import { TimerOverlay } from './TimerOverlay'
 import { Link, Outlet, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/useNavDrawer'
@@ -9,6 +11,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ scrollPositions }: AppLayoutProps) {
+  const [timerOverlayOpen, setTimerOverlayOpen] = useState(false)
   const { theme, setTheme } = useTheme()
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
@@ -92,6 +95,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
                 Kochmodus
               </Link>
             )}
+            <GlobalTimerButton onClick={() => setTimerOverlayOpen(true)} />
             <nav className="mx-glass flex items-center rounded-full p-1 text-sm font-semibold">
               {recipeSlug && (
                 <Link
@@ -120,6 +124,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
         </div>
       </header>
 
+      <TimerOverlay open={timerOverlayOpen} onClose={() => setTimerOverlayOpen(false)} />
       <main className="mx-shell mt-8">
         <Outlet />
       </main>
