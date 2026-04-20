@@ -9,6 +9,8 @@
 
 Replace the current per-component, ephemeral timer implementation with a global timer system that persists across page navigation. Timers can be started from both `RecipeDetailPage` and `CookPage`, are grouped by recipe in a header overlay, and continue running when the user navigates away.
 
+**Design language:** All new UI components must follow the "The Modern Heirloom" design system defined in [`docs/design-system.md`](../design-system.md). Key rules: use `var(--mx-*)` CSS tokens, no 1px borders, minimum `1rem` border radius, glassmorphism for floating elements (`backdrop-blur-md`, semi-transparent surfaces), `font-headline` (Noto Serif) for timer numbers, Material Symbols Outlined for icons.
+
 ---
 
 ## Data Model
