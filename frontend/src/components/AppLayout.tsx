@@ -45,10 +45,10 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
                   if ('startViewTransition' in document) {
                     document.documentElement.dataset.navdir = 'back'
                     ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
-                      flushSync(() => navigate('/'))
+                      flushSync(() => navigate(-1))
                     })
                   } else {
-                    navigate('/')
+                    navigate(-1)
                   }
                 }}
                 aria-label="Zurück"

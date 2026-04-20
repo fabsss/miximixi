@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { flushSync } from 'react-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes } from '../lib/api'
@@ -46,10 +46,11 @@ const PAGE_SIZE = 20
 
 export function FeedPage(): ReactNode {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null)
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('q') ?? ''
+  const selectedMainCategory = searchParams.get('cat') || null
+  const selectedTags = new Set(searchParams.getAll('tag'))
+  const showFavoritesOnly = searchParams.get('fav') === '1'
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
@@ -121,13 +122,16 @@ export function FeedPage(): ReactNode {
   const categoryCounts = categoryCountsQuery.data?.counts ?? {}
 
   const availableTags = useMemo(() => {
-    const tags = new Set<string>()
+    const tagMap = new Map<string, string>() // lowercase key → display label (first seen)
     for (const r of allRecipes) {
       if (!selectedMainCategory || r.category === selectedMainCategory) {
-        for (const t of r.tags ?? []) tags.add(t)
+        for (const t of r.tags ?? []) {
+          const lower = t.toLowerCase()
+          if (!tagMap.has(lower)) tagMap.set(lower, t)
+        }
       }
     }
-    return Array.from(tags).sort()
+    return Array.from(tagMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   }, [allRecipes, selectedMainCategory])
 
   const filteredRecipes = useMemo(() => {
@@ -138,7 +142,7 @@ export function FeedPage(): ReactNode {
       const categoryMatch = recipe.category?.toLowerCase().includes(value)
       const searchOk = !value || titleMatch || tagMatch || categoryMatch
       const mainCatOk = !selectedMainCategory || recipe.category === selectedMainCategory
-      const tagOk = selectedTags.size === 0 || recipe.tags?.some((t) => selectedTags.has(t))
+      const tagOk = selectedTags.size === 0 || recipe.tags?.some((t) => selectedTags.has(t.toLowerCase()))
       const favoriteOk = !showFavoritesOnly || recipe.rating === 1
       return searchOk && mainCatOk && tagOk && favoriteOk
     })
@@ -203,9 +207,14 @@ export function FeedPage(): ReactNode {
   }, [selectedMainCategory, showFavoritesOnly, search])
 
   const handleMainCat = (cat: string | null) => {
-    setSelectedMainCategory(cat)
-    setSelectedTags(new Set())
-    setShowFavoritesOnly(false)
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (cat) next.set('cat', cat)
+      else next.delete('cat')
+      next.delete('tag')
+      next.delete('fav')
+      return next
+    }, { replace: true })
     setDrawerOpen(false)
   }
 
@@ -367,7 +376,15 @@ export function FeedPage(): ReactNode {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSearchParams(prev => {
+                    const next = new URLSearchParams(prev)
+                    if (value) next.set('q', value)
+                    else next.delete('q')
+                    return next
+                  }, { replace: true })
+                }}
                 placeholder="Suche nach Titel oder Tag ..."
                 className="w-full bg-transparent py-1.5 text-sm text-[var(--mx-on-surface)] outline-none placeholder:text-[var(--mx-on-surface-variant)]"
               />
@@ -377,7 +394,12 @@ export function FeedPage(): ReactNode {
           <div className="flex flex-wrap gap-2">
             {/* Favorites filter */}
             <button
-              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+              onClick={() => setSearchParams(prev => {
+                const next = new URLSearchParams(prev)
+                if (next.get('fav') === '1') next.delete('fav')
+                else next.set('fav', '1')
+                return next
+              }, { replace: true })}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
                 showFavoritesOnly
                   ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]'
@@ -388,25 +410,27 @@ export function FeedPage(): ReactNode {
               Favoriten
             </button>
 
-            {availableTags.map((tag) => (
+            {availableTags.map(([tagKey, tagDisplay]) => (
               <button
-                key={tag}
-                onClick={() => setSelectedTags((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(tag)) {
-                    next.delete(tag)
+                key={tagKey}
+                onClick={() => setSearchParams(prev => {
+                  const next = new URLSearchParams(prev)
+                  const current = next.getAll('tag')
+                  next.delete('tag')
+                  if (current.includes(tagKey)) {
+                    current.filter(t => t !== tagKey).forEach(t => next.append('tag', t))
                   } else {
-                    next.add(tag)
+                    [...current, tagKey].forEach(t => next.append('tag', t))
                   }
                   return next
-                })}
+                }, { replace: true })}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  selectedTags.has(tag)
+                  selectedTags.has(tagKey)
                     ? 'bg-[var(--mx-secondary-container)] text-[var(--mx-secondary)]'
                     : 'bg-[var(--mx-surface-container)] text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)]'
                 }`}
               >
-                {tag}
+                {tagDisplay}
               </button>
             ))}
           </div>
