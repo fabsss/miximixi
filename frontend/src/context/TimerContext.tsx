@@ -26,9 +26,15 @@ interface TimerContextType {
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined)
 
+let _audioCtx: AudioContext | null = null
+function getAudioContext() {
+  if (!_audioCtx || _audioCtx.state === 'closed') _audioCtx = new AudioContext()
+  return _audioCtx
+}
+
 function playBell() {
   try {
-    const ctx = new AudioContext()
+    const ctx = getAudioContext()
     ;[1047, 1319, 1568].forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -47,13 +53,13 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [timers, setTimers] = useState<Map<string, TimerState>>(new Map())
   const intervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
-  const clearInterval_ = (id: string) => {
+  const clearInterval_ = useCallback((id: string) => {
     const existing = intervalsRef.current.get(id)
     if (existing != null) {
       clearInterval(existing)
       intervalsRef.current.delete(id)
     }
-  }
+  }, [])
 
   const startInterval = useCallback((id: string) => {
     clearInterval_(id)
@@ -75,7 +81,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       })
     }, 1000)
     intervalsRef.current.set(id, handle)
-  }, [])
+  }, [clearInterval_])
 
   // Background correction on mobile
   useEffect(() => {
@@ -109,10 +115,11 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   // Cleanup all intervals on unmount
   useEffect(() => {
+    const ref = intervalsRef.current
     return () => {
-      for (const handle of intervalsRef.current.values()) clearInterval(handle)
+      for (const handle of ref.values()) clearInterval(handle)
     }
-  }, [])
+  }, [clearInterval_])
 
   const startTimer = useCallback((
     recipeId: string,
@@ -126,10 +133,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       const existing = prev.get(id)
       const next = new Map(prev)
       if (existing && !existing.isDone) {
-        // Resume existing
+        // Resume existing (paused or running)
         next.set(id, { ...existing, isRunning: true, startedAt: Date.now() })
       } else {
-        // Create new
+        // Create new, or restart after done
         next.set(id, {
           id, recipeId, recipeTitle, stepIndex,
           stepLabel: stepLabel.slice(0, 30),
@@ -151,7 +158,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       next.set(id, { ...timer, isRunning: false, startedAt: null })
       return next
     })
-  }, [])
+  }, [clearInterval_])
 
   const resumeTimer = useCallback((id: string) => {
     setTimers((prev) => {
@@ -179,7 +186,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       })
       return next
     })
-  }, [])
+  }, [clearInterval_])
 
   const deleteTimer = useCallback((id: string) => {
     clearInterval_(id)
@@ -188,7 +195,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       next.delete(id)
       return next
     })
-  }, [])
+  }, [clearInterval_])
 
   const adjustTimer = useCallback((id: string, deltaSeconds: number) => {
     setTimers((prev) => {
@@ -198,7 +205,11 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       const newRemaining = timer.isRunning
         ? Math.max(1, timer.remainingSeconds + deltaSeconds)
         : timer.remainingSeconds + deltaSeconds
-      next.set(id, { ...timer, remainingSeconds: newRemaining })
+      next.set(id, {
+        ...timer,
+        remainingSeconds: newRemaining,
+        isDone: timer.isDone && newRemaining <= 0,
+      })
       return next
     })
   }, [])
