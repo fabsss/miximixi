@@ -179,11 +179,17 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
-    const prev = document.body.style.overflow
+    const prevOverflow = document.body.style.overflow
+    const prevPaddingRight = document.body.style.paddingRight
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
     document.body.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    }
     return () => {
       window.removeEventListener('keydown', handler)
-      document.body.style.overflow = prev
+      document.body.style.overflow = prevOverflow
+      document.body.style.paddingRight = prevPaddingRight
     }
   }, [open, onClose])
 
@@ -194,7 +200,10 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
       {/* Backdrop — blocks touch scroll on page below */}
       <div
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
-        style={{ opacity: visible ? 1 : 0 }}
+        style={{
+          opacity: visible ? 1 : 0,
+          pointerEvents: visible ? 'auto' : 'none',
+        }}
         onClick={onClose}
         onTouchMove={(e) => e.preventDefault()}
       />
