@@ -355,6 +355,9 @@ export function RecipeDetailPage() {
       setShowDeleteConfirm(false)
       navigate('/')
     },
+    onError: (error) => {
+      console.error('Delete recipe error:', error)
+    },
   })
 
   // Scroll to top when recipe is loaded
@@ -643,8 +646,9 @@ export function RecipeDetailPage() {
               Abbrechen
             </button>
             <button onClick={() => setShowDeleteConfirm(true)}
-              className="ml-auto flex items-center gap-1.5 rounded-full bg-[var(--mx-surface-high)] px-3.5 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 transition-all active:scale-95">
-              <span className="material-symbols-outlined text-[15px]">delete</span>Löschen
+              className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-red-500 hover:bg-red-500/10 transition-all active:scale-95"
+              title="Rezept löschen">
+              <span className="material-symbols-outlined text-[20px]">delete</span>
             </button>
           </>
         ) : (
@@ -1079,8 +1083,8 @@ export function RecipeDetailPage() {
 
       {/* DELETE CONFIRMATION */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="mx-auto w-full max-w-sm rounded-[2rem] bg-[var(--mx-surface)] p-8 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="mx-auto w-full max-w-sm rounded-[2rem] bg-[var(--mx-surface)] p-6 shadow-xl md:p-8">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
               <span className="material-symbols-outlined text-[24px] text-red-600" style={{ fontVariationSettings: "'FILL' 1" }}>delete_forever</span>
             </div>
