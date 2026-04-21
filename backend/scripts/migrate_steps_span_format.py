@@ -51,16 +51,21 @@ Regeln:
 - Schritte OHNE {{id}} Referenz bleiben unverändert
 
 Beispiele:
-  Zutat sort_order=1: "grüner Spargel"
-  Eingabe: "Den {{1}} kurz in Salzwasser kochen."
-  Ausgabe: "Den [grünen Spargel]{{1}} kurz in Salzwasser kochen."
+    Zutat sort_order=1: "grüner Spargel"
+    Eingabe: "Den {{1}} kurz in Salzwasser kochen."
+    Ausgabe: "Den [grünen Spargel]{{1}} kurz in Salzwasser kochen."
 
-  Zutat sort_order=2: "Karotten"
-  Eingabe: "Die {{2}} in kleine Würfel schneiden."
-  Ausgabe: "Die [Karotten]{{2}} in kleine Würfel schneiden."
+    Zutat sort_order=2: "Karotten"
+    Eingabe: "Die {{2}} in kleine Würfel schneiden."
+    Ausgabe: "Die [Karotten]{{2}} in kleine Würfel schneiden."
 
-  Eingabe ohne Referenz: "Mit Salz und Pfeffer abschmecken."
-  Ausgabe: "Mit Salz und Pfeffer abschmecken."
+    Zutat sort_order=4: "Zwiebel"
+    Eingabe: "Zwiebel {4} in Scheiben schneiden."
+    FALSCH: "Zwiebel [Zwiebel]{4} in Scheiben schneiden."
+    RICHTIG: "[Zwiebel]{4} in Scheiben schneiden."
+
+    Eingabe ohne Referenz: "Mit Salz und Pfeffer abschmecken."
+    Ausgabe: "Mit Salz und Pfeffer abschmecken."
 
 Gib NUR gültiges JSON zurück, keine Erklärungen, kein Markdown:
 {{"steps": [{{"id": <original_id>, "text": "<neuer Text>"}}]}}
