@@ -5,6 +5,7 @@ import { TimerOverlay } from './TimerOverlay'
 import { Link, Outlet, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/useNavDrawer'
+import { useCategories, useCategoryCounts } from '../lib/useCategories'
 
 interface AppLayoutProps {
   scrollPositions: Record<string, number>
@@ -13,10 +14,12 @@ interface AppLayoutProps {
 export function AppLayout({ scrollPositions }: AppLayoutProps) {
   const [timerOverlayOpen, setTimerOverlayOpen] = useState(false)
   const { theme, setTheme } = useTheme()
-  const { setOpen: openDrawer } = useNavDrawer()
+  const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
   const navigate = useNavigate()
   const location = useLocation()
   const scrollPositionsRef = useRef(scrollPositions)
+  const categoriesQuery = useCategories()
+  const categoryCountsQuery = useCategoryCounts()
 
   // Sync ref with prop changes
   useEffect(() => {
@@ -67,7 +70,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
               </button>
             ) : (
               <button
-                onClick={() => openDrawer(true)}
+                onClick={() => setDrawerOpen(true)}
                 aria-label="Kategorien öffnen"
                 className="lg:hidden flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
               >
@@ -131,6 +134,44 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
       </header>
 
       <TimerOverlay open={timerOverlayOpen} onClose={() => setTimerOverlayOpen(false)} />
+
+      {/* Mobile drawer */}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-72 bg-[var(--mx-surface)] shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="flex items-center justify-between border-b border-[var(--mx-outline-variant)]/20 px-5 py-5">
+          <span className="font-headline text-lg font-bold text-[var(--mx-on-surface)]">Kategorien</span>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <nav className="space-y-1 p-4">
+          {/* Categories */}
+          <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
+          <button onClick={() => setDrawerOpen(false)} className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition">
+            <span>Alle</span>
+            <span className="text-xs opacity-60">{categoryCountsQuery.data?.total ?? 0}</span>
+          </button>
+          {(categoriesQuery.data ?? []).map((cat) => (
+            <button key={cat} onClick={() => setDrawerOpen(false)} className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition">
+              <span>{cat}</span>
+            </button>
+          ))}
+          <hr className="my-2 border-[var(--mx-outline-variant)]/20" />
+          <Link
+            to="/tags"
+            onClick={() => setDrawerOpen(false)}
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
+          >
+            <span className="material-symbols-outlined text-[18px]">sell</span>
+            <span>Tags</span>
+          </Link>
+        </nav>
+      </div>
+
       <main className="mx-shell mt-8">
         <Outlet />
       </main>

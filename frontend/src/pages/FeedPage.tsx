@@ -240,40 +240,6 @@ export function FeedPage(): ReactNode {
         />
       )}
 
-      {/* ── Mobile slide-in drawer ── */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-72 bg-[var(--mx-surface)] shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--mx-outline-variant)]/20 px-5 py-5">
-          <span className="font-headline text-lg font-bold text-[var(--mx-on-surface)]">Kategorien</span>
-          <button
-            onClick={() => setDrawerOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-        <nav className="space-y-1 p-4">
-          <CategoryNav
-            categories={categoriesQuery.data ?? []}
-            categoryCounts={categoryCounts}
-            selectedMainCategory={selectedMainCategory}
-            recipesCount={categoryCountsQuery.data?.total ?? allRecipes.length}
-            onSelect={handleMainCat}
-            catBtnCls={catBtnCls}
-          />
-          <hr className="my-2 border-[var(--mx-outline-variant)]/20" />
-          <Link
-            to="/tags"
-            onClick={() => setDrawerOpen(false)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
-          >
-            <span className="material-symbols-outlined text-[18px]">sell</span>
-            <span>Tags</span>
-          </Link>
-        </nav>
-      </div>
-
       {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:block lg:sticky lg:top-28 lg:w-52 lg:flex-shrink-0">
         <nav className="rounded-[2rem] bg-[var(--cat-sidebar-bg)] p-4 space-y-1">
