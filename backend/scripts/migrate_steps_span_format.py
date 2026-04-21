@@ -46,8 +46,8 @@ Forme jeden Schritt-Text ins neue Format um: [Wortlaut]{{sort_order}}
 Regeln:
 - Der vollständige Satz muss grammatikalisch korrekt und vollständig bleiben
 - Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert)
-- Wenn die Zutat bereits ausgeschrieben im Satz steht, ERSETZE sie durch die markierte Version [Zutat]{{id}} (nicht einfach das Tag anhängen!)
-- KEINE Dopplung: Es darf niemals "Zwiebel [Zwiebel]{4}" entstehen. Immer ersetzen, nicht anhängen.
+- Es darf keine Dopplung der Zutaten geben: Wenn die Zutat bereits ausgeschrieben im Satz steht, ersetze diese durch die [Zutat]{{id}} Form
+- KEIN weiterer Text darf verloren gehen oder verändert werden außer der Tag-Formatierung
 - Schritte OHNE {{id}} Referenz bleiben unverändert
 
 Beispiele:
