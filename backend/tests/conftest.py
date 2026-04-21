@@ -15,6 +15,11 @@ os.makedirs(_tmp_dir, exist_ok=True)
 # Set test environment variables BEFORE importing app modules
 os.environ["LLM_PROVIDER"] = "ollama"
 os.environ["DATABASE_URL"] = "postgresql://miximixi:miximixi@localhost:5432/miximixi_test"
+os.environ["DB_HOST"] = "localhost"
+os.environ["DB_PORT"] = "5432"
+os.environ["DB_USER"] = "miximixi"
+os.environ["DB_PASSWORD"] = "miximixi"
+os.environ["DB_NAME"] = "miximixi_test"
 os.environ["IMAGES_DIR"] = _images_dir
 os.environ["TMP_DIR"] = _tmp_dir
 

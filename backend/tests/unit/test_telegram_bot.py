@@ -7,19 +7,19 @@ import pytest
 
 def test_detect_source_type_instagram():
     """TC1: URL-Erkennung — Instagram"""
-    from app.telegram_bot import detect_source_type
+    from app.source_identifier import get_source_type_from_url
 
     urls = [
         "https://instagram.com/p/ABC123",
         "https://www.instagram.com/p/ABC123",
     ]
     for url in urls:
-        assert detect_source_type(url) == "instagram", f"Failed for {url}"
+        assert get_source_type_from_url(url) == "instagram", f"Failed for {url}"
 
 
 def test_detect_source_type_youtube():
     """TC2: URL-Erkennung — YouTube"""
-    from app.telegram_bot import detect_source_type
+    from app.source_identifier import get_source_type_from_url
 
     urls = [
         "https://youtube.com/watch?v=ABC123",
@@ -27,12 +27,12 @@ def test_detect_source_type_youtube():
         "https://youtu.be/ABC123",
     ]
     for url in urls:
-        assert detect_source_type(url) == "youtube", f"Failed for {url}"
+        assert get_source_type_from_url(url) == "youtube", f"Failed for {url}"
 
 
 def test_detect_source_type_web():
     """TC3: URL-Erkennung — Web-Fallback"""
-    from app.telegram_bot import detect_source_type
+    from app.source_identifier import get_source_type_from_url
 
     urls = [
         "https://example.com/recipe",
@@ -40,7 +40,7 @@ def test_detect_source_type_web():
         "https://bbc.com/food/recipe",
     ]
     for url in urls:
-        assert detect_source_type(url) == "web", f"Failed for {url}"
+        assert get_source_type_from_url(url) == "web", f"Failed for {url}"
 
 
 def test_is_allowed_empty_list_allows_all():

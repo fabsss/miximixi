@@ -22,28 +22,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 from app.config import settings
+from app.source_identifier import extract_source_id, get_source_type_from_url
 
 logger = logging.getLogger(__name__)
-
-
-# ── URL Detection ────────────────────────────────────────────────────────────
-def detect_source_type(url: str) -> str:
-    """
-    Erkennt den Quell-Typ einer URL.
-    Returns: "instagram" | "youtube" | "web"
-    """
-    url_lower = url.lower()
-    
-    # Instagram
-    if "instagram.com" in url_lower or "instagr.am" in url_lower:
-        return "instagram"
-    
-    # YouTube
-    if "youtube.com" in url_lower or "youtu.be" in url_lower:
-        return "youtube"
-    
-    # Web fallback
-    return "web"
 
 
 # ── Access Control ───────────────────────────────────────────────────────────
@@ -184,19 +165,37 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         cursor = db.cursor(cursor_factory=RealDictCursor)
         
-        # Check if recipe already exists (duplicate prevention)
-        cursor.execute(
-            "SELECT id FROM recipes WHERE source_url = %s LIMIT 1",
-            (url,)
-        )
-        if cursor.fetchone():
-            await update.message.reply_text(
-                f"❌ Dieses Rezept existiert bereits in meiner Sammlung.\n"
-                f"Schau es dir doch an oder probier einen anderen Link!"
+        # Detect source type and extract identifier
+        source_type = get_source_type_from_url(url)
+        source_id = extract_source_id(url)
+
+        # Check if recipe already exists (deduplication by source_type + source_id)
+        if source_type in ('instagram', 'youtube') and source_id:
+            cursor.execute(
+                "SELECT id FROM recipes WHERE source_type = %s AND source_id = %s LIMIT 1",
+                (source_type, source_id)
             )
-            db.close()
-            return
-        
+            if cursor.fetchone():
+                await update.message.reply_text(
+                    f"❌ Dieses Rezept existiert bereits in meiner Sammlung.\n"
+                    f"Schau es dir doch an oder probier einen anderen Link!"
+                )
+                db.close()
+                return
+        # For web URLs, fall back to full URL check (source_id is None)
+        else:
+            cursor.execute(
+                "SELECT id FROM recipes WHERE source_url = %s LIMIT 1",
+                (url,)
+            )
+            if cursor.fetchone():
+                await update.message.reply_text(
+                    f"❌ Dieses Rezept existiert bereits in meiner Sammlung.\n"
+                    f"Schau es dir doch an oder probier einen anderen Link!"
+                )
+                db.close()
+                return
+
         # Check if already in queue
         cursor.execute(
             "SELECT id FROM import_queue WHERE source_url = %s AND status != %s LIMIT 1",
@@ -209,9 +208,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             db.close()
             return
-        
-        # Detect source type
-        source_type = detect_source_type(url)
         
         # Insert into import_queue
         # Try with telegram_chat_id (if column exists), fall back without it

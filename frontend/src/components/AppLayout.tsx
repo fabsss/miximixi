@@ -1,5 +1,5 @@
 import { flushSync } from 'react-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { GlobalTimerButton } from './GlobalTimerButton'
 import { TimerOverlay } from './TimerOverlay'
 import { Link, Outlet, useMatch, useNavigate, useLocation } from 'react-router-dom'
@@ -16,6 +16,12 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
   const location = useLocation()
+  const scrollPositionsRef = useRef(scrollPositions)
+
+  // Sync ref with prop changes
+  useEffect(() => {
+    scrollPositionsRef.current = scrollPositions
+  }, [scrollPositions])
 
   // Restore scroll position when navigating to a page
   useEffect(() => {
@@ -44,14 +50,14 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
               <button
                 onClick={() => {
                   // Save scroll position before navigation
-                  scrollPositions[location.pathname] = window.scrollY
+                  scrollPositionsRef.current[location.pathname] = window.scrollY
                   if ('startViewTransition' in document) {
                     document.documentElement.dataset.navdir = 'back'
                     ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
-                      flushSync(() => navigate('/'))
+                      flushSync(() => navigate(-1))
                     })
                   } else {
-                    navigate('/')
+                    navigate(-1)
                   }
                 }}
                 aria-label="Zurück"
