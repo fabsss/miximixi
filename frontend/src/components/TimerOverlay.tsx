@@ -209,9 +209,15 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
       />
 
       {/* Mobile: bottom sheet — Desktop: centered modal */}
-      <div className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:p-4">
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose()
+        }}
+      >
         <div
           className="w-full rounded-t-[2rem] bg-[var(--mx-surface)] shadow-2xl md:max-w-[480px] md:rounded-[2rem]"
+          onClick={(e) => e.stopPropagation()}
           style={(() => {
             const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768
             if (isDraggingSheet) return { transform: `translateY(${sheetDragY}px)`, transition: 'none' }

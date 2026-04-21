@@ -93,7 +93,6 @@ export async function deleteRecipe(recipeId: string): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/recipes/${recipeId}`, {
       method: 'DELETE',
-      credentials: 'include',
     })
     console.log(`[API] Delete response status: ${response.status}`)
 
