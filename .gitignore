@@ -47,6 +47,5 @@ instagram_cookies.txt
 .playwright-mcp/*
 
 # graphify - knowledge graph (generated, not source)
-graphify-out/
+graphify-out/**
 .graphify*
-.graphify_python
