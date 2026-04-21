@@ -267,15 +267,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           ...timer,
           deadlineMs: Math.max(Date.now(), newDeadline),
         })
-      } else if (!timer.isRunning && timer.pausedRemaining != null) {
-        // Timer is paused: adjust the frozen remaining seconds
-        const newRemaining = Math.max(0, timer.pausedRemaining + deltaSeconds)
-        next.set(id, {
-          ...timer,
-          pausedRemaining: newRemaining,
-        })
       } else {
-        // Timer is stopped but not paused (just reset): adjust as if paused
+        // Timer is not running (paused or stopped): adjust pausedRemaining
         const currentRemaining = getRemainingSeconds(timer)
         const newRemaining = Math.max(0, currentRemaining + deltaSeconds)
         next.set(id, {
