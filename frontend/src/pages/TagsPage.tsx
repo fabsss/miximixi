@@ -55,6 +55,31 @@ export function TagsPage(): ReactNode {
     }
   }
 
+  const handleDeleteTag = async (tag: string) => {
+    if (!confirm(`Tag "${tag}" wirklich löschen?`)) return
+
+    setIsLoading(true)
+    setMessage(null)
+
+    try {
+      const result = await mergeTags([tag], '')
+      setMessage({
+        type: 'success',
+        text: `Tag gelöscht aus ${result.updated_recipes} Rezept${result.updated_recipes !== 1 ? 'en' : ''}`,
+      })
+      setSelectedTags(new Set())
+      setTargetTag('')
+      queryClient.invalidateQueries({ queryKey: ['tagsWithCounts'] })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: `Fehler beim Löschen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`,
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="mx-shell py-8 pb-32">
       <h1 className="mb-8 text-2xl font-bold">Tags verwalten</h1>
@@ -69,26 +94,37 @@ export function TagsPage(): ReactNode {
 
       {!tagsQuery.isLoading && !tagsQuery.error && (
         <>
-          <div className="grid gap-2">
+          <div className="flex flex-wrap gap-2 mb-8">
             {tags.map(({ tag, count }) => (
-              <button
+              <div
                 key={tag}
-                onClick={() => handleToggleTag(tag)}
-                className={`flex items-center gap-3 rounded-[2rem] px-4 py-3 text-left transition ${
+                className={`group relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition cursor-pointer ${
                   selectedTags.has(tag)
                     ? 'bg-[var(--mx-secondary-container)] text-[var(--mx-secondary)]'
                     : 'bg-[var(--mx-surface-container)] text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)]'
                 }`}
+                onClick={() => handleToggleTag(tag)}
               >
-                <span className="flex-1 font-semibold">{tag}</span>
-                <span className="text-xs opacity-60">{count} Rezept{count !== 1 ? 'e' : ''}</span>
-              </button>
+                <span>{tag}</span>
+                <span className="text-xs opacity-70">{count}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteTag(tag)
+                  }}
+                  disabled={isLoading}
+                  className="ml-1 rounded-full p-0.5 opacity-0 transition group-hover:opacity-100 hover:bg-[var(--mx-surface-low)] disabled:opacity-50"
+                  title="Tag löschen"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
             ))}
           </div>
 
           {message && (
             <div
-              className={`mt-4 rounded-[2rem] p-4 text-center text-sm ${
+              className={`mb-8 rounded-[2rem] p-4 text-center text-sm ${
                 message.type === 'success'
                   ? 'bg-green-100/70 text-green-800'
                   : 'bg-red-100/70 text-red-800'
