@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import shutil
-from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
+from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -494,7 +494,7 @@ async def list_recipes(
     offset: int = 0,
     q: str = "",
     category: str = "",
-    tags: list[str] = None,
+    tags: list[str] = Query(default=None),
     favorites: bool = False,
 ):
     """Rezepte mit Filtern: Textsuche (q), Kategorie, Tags (case-insensitiv), Favoriten."""
@@ -522,12 +522,11 @@ async def list_recipes(
             where_clauses.append("category = %s")
             params.append(category)
 
-        # Tag filter (case-insensitive ALL match)
+        # Tag filter (case-insensitive OR match)
         if tags:
             tags_lower = [t.lower() for t in tags]
-            where_clauses.append("(SELECT count(*) FROM unnest(tags) t WHERE lower(t) = ANY(%s)) = %s")
+            where_clauses.append("EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))")
             params.append(tags_lower)
-            params.append(len(tags_lower))
 
         # Favorites filter
         if favorites:
