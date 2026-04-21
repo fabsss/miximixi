@@ -66,7 +66,7 @@ function TimerCard({ timer }: TimerCardProps) {
           type="button"
           onClick={() => deleteTimer(timer.id)}
           aria-label="Timer löschen"
-          className="absolute right-2 top-2 hidden h-5 w-5 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] opacity-0 transition-opacity group-hover:flex group-hover:opacity-100"
+          className="absolute right-2 top-2 hidden h-5 w-5 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] opacity-0 transition-opacity md:group-hover:flex md:group-hover:opacity-100"
         >
           <span className="material-symbols-outlined text-[13px]">close</span>
         </button>
@@ -122,6 +122,32 @@ interface TimerOverlayProps {
 
 export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
   const { timers } = useTimers()
+  const sheetTouchStartY = useRef(0)
+  const sheetTouchCurrentY = useRef(0)
+  const [sheetDragY, setSheetDragY] = useState(0)
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false)
+
+  const handleSheetTouchStart = (e: React.TouchEvent) => {
+    sheetTouchStartY.current = e.touches[0].clientY
+    sheetTouchCurrentY.current = e.touches[0].clientY
+    setIsDraggingSheet(true)
+  }
+
+  const handleSheetTouchMove = (e: React.TouchEvent) => {
+    const delta = e.touches[0].clientY - sheetTouchStartY.current
+    sheetTouchCurrentY.current = e.touches[0].clientY
+    if (delta > 0) setSheetDragY(delta)
+  }
+
+  const handleSheetTouchEnd = () => {
+    setIsDraggingSheet(false)
+    if (sheetDragY > 80) {
+      setSheetDragY(0)
+      onClose()
+    } else {
+      setSheetDragY(0)
+    }
+  }
 
   // Group timers by recipeId, preserving insertion order
   const groups = useMemo(() => {
@@ -153,7 +179,16 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
 
       {/* Mobile: bottom sheet — Desktop: centered modal */}
       <div className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:p-4">
-        <div className="w-full rounded-t-[2rem] bg-[var(--mx-surface)] shadow-2xl md:max-w-[480px] md:rounded-[2rem]">
+        <div
+          className="w-full rounded-t-[2rem] bg-[var(--mx-surface)] shadow-2xl md:max-w-[480px] md:rounded-[2rem]"
+          style={{
+            transform: sheetDragY > 0 ? `translateY(${sheetDragY}px)` : undefined,
+            transition: isDraggingSheet ? 'none' : 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+          }}
+          onTouchStart={handleSheetTouchStart}
+          onTouchMove={handleSheetTouchMove}
+          onTouchEnd={handleSheetTouchEnd}
+        >
           {/* Drag handle (mobile only) */}
           <div className="flex justify-center pt-3 md:hidden">
             <div className="h-1 w-10 rounded-full bg-[var(--mx-outline-variant)]" />

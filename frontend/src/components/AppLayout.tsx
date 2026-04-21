@@ -27,7 +27,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
     })
   }, [location.pathname, scrollPositions])
 
-  const themeIcon = theme === 'system' ? '🖥️' : theme === 'dark' ? '🌙' : '☀️'
+  const themeIcon = theme === 'system' ? 'brightness_auto' : theme === 'dark' ? 'dark_mode' : 'light_mode'
   const nextTheme: 'light' | 'dark' | 'system' =
     theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
 
@@ -80,6 +80,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
 
           {/* Right: cook mode (detail pages) + theme pill */}
           <div className="flex items-center gap-3">
+            <GlobalTimerButton onClick={() => setTimerOverlayOpen(true)} />
             {recipeSlug && (
               <Link
                 to={`/cook/${recipeSlug}`}
@@ -95,7 +96,6 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
                 Kochmodus
               </Link>
             )}
-            <GlobalTimerButton onClick={() => setTimerOverlayOpen(true)} />
             <nav className="mx-glass flex items-center rounded-full p-1 text-sm font-semibold">
               {recipeSlug && (
                 <Link
@@ -117,7 +117,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
                 title={`Theme: ${theme} → ${nextTheme}`}
                 className="rounded-full px-3 py-2 text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
               >
-                {themeIcon}
+                <span className="material-symbols-outlined text-[20px]">{themeIcon}</span>
               </button>
             </nav>
           </div>
