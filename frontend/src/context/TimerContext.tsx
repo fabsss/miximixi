@@ -239,16 +239,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const resetTimer = useCallback((id: string) => {
     clearInterval_(id)
     setTimers((prev) => {
-      const timer = prev.get(id)
-      if (!timer) return prev
       const next = new Map(prev)
-      next.set(id, {
-        ...timer,
-        deadlineMs: Date.now() + timer.totalSeconds * 1000,
-        isRunning: false,
-        isDone: false,
-        pausedRemaining: null,
-      })
+      next.delete(id)
       return next
     })
   }, [clearInterval_])
@@ -265,15 +257,32 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const adjustTimer = useCallback((id: string, deltaSeconds: number) => {
     setTimers((prev) => {
       const timer = prev.get(id)
-      if (!timer || timer.deadlineMs == null) return prev
+      if (!timer) return prev
       const next = new Map(prev)
-      const currentRemaining = getRemainingSeconds(timer)
-      const newRemaining = Math.max(0, currentRemaining + deltaSeconds)
-      const newDeadline = Date.now() + newRemaining * 1000
-      next.set(id, {
-        ...timer,
-        deadlineMs: newDeadline,
-      })
+
+      if (timer.isRunning && timer.deadlineMs != null) {
+        // Timer is running: adjust the deadline by delta seconds
+        const newDeadline = timer.deadlineMs + deltaSeconds * 1000
+        next.set(id, {
+          ...timer,
+          deadlineMs: Math.max(Date.now(), newDeadline),
+        })
+      } else if (!timer.isRunning && timer.pausedRemaining != null) {
+        // Timer is paused: adjust the frozen remaining seconds
+        const newRemaining = Math.max(0, timer.pausedRemaining + deltaSeconds)
+        next.set(id, {
+          ...timer,
+          pausedRemaining: newRemaining,
+        })
+      } else {
+        // Timer is stopped but not paused (just reset): adjust as if paused
+        const currentRemaining = getRemainingSeconds(timer)
+        const newRemaining = Math.max(0, currentRemaining + deltaSeconds)
+        next.set(id, {
+          ...timer,
+          pausedRemaining: newRemaining,
+        })
+      }
       return next
     })
   }, [getRemainingSeconds])
