@@ -21,7 +21,7 @@ export function GlobalTimerButton({ onClick }: GlobalTimerButtonProps) {
   useEffect(() => {
     if (count > 0) {
       setMounted(true)
-      requestAnimationFrame(() => setVisible(true))
+      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
     } else {
       setVisible(false)
       const t = setTimeout(() => setMounted(false), 250)

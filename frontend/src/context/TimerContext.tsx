@@ -49,8 +49,28 @@ function playBell() {
   } catch { /* ignore */ }
 }
 
+const SESSION_KEY = 'mx_timers'
+
+function loadFromSession(): Map<string, TimerState> {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return new Map()
+    const entries: [string, TimerState][] = JSON.parse(raw)
+    // Mark all previously-running timers as paused on restore — intervals don't survive a reload
+    return new Map(entries.map(([k, t]) => [k, { ...t, isRunning: false, startedAt: null }]))
+  } catch {
+    return new Map()
+  }
+}
+
+function saveToSession(timers: Map<string, TimerState>) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify([...timers.entries()]))
+  } catch { /* ignore quota errors */ }
+}
+
 export function TimerProvider({ children }: { children: React.ReactNode }) {
-  const [timers, setTimers] = useState<Map<string, TimerState>>(new Map())
+  const [timers, setTimers] = useState<Map<string, TimerState>>(loadFromSession)
   const intervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
   const clearInterval_ = useCallback((id: string) => {
@@ -120,6 +140,11 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       for (const handle of ref.values()) clearInterval(handle)
     }
   }, [clearInterval_])
+
+  // Persist to sessionStorage on every change
+  useEffect(() => {
+    saveToSession(timers)
+  }, [timers])
 
   const startTimer = useCallback((
     recipeId: string,

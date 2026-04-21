@@ -66,7 +66,7 @@ function TimerCard({ timer }: TimerCardProps) {
           type="button"
           onClick={() => deleteTimer(timer.id)}
           aria-label="Timer löschen"
-          className="absolute right-2 top-2 hidden h-5 w-5 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] opacity-0 transition-opacity md:group-hover:flex md:group-hover:opacity-100"
+          className="absolute right-2 top-2 max-md:hidden flex h-5 w-5 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] opacity-0 transition-opacity group-hover:opacity-100"
         >
           <span className="material-symbols-outlined text-[13px]">close</span>
         </button>
@@ -132,10 +132,11 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
   useEffect(() => {
     if (open) {
       setMounted(true)
-      requestAnimationFrame(() => setVisible(true))
+      // Double rAF: first frame mounts with hidden state, second triggers transition
+      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
     } else {
       setVisible(false)
-      const t = setTimeout(() => setMounted(false), 300)
+      const t = setTimeout(() => setMounted(false), 350)
       return () => clearTimeout(t)
     }
   }, [open])
@@ -201,14 +202,19 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
       <div className="fixed inset-x-0 bottom-0 z-50 md:inset-0 md:flex md:items-center md:justify-center md:p-4">
         <div
           className="w-full rounded-t-[2rem] bg-[var(--mx-surface)] shadow-2xl md:max-w-[480px] md:rounded-[2rem]"
-          style={{
-            transform: isDraggingSheet
-              ? `translateY(${sheetDragY}px)`
-              : visible
-                ? 'translateY(0)'
-                : 'translateY(100%)',
-            transition: isDraggingSheet ? 'none' : 'transform 0.35s cubic-bezier(0.34,1.2,0.64,1)',
-          }}
+          style={(() => {
+            const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768
+            if (isDraggingSheet) return { transform: `translateY(${sheetDragY}px)`, transition: 'none' }
+            if (isDesktop) return {
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'scale(1)' : 'scale(0.95)',
+              transition: 'opacity 0.25s ease, transform 0.25s ease',
+            }
+            return {
+              transform: visible ? 'translateY(0)' : 'translateY(100%)',
+              transition: 'transform 0.35s cubic-bezier(0.34,1.2,0.64,1)',
+            }
+          })()}
           onTouchStart={handleSheetTouchStart}
           onTouchMove={handleSheetTouchMove}
           onTouchEnd={handleSheetTouchEnd}
