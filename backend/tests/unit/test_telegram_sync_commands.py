@@ -51,20 +51,20 @@ def mock_context_with_sync():
 
 class TestIsAdminFunction:
     """TC9: Admin access control for sync commands"""
-    
+
     def test_is_admin_with_matching_id(self):
         """TC9A: is_admin() returns True for users in TELEGRAM_ADMIN_IDS"""
-        with patch("app.telegram_bot.settings.telegram_admin_ids", ["123456789"]):
+        with patch("app.telegram_bot.settings.telegram_admin_ids_str", "123456789"):
             assert is_admin(123456789) is True
-    
+
     def test_is_admin_with_non_matching_id(self):
         """TC9B: is_admin() returns False for users not in admin list"""
-        with patch("app.telegram_bot.settings.telegram_admin_ids", ["123456789"]):
+        with patch("app.telegram_bot.settings.telegram_admin_ids_str", "123456789"):
             assert is_admin(999999999) is False
-    
+
     def test_is_admin_with_empty_list(self):
         """TC9C: is_admin() returns False when no admins configured"""
-        with patch("app.telegram_bot.settings.telegram_admin_ids", []):
+        with patch("app.telegram_bot.settings.telegram_admin_ids_str", ""):
             assert is_admin(123456789) is False
 
 
