@@ -35,12 +35,21 @@ def backfill():
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # Get recipes without source_type set
-        cursor.execute("SELECT id, source_url FROM recipes WHERE source_type IS NULL")
+        # Get recipes that need source_type/source_id corrections
+        # This includes recipes where source_type was set to 'web' but URL indicates Instagram/YouTube
+        cursor.execute("""
+            SELECT id, source_url, source_type
+            FROM recipes
+            WHERE source_type IS NULL
+               OR (source_url LIKE '%instagram.com%' AND source_type != 'instagram')
+               OR (source_url LIKE '%instagr.am%' AND source_type != 'instagram')
+               OR (source_url LIKE '%youtube.com%' AND source_type != 'youtube')
+               OR (source_url LIKE '%youtu.be%' AND source_type != 'youtube')
+        """)
         recipes = cursor.fetchall()
 
         if not recipes:
-            print("✓ No recipes need backfilling (all have source_type set)")
+            print("✓ No recipes need backfilling (all have correct source_type set)")
             return
 
         print(f"Backfilling {len(recipes)} recipes...")
