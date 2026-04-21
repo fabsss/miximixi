@@ -50,16 +50,23 @@ function playBell() {
 }
 
 const SESSION_KEY = 'mx_timers'
+const SESSION_TIMESTAMP_KEY = 'mx_timers_saved_at'
 
 function loadFromSession(): Map<string, TimerState> {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
     if (!raw) return new Map()
+    const savedAt = parseInt(sessionStorage.getItem(SESSION_TIMESTAMP_KEY) || '0', 10)
+    const now = Date.now()
+    const elapsedMs = savedAt ? now - savedAt : 0
+    const elapsedSeconds = Math.floor(elapsedMs / 1000)
+
     const entries: [string, TimerState][] = JSON.parse(raw)
-    // Restore running timers with updated startedAt to account for time elapsed during reload
+    // Restore running timers, subtracting elapsed time during reload
     return new Map(entries.map(([k, t]) => [k, {
       ...t,
-      startedAt: t.isRunning ? Date.now() : null,
+      remainingSeconds: t.isRunning ? Math.max(0, t.remainingSeconds - elapsedSeconds) : t.remainingSeconds,
+      startedAt: t.isRunning ? now : null,
     }]))
   } catch {
     return new Map()
@@ -69,6 +76,7 @@ function loadFromSession(): Map<string, TimerState> {
 function saveToSession(timers: Map<string, TimerState>) {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify([...timers.entries()]))
+    sessionStorage.setItem(SESSION_TIMESTAMP_KEY, String(Date.now()))
   } catch { /* ignore quota errors */ }
 }
 
