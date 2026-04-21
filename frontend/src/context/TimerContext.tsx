@@ -97,16 +97,18 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     const handle = setInterval(() => {
       setTimers((prev) => {
         const timer = prev.get(id)
-        if (!timer || !timer.isRunning) return prev
-        const next = new Map(prev)
-        const newRemaining = timer.remainingSeconds - 1
+        if (!timer || !timer.isRunning || timer.startedAt == null) return prev
+        const now = Date.now()
+        const elapsed = Math.floor((now - timer.startedAt) / 1000)
+        const newRemaining = Math.max(0, timer.remainingSeconds - elapsed)
         const justDone = timer.remainingSeconds > 0 && newRemaining <= 0 && !timer.isDone
         if (justDone) playBell()
+        const next = new Map(prev)
         next.set(id, {
           ...timer,
           remainingSeconds: newRemaining,
           isDone: justDone ? true : timer.isDone,
-          startedAt: timer.startedAt,
+          startedAt: now,
         })
         return next
       })
