@@ -455,7 +455,7 @@ async def list_recipes(limit: int = 20, offset: int = 0):
     try:
         cursor.execute(
             """
-            SELECT id, title, category, image_filename, source_url, source_label, rating, tags, created_at
+            SELECT id, title, category, image_filename, source_url, source_label, source_type, source_id, rating, tags, created_at
             FROM recipes ORDER BY created_at DESC LIMIT %s OFFSET %s
             """,
             (limit, offset),
