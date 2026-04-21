@@ -256,10 +256,13 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   const adjustTimer = useCallback((id: string, deltaSeconds: number) => {
     setTimers((prev) => {
-      const timer = prev.get(id)
-      if (!timer) return prev
-      const next = new Map(prev)
+      let timer = prev.get(id)
+      if (!timer) {
+        // Timer doesn't exist yet - can't adjust
+        return prev
+      }
 
+      const next = new Map(prev)
       if (timer.isRunning && timer.deadlineMs != null) {
         // Timer is running: adjust the deadline by delta seconds
         const newDeadline = timer.deadlineMs + deltaSeconds * 1000

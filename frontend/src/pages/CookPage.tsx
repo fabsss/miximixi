@@ -224,7 +224,12 @@ export function CookPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (recipeId) adjustTimer(`${recipeId}:${currentStep}`, -60)
+                  if (!recipeId || !recipeQuery.data) return
+                  if (!currentTimer) {
+                    startTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
+                    pauseTimer(`${recipeId}:${currentStep}`)
+                  }
+                  adjustTimer(`${recipeId}:${currentStep}`, -60)
                 }}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-lg font-bold text-[var(--mx-on-surface)]"
               >−</button>
@@ -232,7 +237,12 @@ export function CookPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (recipeId) adjustTimer(`${recipeId}:${currentStep}`, 60)
+                  if (!recipeId || !recipeQuery.data) return
+                  if (!currentTimer) {
+                    startTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
+                    pauseTimer(`${recipeId}:${currentStep}`)
+                  }
+                  adjustTimer(`${recipeId}:${currentStep}`, 60)
                 }}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-lg font-bold text-[var(--mx-on-surface)]"
               >+</button>
