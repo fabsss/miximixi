@@ -36,6 +36,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Copy application code
 COPY app/ ./app/
+# Copy scripts (for migrations etc)
+COPY scripts/ ./scripts/
 
 # Cleanup build dependencies (keeping runtime deps)
 RUN apt-get purge -y --auto-remove \
