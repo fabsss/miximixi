@@ -350,9 +350,9 @@ export function FeedPage(): ReactNode {
             </div>
 
             {/* Dot indicators */}
-            {allRecipes.length > 1 && (
+            {heroRecipes.length > 1 && (
               <div className="mt-3 flex justify-center gap-1.5">
-                {Array.from({ length: Math.min(allRecipes.length, 6) }, (_, i) => (
+                {Array.from({ length: Math.min(heroRecipes.length, 6) }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => { setHeroIndex(i); setHeroImgOk(true) }}
