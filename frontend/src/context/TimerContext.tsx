@@ -10,7 +10,8 @@ export interface TimerState {
   totalSeconds: number
   isRunning: boolean
   isDone: boolean
-  deadlineMs: number | null  // when timer should finish (Date.now() value), not remaining seconds
+  deadlineMs: number | null  // when timer should finish (Date.now() value), only set when running
+  pausedRemaining: number | null  // frozen remaining seconds when paused, null when running
 }
 
 interface TimerContextType {
@@ -84,6 +85,15 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [, setForceRender] = useState(0)  // trigger re-renders for display updates
 
   const getRemainingSeconds = useCallback((timer: TimerState): number => {
+    // When paused, return the frozen remaining seconds
+    if (!timer.isRunning && timer.pausedRemaining != null) {
+      return timer.pausedRemaining
+    }
+    // When stopped/reset (not running and no paused value), return total
+    if (!timer.isRunning && timer.pausedRemaining == null) {
+      return timer.totalSeconds
+    }
+    // When running, calculate from deadline
     if (timer.deadlineMs == null) return timer.totalSeconds
     const remaining = Math.floor((timer.deadlineMs - Date.now()) / 1000)
     return Math.max(0, remaining)
@@ -184,6 +194,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           isRunning: true,
           isDone: false,
           deadlineMs: deadline,
+          pausedRemaining: null,
         })
       }
       return next
@@ -195,13 +206,14 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     clearInterval_(id)
     setTimers((prev) => {
       const timer = prev.get(id)
-      if (!timer || timer.deadlineMs == null) return prev
+      if (!timer) return prev
       const next = new Map(prev)
       const remaining = getRemainingSeconds(timer)
       next.set(id, {
         ...timer,
         isRunning: false,
-        deadlineMs: Date.now() + remaining * 1000,  // Freeze deadline at current remaining time
+        pausedRemaining: remaining,  // Freeze the remaining seconds
+        deadlineMs: null,  // Clear deadline when paused
       })
       return next
     })
@@ -217,6 +229,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         ...timer,
         isRunning: true,
         deadlineMs: Date.now() + remaining * 1000,
+        pausedRemaining: null,  // Clear paused state
       })
       return next
     })
@@ -234,6 +247,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         deadlineMs: Date.now() + timer.totalSeconds * 1000,
         isRunning: false,
         isDone: false,
+        pausedRemaining: null,
       })
       return next
     })
