@@ -35,6 +35,7 @@ from app.media_processor import (
     prepare_media_for_gemini,
     save_cover_to_storage,
 )
+from app.source_identifier import extract_source_id, get_source_type_from_url
 
 logger = logging.getLogger(__name__)
 llm = LLMProvider()
@@ -64,7 +65,7 @@ def _save_recipe_to_db(
     """
     Speichert Rezept + Zutaten + Schritte in der Datenbank.
     Läuft im Thread Pool via asyncio.to_thread() — blockierend!
-    
+
     Args:
         db: Optional database connection. If None, creates a new one.
     """
@@ -72,15 +73,19 @@ def _save_recipe_to_db(
     if db is None:
         db = get_db_connection()
         should_close = True
-    
+
     cursor = db.cursor()
+
+    # Extract source type and ID for deduplication tracking
+    source_type = get_source_type_from_url(source_url)
+    source_id = extract_source_id(source_url) if source_type != 'web' else None
 
     try:
         # 1. Insert Recipe
         cursor.execute(
             """
-            INSERT INTO recipes (id, title, lang, category, servings, prep_time, cook_time, tags, image_filename, source_url, source_label, raw_source_text, llm_provider_used, extraction_status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO recipes (id, title, lang, category, servings, prep_time, cook_time, tags, image_filename, source_url, source_label, raw_source_text, llm_provider_used, extraction_status, source_type, source_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 recipe_id,
@@ -97,6 +102,8 @@ def _save_recipe_to_db(
                 raw_source_text,
                 settings.llm_provider,
                 extraction_status,
+                source_type,
+                source_id,
             ),
         )
 
