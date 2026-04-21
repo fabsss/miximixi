@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useTimers } from '../context/TimerContext'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -102,121 +103,78 @@ function parseIngredientReference(
   return parts.length > 0 ? parts : [{ type: 'text', content: text, label: '' }]
 }
 
-function playBell() {
-  try {
-    const ctx = new AudioContext()
-    ;[1047, 1319, 1568].forEach((freq, i) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain); gain.connect(ctx.destination)
-      osc.type = 'sine'; osc.frequency.value = freq
-      const t = ctx.currentTime + i * 0.28
-      gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.35, t + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.1)
-      osc.start(t); osc.stop(t + 1.1)
-    })
-  } catch {
-    // Ignore audio context errors
-  }
+function formatTime(seconds: number): string {
+  const abs = Math.abs(seconds)
+  const mm = String(Math.floor(abs / 60)).padStart(2, '0')
+  const ss = String(Math.floor(abs) % 60).padStart(2, '0')
+  return seconds < 0 ? `−${mm}:${ss}` : `${mm}:${ss}`
 }
 
-function StepTimer({ minutes, stepId, recipeId }: { minutes: number; stepId: string; recipeId: string }) {
-  const total = minutes * 60
-  const storageKey = `timer-${recipeId}-${stepId}`
+interface StepTimerProps {
+  recipeId: string
+  recipeTitle: string
+  stepIndex: number
+  stepLabel: string
+  minutes: number
+}
 
-  const [remaining, setRemaining] = useState(() => {
-    const stored = sessionStorage.getItem(storageKey)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      const elapsed = (Date.now() - parsed.savedAt) / 1000
-      return Math.max(0, parsed.remaining - elapsed)
-    }
-    return total
-  })
+const StepTimer = React.memo(function StepTimer({ recipeId, recipeTitle, stepIndex, stepLabel, minutes }: StepTimerProps) {
+  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
+  const id = `${recipeId}:${stepIndex}`
+  const timer = timers.get(id)
+  const totalSeconds = minutes * 60
 
-  const [running, setRunning] = useState(() => {
-    const stored = sessionStorage.getItem(storageKey)
-    return stored ? JSON.parse(stored).running : false
-  })
+  const remaining = timer ? getRemainingSeconds(timer) : totalSeconds
+  const isRunning = timer?.isRunning ?? false
 
-  const [done, setDone] = useState(false)
-  const hasRung = useRef(false)
-
-  useEffect(() => {
-    const state = { remaining, running, savedAt: Date.now() }
-    sessionStorage.setItem(storageKey, JSON.stringify(state))
-  }, [remaining, running, storageKey])
-
-  useEffect(() => {
-    if (!running || done) return
-    const id = window.setInterval(() => setRemaining((r) => (r <= 1 ? 0 : r - 1)), 1000)
-    return () => window.clearInterval(id)
-  }, [running, done])
-
-  useEffect(() => {
-    if (running && remaining === 0 && !hasRung.current) {
-      hasRung.current = true
-      playBell()
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRunning(false)
-      setDone(true)
-    }
-  }, [remaining, running])
-
-  const reset = () => {
-    hasRung.current = false; setRemaining(total); setRunning(false); setDone(false); sessionStorage.removeItem(storageKey)
-  }
-  const adjustMinutes = (delta: number) => {
-    setRemaining((r) => Math.max(0, r + delta * 60))
-    if (done) { hasRung.current = false; setDone(false) }
-  }
-
-  const mm = String(Math.floor(remaining / 60)).padStart(2, '0')
-  const ss = String(remaining % 60).padStart(2, '0')
-  const labelText = done ? 'Fertig!' : running ? 'Timer läuft' : remaining < total ? 'Pausiert' : 'Zeit'
-  const labelColor = done || running ? 'text-[var(--mx-primary)]' : 'text-[var(--mx-on-surface-variant)]'
+  const labelText = isRunning ? 'Timer läuft' : remaining < totalSeconds ? 'Pausiert' : 'Zeit'
+  const labelColor = isRunning ? 'text-[var(--mx-primary)]' : 'text-[var(--mx-on-surface-variant)]'
 
   return (
     <div className="mt-3 inline-flex items-center gap-3 rounded-xl border border-[var(--mx-outline-variant)]/10 bg-[var(--mx-surface-variant)] p-3">
-      {running ? (
+      {isRunning ? (
         <div className="h-10 w-10 flex-shrink-0 rounded-full border-4 border-[var(--mx-primary)] border-t-transparent animate-spin" style={{ animationDuration: '2s' }} />
       ) : (
-        <span className={`material-symbols-outlined flex-shrink-0 text-[22px] ${done ? 'text-[var(--mx-primary)]' : 'text-[var(--mx-secondary)]'}`} style={done ? { fontVariationSettings: "'FILL' 1" } : undefined}>
-          {done ? 'alarm_on' : 'timer'}
-        </span>
+        <span className="material-symbols-outlined flex-shrink-0 text-[22px] text-[var(--mx-secondary)]">timer</span>
       )}
       <div className="min-w-[4.5rem]">
         <span className={`mb-0.5 block text-[10px] font-bold uppercase tracking-widest ${labelColor}`}>{labelText}</span>
-        <span className="font-headline text-2xl font-bold tracking-tighter text-[var(--mx-on-surface)]">{mm}:{ss}</span>
+        <span className="font-headline text-2xl font-bold tracking-tighter text-[var(--mx-on-surface)]">{formatTime(remaining)}</span>
       </div>
       <div className="flex flex-col gap-1">
-        <button onClick={() => adjustMinutes(1)} title="+1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
+        <button onClick={() => adjustTimer(id, 60)} title="+1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
           <span className="material-symbols-outlined text-[14px]">add</span>
         </button>
-        <button onClick={() => adjustMinutes(-1)} title="-1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
+        <button onClick={() => adjustTimer(id, -60)} title="-1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
           <span className="material-symbols-outlined text-[14px]">remove</span>
         </button>
       </div>
-      {done ? (
-        <button onClick={reset} className="rounded-full border border-[var(--mx-primary)] px-3 py-1 text-xs font-bold text-[var(--mx-primary)] hover:bg-[var(--mx-primary)]/10 transition-colors">Reset</button>
-      ) : running ? (
-        <button onClick={() => setRunning(false)} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
+      {isRunning ? (
+        <button onClick={() => pauseTimer(id)} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
           <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>pause</span>
         </button>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <button onClick={() => setRunning(true)} className="rounded-full bg-[var(--mx-primary)] px-3 py-1 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors">
-            {remaining < total ? 'Weiter' : 'Start'}
+          <button
+            onClick={() => {
+              if (!timer) {
+                startTimer(recipeId, stepIndex, stepLabel, recipeTitle, totalSeconds)
+              } else {
+                resumeTimer(id)
+              }
+            }}
+            className="rounded-full bg-[var(--mx-primary)] px-3 py-1 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors"
+          >
+            {remaining < totalSeconds ? 'Weiter' : 'Start'}
           </button>
-          {remaining < total && (
-            <button onClick={reset} className="rounded-full border border-[var(--mx-outline-variant)] px-3 py-1 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-high)] transition-colors">Reset</button>
+          {remaining < totalSeconds && (
+            <button onClick={() => resetTimer(id)} className="rounded-full border border-[var(--mx-outline-variant)] px-3 py-1 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-high)] transition-colors">Reset</button>
           )}
         </div>
       )}
     </div>
   )
-}
+})
 
 // Types
 interface IngredientDraft { name: string; amount: string; unit: string; group_name: string }
@@ -1067,7 +1025,13 @@ export function RecipeDetailPage() {
                   )}
                   {step.time_minutes && (
                     <div className="mt-3 flex justify-center w-full">
-                      <StepTimer minutes={step.time_minutes} stepId={step.id} recipeId={recipe.id} />
+                      <StepTimer
+                        recipeId={recipe.id}
+                        recipeTitle={recipe.title ?? ''}
+                        stepIndex={index}
+                        stepLabel={`Schritt ${index + 1}`}
+                        minutes={step.time_minutes}
+                      />
                     </div>
                   )}
                 </li>
