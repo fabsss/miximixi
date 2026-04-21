@@ -14,7 +14,7 @@ interface TimerCardProps {
 }
 
 function TimerCard({ timer }: TimerCardProps) {
-  const { pauseTimer, resumeTimer, resetTimer, deleteTimer, adjustTimer } = useTimers()
+  const { pauseTimer, resumeTimer, resetTimer, deleteTimer, adjustTimer, getRemainingSeconds } = useTimers()
   const [swipeX, setSwipeX] = useState(0)
   const [isSwiping, setIsSwiping] = useState(false)
   const touchStartX = useRef(0)
@@ -40,7 +40,8 @@ function TimerCard({ timer }: TimerCardProps) {
     }
   }
 
-  const labelText = timer.isRunning ? 'Läuft' : timer.isDone ? 'Abgelaufen' : timer.remainingSeconds < timer.totalSeconds ? 'Pausiert' : 'Bereit'
+  const remaining = getRemainingSeconds(timer)
+  const labelText = timer.isRunning ? 'Läuft' : timer.isDone ? 'Abgelaufen' : remaining < timer.totalSeconds ? 'Pausiert' : 'Bereit'
 
   return (
     <div className="relative overflow-hidden rounded-[1rem]">
@@ -81,7 +82,7 @@ function TimerCard({ timer }: TimerCardProps) {
         {/* Label + time */}
         <div className="min-w-[5rem] flex-1">
           <p className="mb-0.5 truncate text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">{timer.stepLabel}</p>
-          <p className="font-headline text-2xl font-bold tracking-tighter text-[var(--mx-on-surface)]">{formatTime(timer.remainingSeconds)}</p>
+          <p className="font-headline text-2xl font-bold tracking-tighter text-[var(--mx-on-surface)]">{formatTime(remaining)}</p>
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--mx-primary)]">{labelText}</p>
         </div>
 
@@ -103,9 +104,9 @@ function TimerCard({ timer }: TimerCardProps) {
         ) : (
           <div className="flex flex-col gap-1.5">
             <button onClick={() => resumeTimer(timer.id)} className="rounded-full bg-[var(--mx-primary)] px-3 py-1 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors">
-              {timer.remainingSeconds < timer.totalSeconds ? 'Weiter' : 'Start'}
+              {remaining < timer.totalSeconds ? 'Weiter' : 'Start'}
             </button>
-            {timer.remainingSeconds !== timer.totalSeconds && (
+            {remaining !== timer.totalSeconds && (
               <button onClick={() => resetTimer(timer.id)} className="rounded-full border border-[var(--mx-outline-variant)] px-3 py-1 text-xs font-bold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-high)] transition-colors">Reset</button>
             )}
           </div>

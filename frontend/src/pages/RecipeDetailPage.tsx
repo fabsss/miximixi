@@ -119,12 +119,12 @@ interface StepTimerProps {
 }
 
 const StepTimer = React.memo(function StepTimer({ recipeId, recipeTitle, stepIndex, stepLabel, minutes }: StepTimerProps) {
-  const { timers, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
+  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
   const id = `${recipeId}:${stepIndex}`
   const timer = timers.get(id)
   const totalSeconds = minutes * 60
 
-  const remaining = timer?.remainingSeconds ?? totalSeconds
+  const remaining = timer ? getRemainingSeconds(timer) : totalSeconds
   const isRunning = timer?.isRunning ?? false
 
   const labelText = isRunning ? 'Timer läuft' : remaining < totalSeconds ? 'Pausiert' : 'Zeit'

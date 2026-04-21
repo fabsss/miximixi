@@ -8,14 +8,14 @@ export interface TimerState {
   stepIndex: number
   stepLabel: string       // ≤30 chars
   totalSeconds: number
-  remainingSeconds: number // can be negative (overrun)
   isRunning: boolean
   isDone: boolean
-  startedAt: number | null // Date.now() when last resumed
+  deadlineMs: number | null  // when timer should finish (Date.now() value), not remaining seconds
 }
 
 interface TimerContextType {
   timers: Map<string, TimerState>
+  getRemainingSeconds: (timer: TimerState) => number  // calculate remaining from deadline
   startTimer: (recipeId: string, stepIndex: number, stepLabel: string, recipeTitle: string, totalSeconds: number) => void
   pauseTimer: (id: string) => void
   resumeTimer: (id: string) => void
@@ -50,24 +50,23 @@ function playBell() {
 }
 
 const SESSION_KEY = 'mx_timers'
-const SESSION_TIMESTAMP_KEY = 'mx_timers_saved_at'
 
 function loadFromSession(): Map<string, TimerState> {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
     if (!raw) return new Map()
-    const savedAt = parseInt(sessionStorage.getItem(SESSION_TIMESTAMP_KEY) || '0', 10)
-    const now = Date.now()
-    const elapsedMs = savedAt ? now - savedAt : 0
-    const elapsedSeconds = Math.floor(elapsedMs / 1000)
-
     const entries: [string, TimerState][] = JSON.parse(raw)
-    // Restore running timers, subtracting elapsed time during reload
-    return new Map(entries.map(([k, t]) => [k, {
-      ...t,
-      remainingSeconds: t.isRunning ? Math.max(0, t.remainingSeconds - elapsedSeconds) : t.remainingSeconds,
-      startedAt: t.isRunning ? now : null,
-    }]))
+    const now = Date.now()
+    // Restore timers, updating deadlines for any that were running
+    return new Map(entries.map(([k, t]) => {
+      if (!t.isRunning || t.deadlineMs == null) {
+        return [k, t]
+      }
+      // Timer was running: it has a deadline. If deadline has passed, mark as done.
+      const remaining = Math.max(0, t.deadlineMs - now)
+      const isDone = remaining === 0 && !t.isDone
+      return [k, { ...t, isDone: isDone ? true : t.isDone }]
+    }))
   } catch {
     return new Map()
   }
@@ -76,13 +75,19 @@ function loadFromSession(): Map<string, TimerState> {
 function saveToSession(timers: Map<string, TimerState>) {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify([...timers.entries()]))
-    sessionStorage.setItem(SESSION_TIMESTAMP_KEY, String(Date.now()))
   } catch { /* ignore quota errors */ }
 }
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [timers, setTimers] = useState<Map<string, TimerState>>(loadFromSession)
   const intervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
+  const [, setForceRender] = useState(0)  // trigger re-renders for display updates
+
+  const getRemainingSeconds = useCallback((timer: TimerState): number => {
+    if (timer.deadlineMs == null) return timer.totalSeconds
+    const remaining = Math.floor((timer.deadlineMs - Date.now()) / 1000)
+    return Math.max(0, remaining)
+  }, [])
 
   const clearInterval_ = useCallback((id: string) => {
     const existing = intervalsRef.current.get(id)
@@ -94,55 +99,30 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   const startInterval = useCallback((id: string) => {
     clearInterval_(id)
+    // Fire every 100ms for smooth display, check for completion on every tick
     const handle = setInterval(() => {
       setTimers((prev) => {
         const timer = prev.get(id)
-        if (!timer || !timer.isRunning) return prev
-        const next = new Map(prev)
-        const newRemaining = timer.remainingSeconds - 1
-        const justDone = timer.remainingSeconds > 0 && newRemaining <= 0 && !timer.isDone
-        if (justDone) playBell()
-        next.set(id, {
-          ...timer,
-          remainingSeconds: newRemaining,
-          isDone: justDone ? true : timer.isDone,
-          startedAt: timer.startedAt,
-        })
-        return next
+        if (!timer || !timer.isRunning || timer.deadlineMs == null) return prev
+
+        const now = Date.now()
+        const remaining = timer.deadlineMs - now
+
+        // Check if timer just finished
+        if (remaining <= 0 && !timer.isDone) {
+          playBell()
+          const next = new Map(prev)
+          next.set(id, { ...timer, isDone: true, isRunning: false })
+          return next
+        }
+
+        return prev
       })
-    }, 1000)
+      // Force UI update for smooth countdown
+      setForceRender(r => r + 1)
+    }, 100)
     intervalsRef.current.set(id, handle)
   }, [clearInterval_])
-
-  // Background correction on mobile
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      setTimers((prev) => {
-        const now = Date.now()
-        const next = new Map(prev)
-        let bellNeeded = false
-        for (const [id, timer] of prev) {
-          if (!timer.isRunning || timer.startedAt == null) continue
-          const elapsed = Math.floor((now - timer.startedAt) / 1000)
-          if (elapsed <= 0) continue
-          const newRemaining = timer.remainingSeconds - elapsed
-          const justDone = timer.remainingSeconds > 0 && newRemaining <= 0 && !timer.isDone
-          if (justDone) bellNeeded = true
-          next.set(id, {
-            ...timer,
-            remainingSeconds: newRemaining,
-            isDone: justDone ? true : timer.isDone,
-            startedAt: now,
-          })
-        }
-        if (bellNeeded) playBell()
-        return next
-      })
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [])
 
   // Cleanup all intervals on unmount
   useEffect(() => {
@@ -166,6 +146,14 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     saveToSession(timers)
   }, [timers])
 
+  // Re-render every second so display updates even without state changes
+  useEffect(() => {
+    const handle = setInterval(() => {
+      setForceRender(r => r + 1)
+    }, 1000)
+    return () => clearInterval(handle)
+  }, [])
+
   const startTimer = useCallback((
     recipeId: string,
     stepIndex: number,
@@ -174,25 +162,34 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     totalSeconds: number,
   ) => {
     const id = `${recipeId}:${stepIndex}`
+    const now = Date.now()
+    const deadline = now + totalSeconds * 1000
     setTimers((prev) => {
       const existing = prev.get(id)
       const next = new Map(prev)
       if (existing && !existing.isDone) {
-        // Resume existing (paused or running)
-        next.set(id, { ...existing, isRunning: true, startedAt: Date.now() })
+        // Resume existing timer: recalculate deadline based on remaining time
+        const remaining = getRemainingSeconds(existing)
+        next.set(id, {
+          ...existing,
+          isRunning: true,
+          deadlineMs: now + remaining * 1000,
+        })
       } else {
-        // Create new, or restart after done
+        // Create new timer
         next.set(id, {
           id, recipeId, recipeTitle, stepIndex,
           stepLabel: stepLabel.slice(0, 30),
-          totalSeconds, remainingSeconds: totalSeconds,
-          isRunning: true, isDone: false, startedAt: Date.now(),
+          totalSeconds,
+          isRunning: true,
+          isDone: false,
+          deadlineMs: deadline,
         })
       }
       return next
     })
     startInterval(id)
-  }, [startInterval])
+  }, [startInterval, getRemainingSeconds])
 
   const pauseTimer = useCallback((id: string) => {
     clearInterval_(id)
@@ -200,7 +197,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       const timer = prev.get(id)
       if (!timer) return prev
       const next = new Map(prev)
-      next.set(id, { ...timer, isRunning: false, startedAt: null })
+      next.set(id, { ...timer, isRunning: false })
       return next
     })
   }, [clearInterval_])
@@ -210,11 +207,16 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       const timer = prev.get(id)
       if (!timer) return prev
       const next = new Map(prev)
-      next.set(id, { ...timer, isRunning: true, startedAt: Date.now() })
+      const remaining = getRemainingSeconds(timer)
+      next.set(id, {
+        ...timer,
+        isRunning: true,
+        deadlineMs: Date.now() + remaining * 1000,
+      })
       return next
     })
     startInterval(id)
-  }, [startInterval])
+  }, [startInterval, getRemainingSeconds])
 
   const resetTimer = useCallback((id: string) => {
     clearInterval_(id)
@@ -224,10 +226,9 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       const next = new Map(prev)
       next.set(id, {
         ...timer,
-        remainingSeconds: timer.totalSeconds,
+        deadlineMs: Date.now() + timer.totalSeconds * 1000,
         isRunning: false,
         isDone: false,
-        startedAt: null,
       })
       return next
     })
@@ -245,22 +246,20 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const adjustTimer = useCallback((id: string, deltaSeconds: number) => {
     setTimers((prev) => {
       const timer = prev.get(id)
-      if (!timer) return prev
+      if (!timer || timer.deadlineMs == null) return prev
       const next = new Map(prev)
-      const newRemaining = timer.isRunning
-        ? Math.max(1, timer.remainingSeconds + deltaSeconds)
-        : timer.remainingSeconds + deltaSeconds
+      const newDeadline = Math.max(Date.now(), timer.deadlineMs + deltaSeconds * 1000)
       next.set(id, {
         ...timer,
-        remainingSeconds: newRemaining,
-        isDone: timer.isDone && newRemaining <= 0,
+        deadlineMs: newDeadline,
+        isDone: timer.isDone && getRemainingSeconds(timer) <= 0,
       })
       return next
     })
-  }, [])
+  }, [getRemainingSeconds])
 
   return (
-    <TimerContext.Provider value={{ timers, startTimer, pauseTimer, resumeTimer, resetTimer, deleteTimer, adjustTimer }}>
+    <TimerContext.Provider value={{ timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, deleteTimer, adjustTimer }}>
       {children}
     </TimerContext.Provider>
   )

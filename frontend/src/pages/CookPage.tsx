@@ -106,7 +106,7 @@ export function CookPage() {
     enabled: Boolean(recipeId),
   })
 
-  const { timers, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
+  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
 
   const timerId = recipeId ? `${recipeId}:${currentStep}` : null
   const currentTimer = timerId ? timers.get(timerId) : undefined
@@ -116,7 +116,7 @@ export function CookPage() {
     return minutes * 60
   }, [currentStep, recipeQuery.data?.steps])
 
-  const seconds = currentTimer?.remainingSeconds ?? stepDuration
+  const seconds = currentTimer ? getRemainingSeconds(currentTimer) : stepDuration
   const isRunning = currentTimer?.isRunning ?? false
 
   const ingredientBySortOrder = useMemo(() => {
