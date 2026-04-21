@@ -106,7 +106,7 @@ function parseIngredientReference(
 function formatTime(seconds: number): string {
   const abs = Math.abs(seconds)
   const mm = String(Math.floor(abs / 60)).padStart(2, '0')
-  const ss = String(abs % 60).padStart(2, '0')
+  const ss = String(Math.floor(abs) % 60).padStart(2, '0')
   return seconds < 0 ? `−${mm}:${ss}` : `${mm}:${ss}`
 }
 
