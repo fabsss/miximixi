@@ -56,8 +56,11 @@ function loadFromSession(): Map<string, TimerState> {
     const raw = sessionStorage.getItem(SESSION_KEY)
     if (!raw) return new Map()
     const entries: [string, TimerState][] = JSON.parse(raw)
-    // Mark all previously-running timers as paused on restore — intervals don't survive a reload
-    return new Map(entries.map(([k, t]) => [k, { ...t, isRunning: false, startedAt: null }]))
+    // Restore running timers with updated startedAt to account for time elapsed during reload
+    return new Map(entries.map(([k, t]) => [k, {
+      ...t,
+      startedAt: t.isRunning ? Date.now() : null,
+    }]))
   } catch {
     return new Map()
   }
@@ -140,6 +143,15 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       for (const handle of ref.values()) clearInterval(handle)
     }
   }, [clearInterval_])
+
+  // Restart intervals for running timers on mount (after reload)
+  useEffect(() => {
+    for (const [id, timer] of timers) {
+      if (timer.isRunning) {
+        startInterval(id)
+      }
+    }
+  }, []) // Only on mount
 
   // Persist to sessionStorage on every change
   useEffect(() => {
