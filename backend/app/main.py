@@ -224,7 +224,7 @@ async def get_tags(category: str = ""):
                     """
                     SELECT DISTINCT ON (lower(t)) t AS tag
                     FROM recipes, unnest(tags) AS t
-                    WHERE category = %s
+                    WHERE category = %s AND t IS NOT NULL AND t != ''
                     ORDER BY lower(t), t
                     """,
                     (category,),
@@ -234,7 +234,7 @@ async def get_tags(category: str = ""):
                     """
                     SELECT DISTINCT ON (lower(t)) t AS tag
                     FROM recipes, unnest(tags) AS t
-                    WHERE t IS NOT NULL
+                    WHERE t IS NOT NULL AND t != ''
                     ORDER BY lower(t), t
                     """
                 )
@@ -262,7 +262,7 @@ async def get_tags_with_counts():
                 """
                 SELECT DISTINCT ON (lower(t)) t AS tag, COUNT(*) OVER (PARTITION BY lower(t)) AS count
                 FROM recipes, unnest(tags) AS t
-                WHERE t IS NOT NULL
+                WHERE t IS NOT NULL AND t != ''
                 ORDER BY lower(t), t, count DESC
                 """
             )
