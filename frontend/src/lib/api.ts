@@ -56,6 +56,14 @@ export async function getTags(category?: string): Promise<string[]> {
   return request<string[]>(`/tags?${params.toString()}`)
 }
 
+export async function getHeroRecipes(limit = 6, category?: string): Promise<RecipeListItem[]> {
+  const params = new URLSearchParams()
+  params.append('limit', String(limit))
+  params.append('offset', '0')
+  if (category) params.append('category', category)
+  return request<RecipeListItem[]>(`/recipes?${params.toString()}`)
+}
+
 export async function getRecipe(recipeId: string): Promise<RecipeDetail> {
   return request<RecipeDetail>(`/recipes/${recipeId}`)
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { flushSync } from 'react-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getImageUrl, getRecipes, getTags } from '../lib/api'
+import { getImageUrl, getRecipes, getTags, getHeroRecipes } from '../lib/api'
 import { useCategories, useCategoryCounts } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
@@ -62,6 +62,14 @@ export function FeedPage(): ReactNode {
 
   const categoriesQuery = useCategories()
   const categoryCountsQuery = useCategoryCounts()
+
+  // Hero query: only category-filtered, ignores search/tags/favorites
+  const heroQuery = useQuery({
+    queryKey: ['heroRecipes', selectedMainCategory],
+    queryFn: () => getHeroRecipes(6, selectedMainCategory || undefined),
+  })
+  const heroRecipes = heroQuery.data ?? []
+
   const recipesQuery = useInfiniteQuery({
     queryKey: ['recipes', { q: search, category: selectedMainCategory, tags: Array.from(selectedTags), fav: showFavoritesOnly }],
     queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number, {
@@ -80,16 +88,16 @@ export function FeedPage(): ReactNode {
 
   const allRecipes = useMemo(() => recipesQuery.data?.pages.flat() ?? [], [recipesQuery.data])
 
-  // Rotate hero every 5s through first 6 recipes
+  // Rotate hero every 5s through first 6 recipes (from hero query only, not filtered search)
   useEffect(() => {
-    const total = Math.min(allRecipes.length, 6)
+    const total = Math.min(heroRecipes.length, 6)
     if (total <= 1) return
     const id = setInterval(() => {
       setHeroIndex(i => (i + 1) % total)
       setHeroImgOk(true)
     }, 5000)
     return () => clearInterval(id)
-  }, [allRecipes.length])
+  }, [heroRecipes.length])
 
   // Close drawer on scroll
   useEffect(() => {
@@ -122,7 +130,7 @@ export function FeedPage(): ReactNode {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipesQuery.hasNextPage, recipesQuery.isFetchingNextPage, recipesQuery.fetchNextPage])
 
-  const heroRecipe = allRecipes[heroIndex]
+  const heroRecipe = heroRecipes[heroIndex]
 
   const categoryCounts = categoryCountsQuery.data?.counts ?? {}
 
