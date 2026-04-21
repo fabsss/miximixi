@@ -159,22 +159,28 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
     return [...map.values()]
   }, [timers])
 
-  // Close on Escape
+  // Close on Escape + lock body scroll while open
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', handler)
+      document.body.style.overflow = prev
+    }
   }, [open, onClose])
 
   if (!open) return null
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — blocks touch scroll on page below */}
       <div
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
       />
 
       {/* Mobile: bottom sheet — Desktop: centered modal */}

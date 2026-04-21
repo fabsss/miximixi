@@ -115,7 +115,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
               <button
                 onClick={() => setTheme(nextTheme)}
                 title={`Theme: ${theme} → ${nextTheme}`}
-                className="rounded-full px-3 py-2 text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
               >
                 <span className="material-symbols-outlined text-[20px]">{themeIcon}</span>
               </button>
