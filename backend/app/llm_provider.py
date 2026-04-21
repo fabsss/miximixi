@@ -33,7 +33,7 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15:08"}
+    {"id": 1, "text": "Den [grünen Spargel]{1} kurz in Salzwasser blanchieren.", "time_minutes": 5, "step_timestamp": "00:15:08"}
   ],
   "cover_timestamp": "MM:SS:FF"
 }
@@ -42,7 +42,10 @@ Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
 - "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
-- Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
+- Zutaten-Referenzen in Steps als [Wortlaut]{ingredient_id} – schreibe vollständige, grammatikalisch korrekte Sätze und setze das Tag direkt hinter den Zutat-Ausdruck im natürlichen Satz.
+  Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
+  NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
+  NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
@@ -85,7 +88,7 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Schritt mit {1} Referenz falls Zutat relevant.", "time_minutes": 5, "step_timestamp": "00:15:08"}
+    {"id": 1, "text": "Den [grünen Spargel]{1} kurz in Salzwasser blanchieren.", "time_minutes": 5, "step_timestamp": "00:15:08"}
   ],
   "cover_frame_index": 2
 }
@@ -94,7 +97,10 @@ Wichtig:
 - "lang" = ISO-Sprachcode der Originalsprache (de/en/it/fr/es/etc.)
 - "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
-- Zutaten-Referenzen in Steps als {ingredient_id} (z.B. {1})
+- Zutaten-Referenzen in Steps als [Wortlaut]{ingredient_id} – schreibe vollständige, grammatikalisch korrekte Sätze und setze das Tag direkt hinter den Zutat-Ausdruck im natürlichen Satz.
+  Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
+  NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
+  NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
@@ -127,13 +133,13 @@ JSON-Format:
     {"id": 1, "name": "Übersetzter Zutatennamen"}
   ],
   "steps": [
-    {"id": 1, "text": "Übersetzter Schritt-Text mit {{1}} Referenzen"}
+    {"id": 1, "text": "Den [übersetzten Zutatenworten]{{1}} in kleine Würfel schneiden."}
   ]
 }
 
 Wichtig:
 - Übersetze NUR den Text, nicht die IDs
-- Behalte {{ingredient_id}} Referenzen in den Steps bei (z.B. {{1}})
+- Behalte [Wortlaut]{{ingredient_id}} Tags in den Steps bei – übersetze auch den Text im []-Block in die Zielsprache
 - Behalte die gleiche Struktur und Reihenfolge"""
 
 

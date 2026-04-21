@@ -45,58 +45,19 @@ function formatAmount(n: number): string {
   return String(Math.round(n * 10) / 10)
 }
 
-function shortIngName(name: string): string {
-  return (name.split(/[,(]/)[0].trim() || name).slice(0, 32)
-}
-
-// Remove "(X)" from text when X exactly matches a known ingredient name.
-// Keeps multi-item parentheticals like "(flour, sugar, eggs)" intact.
-// Strip "Word (Word)" → "Word" repetitions and standalone "(IngName)" parens.
-function stripIngredientParens(text: string, allIngredients: Array<{ name: string }>): string {
-  // 1. Remove (X) when the word immediately before it is the same word (case-insensitive)
-  let result = text.replace(/(\p{L}[\p{L}\p{N}]*)\s*\((\p{L}[\p{L}\p{N}]*)\)/gu, (match, word, paren) =>
-    word.toLowerCase() === paren.toLowerCase() ? word : match
-  )
-  // 2. Remove (X) when X exactly matches a known ingredient name (no commas = not a list)
-  result = result.replace(/\s*\(([^),]+)\)/g, (match, inner) => {
-    const normalized = inner.trim().toLowerCase()
-    const isIngName = allIngredients.some((ing) => shortIngName(ing.name).toLowerCase() === normalized)
-    return isIngName ? '' : match
-  })
-  return result
-}
-
 function parseIngredientReference(
   text: string,
 ): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
   const parts: Array<{ type: 'text' | 'ref'; content: string; label: string }> = []
-  // Match an optional real word (letters/digits) immediately before {N}
-  const regex = /(?:(\p{L}[\p{L}\p{N}]*)\s*)?\{(\d+)\}/gu
+  const regex = /\[([^\]]+)\]\{(\d+)\}/g
   let lastIndex = 0
   let match
   while ((match = regex.exec(text)) !== null) {
-    // The text before the match (including the captured label word, which we strip)
-    const beforeLabel = match[1] ?? ''
-    const matchStart = match.index
-    let textChunk = text.slice(lastIndex, matchStart)
-    let advance = 0
-    // Detect single-ref wrapped in parens: "...(Label{N})" - textChunk ends with "(" and next char is ")"
-    if (/\(\s*$/.test(textChunk) && text[regex.lastIndex] === ')') {
-      // Strip only the "(" (keep preceding space for readability)
-      textChunk = textChunk.replace(/\(\s*$/, '')
-      advance = 1 // skip the closing ")"
-      // If the last word of textChunk duplicates the chip label, strip it
-      if (beforeLabel) {
-        const trimmed = textChunk.trimEnd()
-        const lastWord = trimmed.split(/\s+/).pop() ?? ''
-        if (lastWord.toLowerCase() === beforeLabel.toLowerCase())
-          textChunk = trimmed.slice(0, trimmed.length - lastWord.length)
-      }
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: text.slice(lastIndex, match.index), label: '' })
     }
-    if (textChunk) parts.push({ type: 'text', content: textChunk, label: '' })
-    parts.push({ type: 'ref', content: match[2], label: beforeLabel })
-    lastIndex = regex.lastIndex + advance
-    regex.lastIndex = lastIndex
+    parts.push({ type: 'ref', content: match[2], label: match[1] })
+    lastIndex = regex.lastIndex
   }
   if (lastIndex < text.length)
     parts.push({ type: 'text', content: text.slice(lastIndex), label: '' })
@@ -977,21 +938,7 @@ export function RecipeDetailPage() {
                   <p className="font-body text-sm leading-relaxed text-[var(--mx-on-surface-variant)] md:text-base">
                     {parts.map((part, i) => {
                       if (part.type === 'text') {
-                        const allIngs = Array.from(groupedIngredients.values()).flat()
-                        let content = stripIngredientParens(part.content, allIngs)
-                        // If next part is a ref chip, strip trailing word that duplicates the chip label
-                        const nextPart = parts[i + 1]
-                        if (nextPart?.type === 'ref') {
-                          const nextIng = allIngs.find((ing) => String(ing.sort_order) === nextPart.content)
-                          if (nextIng) {
-                            const chipLabel = shortIngName(nextIng.name).toLowerCase()
-                            const trimmed = content.trimEnd()
-                            const lastWord = trimmed.split(/\s+/).pop()?.toLowerCase() ?? ''
-                            if (lastWord === chipLabel)
-                              content = trimmed.slice(0, trimmed.length - lastWord.length)
-                          }
-                        }
-                        return <span key={i}>{content}</span>
+                        return <span key={i}>{part.content}</span>
                       }
                       const sortOrder = part.content
                       const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
@@ -1009,7 +956,7 @@ export function RecipeDetailPage() {
                                 bubbleTimerRef.current = window.setTimeout(() => setHighlightedSortOrder(null), 3000)
                               }                            }}
                             className={`rounded-md px-1.5 py-0.5 text-sm font-semibold transition-colors ${isHighlighted ? 'bg-[var(--mx-primary)] text-[var(--mx-on-primary)]' : 'bg-[var(--mx-primary-container)]/40 text-[var(--mx-primary)] hover:bg-[var(--mx-primary-container)]/70'}`}>
-                            {shortIngName(ingredient?.name ?? `Zutat ${sortOrder}`)}
+                            {part.label}
                           </button>
                           {isHighlighted && tipText && (
                             <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--mx-on-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--mx-surface)] shadow-lg z-10">
