@@ -49,3 +49,4 @@ instagram_cookies.txt
 # graphify - knowledge graph (generated, not source)
 graphify-out/**
 .graphify*
+.github/copilot-instructions.md
