@@ -122,10 +122,23 @@ interface TimerOverlayProps {
 
 export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
   const { timers } = useTimers()
+  const [visible, setVisible] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const sheetTouchStartY = useRef(0)
   const sheetTouchCurrentY = useRef(0)
   const [sheetDragY, setSheetDragY] = useState(0)
   const [isDraggingSheet, setIsDraggingSheet] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      requestAnimationFrame(() => setVisible(true))
+    } else {
+      setVisible(false)
+      const t = setTimeout(() => setMounted(false), 300)
+      return () => clearTimeout(t)
+    }
+  }, [open])
 
   const handleSheetTouchStart = (e: React.TouchEvent) => {
     sheetTouchStartY.current = e.touches[0].clientY
@@ -172,13 +185,14 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted) return null
 
   return (
     <>
       {/* Backdrop — blocks touch scroll on page below */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+        style={{ opacity: visible ? 1 : 0 }}
         onClick={onClose}
         onTouchMove={(e) => e.preventDefault()}
       />
@@ -188,8 +202,12 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
         <div
           className="w-full rounded-t-[2rem] bg-[var(--mx-surface)] shadow-2xl md:max-w-[480px] md:rounded-[2rem]"
           style={{
-            transform: sheetDragY > 0 ? `translateY(${sheetDragY}px)` : undefined,
-            transition: isDraggingSheet ? 'none' : 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+            transform: isDraggingSheet
+              ? `translateY(${sheetDragY}px)`
+              : visible
+                ? 'translateY(0)'
+                : 'translateY(100%)',
+            transition: isDraggingSheet ? 'none' : 'transform 0.35s cubic-bezier(0.34,1.2,0.64,1)',
           }}
           onTouchStart={handleSheetTouchStart}
           onTouchMove={handleSheetTouchMove}
