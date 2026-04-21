@@ -522,11 +522,12 @@ async def list_recipes(
             where_clauses.append("category = %s")
             params.append(category)
 
-        # Tag filter (case-insensitive ANY match)
+        # Tag filter (case-insensitive ALL match)
         if tags:
             tags_lower = [t.lower() for t in tags]
-            where_clauses.append("EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))")
+            where_clauses.append("(SELECT count(*) FROM unnest(tags) t WHERE lower(t) = ANY(%s)) = %s")
             params.append(tags_lower)
+            params.append(len(tags_lower))
 
         # Favorites filter
         if favorites:
