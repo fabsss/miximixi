@@ -9,15 +9,15 @@ Without this backfill, old recipes will not be detected as duplicates
 when the same content is imported again.
 
 Usage:
-    cd /c/Users/fabia/git/miximixi/backend
-    python scripts/backfill_source_type.py
+    cd backend && poetry run python scripts/backfill_source_type.py
 """
 import sys
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # Add backend to path so we can import app modules
-sys.path.insert(0, '/c/Users/fabia/git/miximixi/backend')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.source_identifier import extract_source_id, get_source_type_from_url
 from app.config import settings
