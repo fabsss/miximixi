@@ -195,12 +195,17 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     clearInterval_(id)
     setTimers((prev) => {
       const timer = prev.get(id)
-      if (!timer) return prev
+      if (!timer || timer.deadlineMs == null) return prev
       const next = new Map(prev)
-      next.set(id, { ...timer, isRunning: false })
+      const remaining = getRemainingSeconds(timer)
+      next.set(id, {
+        ...timer,
+        isRunning: false,
+        deadlineMs: Date.now() + remaining * 1000,  // Freeze deadline at current remaining time
+      })
       return next
     })
-  }, [clearInterval_])
+  }, [clearInterval_, getRemainingSeconds])
 
   const resumeTimer = useCallback((id: string) => {
     setTimers((prev) => {
