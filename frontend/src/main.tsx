@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './context/ThemeContext'
 import { NavDrawerProvider } from './context/NavDrawerContext'
+import { TimerProvider } from './context/TimerContext'
 
 const queryClient = new QueryClient()
 
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <NavDrawerProvider>
-            <App />
+            <TimerProvider>
+              <App />
+            </TimerProvider>
           </NavDrawerProvider>
         </BrowserRouter>
       </QueryClientProvider>
