@@ -53,7 +53,7 @@ function TimerCard({ timer }: TimerCardProps) {
       {/* Card */}
       <div
         ref={cardRef}
-        className="group relative flex items-center gap-2 rounded-[1rem] border border-[var(--mx-outline-variant)]/10 bg-[var(--mx-surface-variant)] px-3 py-3 pr-9 touch-pan-y"
+        className="group relative flex items-center gap-3 rounded-[1rem] border border-[var(--mx-outline-variant)]/10 bg-[var(--mx-surface-variant)] px-9 py-3 touch-pan-y"
         style={{
           transform: `translateX(${swipeX}px)`,
           transition: isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
@@ -80,14 +80,14 @@ function TimerCard({ timer }: TimerCardProps) {
         )}
 
         {/* Label + time */}
-        <div className="min-w-[5rem] flex-1 mr-2">
+        <div className="min-w-[5rem] flex-1">
           <p className="mb-0.5 truncate text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">{timer.stepLabel}</p>
           <p className="font-headline text-2xl font-bold tracking-tighter text-[var(--mx-on-surface)]">{formatTime(remaining)}</p>
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--mx-primary)]">{labelText}</p>
         </div>
 
         {/* Adjust buttons */}
-        <div className="flex flex-col gap-1 ml-2">
+        <div className="flex flex-col gap-1">
           <button onClick={() => adjustTimer(timer.id, 60)} title="+1 Min" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
             <span className="material-symbols-outlined text-[14px]">add</span>
           </button>
@@ -98,11 +98,11 @@ function TimerCard({ timer }: TimerCardProps) {
 
         {/* Action button */}
         {timer.isRunning ? (
-          <button onClick={() => pauseTimer(timer.id)} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)] ml-2">
+          <button onClick={() => pauseTimer(timer.id)} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--mx-primary)] text-[var(--mx-on-primary)]">
             <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>pause</span>
           </button>
         ) : (
-          <div className="flex flex-col gap-1.5 ml-2">
+          <div className="flex flex-col gap-1.5">
             <button onClick={() => resumeTimer(timer.id)} className="rounded-full bg-[var(--mx-primary)] px-3 py-1 text-xs font-bold text-[var(--mx-on-primary)] hover:bg-[var(--mx-primary-dim)] transition-colors">
               {remaining < timer.totalSeconds ? 'Weiter' : 'Start'}
             </button>
