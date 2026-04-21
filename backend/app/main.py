@@ -12,6 +12,7 @@ import shutil
 from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from app.config import settings
 from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CategoryCountsResponse, CATEGORIES
