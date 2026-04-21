@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { flushSync } from 'react-dom'
-import { useInfiniteQuery } from '@tanstack/react-query'
-import { getImageUrl, getRecipes } from '../lib/api'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { getImageUrl, getRecipes, getTags } from '../lib/api'
 import { useCategories, useCategoryCounts } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
@@ -63,8 +63,13 @@ export function FeedPage(): ReactNode {
   const categoriesQuery = useCategories()
   const categoryCountsQuery = useCategoryCounts()
   const recipesQuery = useInfiniteQuery({
-    queryKey: ['recipes'],
-    queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number),
+    queryKey: ['recipes', { q: search, category: selectedMainCategory, tags: Array.from(selectedTags), fav: showFavoritesOnly }],
+    queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number, {
+      q: search,
+      category: selectedMainCategory || undefined,
+      tags: Array.from(selectedTags),
+      favorites: showFavoritesOnly,
+    }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.length < PAGE_SIZE) return undefined
@@ -121,36 +126,20 @@ export function FeedPage(): ReactNode {
 
   const categoryCounts = categoryCountsQuery.data?.counts ?? {}
 
-  const availableTags = useMemo(() => {
-    const tagMap = new Map<string, string>() // lowercase key → display label (first seen)
-    for (const r of allRecipes) {
-      if (!selectedMainCategory || r.category === selectedMainCategory) {
-        for (const t of r.tags ?? []) {
-          const lower = t.toLowerCase()
-          if (!tagMap.has(lower)) tagMap.set(lower, t)
-        }
-      }
-    }
-    return Array.from(tagMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [allRecipes, selectedMainCategory])
+  // Fetch all tags from DB (optionally filtered by category)
+  const tagsQuery = useQuery({
+    queryKey: ['tags', selectedMainCategory],
+    queryFn: () => getTags(selectedMainCategory || undefined),
+  })
 
-  const filteredRecipes = useMemo(() => {
-    const value = search.trim().toLowerCase()
-    return allRecipes.filter((recipe) => {
-      const titleMatch = recipe.title.toLowerCase().includes(value)
-      const tagMatch = recipe.tags?.some((t) => t.toLowerCase().includes(value))
-      const categoryMatch = recipe.category?.toLowerCase().includes(value)
-      const searchOk = !value || titleMatch || tagMatch || categoryMatch
-      const mainCatOk = !selectedMainCategory || recipe.category === selectedMainCategory
-      const tagOk = selectedTags.size === 0 || recipe.tags?.some((t) => selectedTags.has(t.toLowerCase()))
-      const favoriteOk = !showFavoritesOnly || recipe.rating === 1
-      return searchOk && mainCatOk && tagOk && favoriteOk
-    })
-  }, [allRecipes, search, selectedMainCategory, selectedTags, showFavoritesOnly])
+  const availableTags = useMemo(() => {
+    // Convert flat list to [lowercase, displayLabel] entries for consistency
+    return (tagsQuery.data ?? []).map(tag => [tag.toLowerCase(), tag] as [string, string])
+  }, [tagsQuery.data])
 
   // Track new and removed cards for animations
   useEffect(() => {
-    const currentIds = new Set(filteredRecipes.map(r => r.id))
+    const currentIds = new Set(allRecipes.map(r => r.id))
     const prevIds = prevRecipeIdsRef.current
 
     // Cards that are new (in current but not in previous)
@@ -199,7 +188,7 @@ export function FeedPage(): ReactNode {
       if (enterTimer !== undefined) clearTimeout(enterTimer)
       if (exitTimer !== undefined) clearTimeout(exitTimer)
     }
-  }, [filteredRecipes])
+  }, [allRecipes])
 
   // Scroll to top on major filter changes, but NOT on tag toggle (user may be mid-scroll selecting tags)
   useEffect(() => {
@@ -453,7 +442,7 @@ export function FeedPage(): ReactNode {
         {/* Grid */}
         {!recipesQuery.isLoading && !recipesQuery.error && (
           <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-            {filteredRecipes.map((recipe, index) => {
+            {allRecipes.map((recipe, index) => {
               const isAnimating = animatingCardIds.includes(recipe.id)
               const animationClass = isAnimating ? 'mx-card-enter' : ''
               return (
@@ -487,7 +476,7 @@ export function FeedPage(): ReactNode {
         )}
 
         {/* Empty state */}
-        {!recipesQuery.isLoading && !recipesQuery.error && filteredRecipes.length === 0 && (
+        {!recipesQuery.isLoading && !recipesQuery.error && allRecipes.length === 0 && (
           <div className="rounded-[2rem] bg-[var(--mx-surface-low)] p-10 text-center text-[var(--mx-on-surface-variant)]">
             {search ? `Keine Treffer f\u00fcr \u201e${search}\u201c` : 'Keine Rezepte in dieser Kategorie.'}
           </div>

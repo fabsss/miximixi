@@ -30,8 +30,30 @@ export async function getCategories(): Promise<string[]> {
   return response.categories
 }
 
-export async function getRecipes(limit = 20, offset = 0): Promise<RecipeListItem[]> {
-  return request<RecipeListItem[]>(`/recipes?limit=${limit}&offset=${offset}`)
+interface GetRecipesFilters {
+  q?: string
+  category?: string
+  tags?: string[]
+  favorites?: boolean
+}
+
+export async function getRecipes(limit = 20, offset = 0, filters: GetRecipesFilters = {}): Promise<RecipeListItem[]> {
+  const params = new URLSearchParams()
+  params.append('limit', String(limit))
+  params.append('offset', String(offset))
+  if (filters.q) params.append('q', filters.q)
+  if (filters.category) params.append('category', filters.category)
+  if (filters.tags) {
+    filters.tags.forEach(tag => params.append('tags', tag))
+  }
+  if (filters.favorites) params.append('favorites', 'true')
+  return request<RecipeListItem[]>(`/recipes?${params.toString()}`)
+}
+
+export async function getTags(category?: string): Promise<string[]> {
+  const params = new URLSearchParams()
+  if (category) params.append('category', category)
+  return request<string[]>(`/tags?${params.toString()}`)
 }
 
 export async function getRecipe(recipeId: string): Promise<RecipeDetail> {

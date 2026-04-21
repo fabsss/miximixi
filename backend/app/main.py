@@ -208,6 +208,48 @@ async def get_category_counts():
         raise HTTPException(status_code=500, detail="Failed to fetch category counts")
 
 
+@app.get("/tags")
+async def get_tags(category: str = ""):
+    """Returns all unique tags across recipes, case-insensitively deduplicated.
+
+    Optionally filtered by category. Display label is first occurrence's original casing.
+    """
+    def _fetch_tags():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            if category:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT ON (lower(t)) t AS tag
+                    FROM recipes, unnest(tags) AS t
+                    WHERE category = %s
+                    ORDER BY lower(t), t
+                    """,
+                    (category,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT ON (lower(t)) t AS tag
+                    FROM recipes, unnest(tags) AS t
+                    WHERE t IS NOT NULL
+                    ORDER BY lower(t), t
+                    """
+                )
+            rows = cursor.fetchall()
+            return [row["tag"] for row in rows]
+        finally:
+            db.close()
+
+    try:
+        result = await asyncio.to_thread(_fetch_tags)
+        return result
+    except Exception as e:
+        logger.error(f"Tags fetch failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch tags")
+
+
 # ── Import Endpoints ─────────────────────────────────────────────────
 @app.post("/import", response_model=ImportResponse)
 async def create_import(req: ImportRequest):
@@ -447,18 +489,62 @@ async def instagram_sync():
 
 # ── Recipes Endpoints ───────────────────────────────────────────────
 @app.get("/recipes")
-async def list_recipes(limit: int = 20, offset: int = 0):
-    """Alle Rezepte auflisten."""
+async def list_recipes(
+    limit: int = 20,
+    offset: int = 0,
+    q: str = "",
+    category: str = "",
+    tags: list[str] = None,
+    favorites: bool = False,
+):
+    """Rezepte mit Filtern: Textsuche (q), Kategorie, Tags (case-insensitiv), Favoriten."""
+    if tags is None:
+        tags = []
+
     db = get_db()
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
     try:
+        # Build WHERE clause dynamically
+        where_clauses = []
+        params = []
+
+        # Text search: title, category, or any tag (case-insensitive)
+        if q:
+            q_pattern = f"%{q}%"
+            where_clauses.append(
+                "(title ILIKE %s OR category ILIKE %s OR EXISTS (SELECT 1 FROM unnest(tags) t WHERE t ILIKE %s))"
+            )
+            params.extend([q_pattern, q_pattern, q_pattern])
+
+        # Category filter (exact match)
+        if category:
+            where_clauses.append("category = %s")
+            params.append(category)
+
+        # Tag filter (case-insensitive ANY match)
+        if tags:
+            tags_lower = [t.lower() for t in tags]
+            where_clauses.append("EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))")
+            params.append(tags_lower)
+
+        # Favorites filter
+        if favorites:
+            where_clauses.append("rating = 1")
+
+        where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        # Add pagination params
+        params.extend([limit, offset])
+
         cursor.execute(
-            """
+            f"""
             SELECT id, title, category, image_filename, source_url, source_label, source_type, source_id, rating, tags, created_at
-            FROM recipes ORDER BY created_at DESC LIMIT %s OFFSET %s
+            FROM recipes
+            WHERE {where_clause}
+            ORDER BY created_at DESC LIMIT %s OFFSET %s
             """,
-            (limit, offset),
+            params,
         )
         recipes = cursor.fetchall()
         db.close()
