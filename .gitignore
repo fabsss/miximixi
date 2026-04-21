@@ -46,4 +46,7 @@ instagram_cookies.txt
 # Playwrite server files
 .playwright-mcp/*
 
-graphify-out/cache/
+# graphify - knowledge graph (generated, not source)
+graphify-out/
+.graphify*
+.graphify_python
