@@ -60,9 +60,9 @@ Beispiele:
     Ausgabe: "Die [Karotten]{{2}} in kleine Würfel schneiden."
 
     Zutat sort_order=4: "Zwiebel"
-    Eingabe: "Zwiebel {4} in Scheiben schneiden."
-    FALSCH: "Zwiebel [Zwiebel]{4} in Scheiben schneiden."
-    RICHTIG: "[Zwiebel]{4} in Scheiben schneiden."
+    Eingabe: "Zwiebel {{4}} in Scheiben schneiden."
+    FALSCH: "Zwiebel [Zwiebel]{{4}} in Scheiben schneiden."
+    RICHTIG: "[Zwiebel]{{4}} in Scheiben schneiden."
 
     Eingabe ohne Referenz: "Mit Salz und Pfeffer abschmecken."
     Ausgabe: "Mit Salz und Pfeffer abschmecken."
