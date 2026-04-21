@@ -38,7 +38,7 @@ def backfill():
         # Get recipes that need source_type/source_id corrections
         # This includes recipes where source_type was set to 'web' but URL indicates Instagram/YouTube
         cursor.execute("""
-            SELECT id, source_url, source_type
+            SELECT id, source_url, source_type, title
             FROM recipes
             WHERE source_type IS NULL
                OR (source_url LIKE '%instagram.com%' AND source_type != 'instagram')
@@ -55,8 +55,8 @@ def backfill():
         print(f"Found {len(recipes)} recipes needing updates...")
 
         # First pass: identify duplicates by (source_type, source_id)
-        duplicates_to_delete = set()
-        seen = {}  # (source_type, source_id) -> first recipe id
+        duplicates = []
+        seen = {}  # (source_type, source_id) -> (first recipe id, title, url)
 
         for recipe in recipes:
             source_url = recipe['source_url']
@@ -67,34 +67,33 @@ def backfill():
             if source_type in ('instagram', 'youtube'):
                 key = (source_type, source_id)
                 if key in seen:
-                    # This is a duplicate - mark for deletion
-                    duplicates_to_delete.add(recipe['id'])
-                    print(f"  Duplicate found: {source_type}:{source_id} (id: {recipe['id']}) - will delete")
+                    # This is a duplicate
+                    duplicates.append({
+                        'id': recipe['id'],
+                        'title': recipe.get('title', 'N/A'),
+                        'url': source_url,
+                        'source_type': source_type,
+                        'source_id': source_id,
+                        'first_id': seen[key][0]
+                    })
                 else:
-                    # First occurrence - keep this one
-                    seen[key] = recipe['id']
+                    # First occurrence - store it
+                    seen[key] = (recipe['id'], recipe.get('title', 'N/A'), source_url)
 
-        # Delete duplicates
-        if duplicates_to_delete:
-            print(f"\nDeleting {len(duplicates_to_delete)} duplicate recipes...")
-            for recipe_id in duplicates_to_delete:
-                cursor.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
-            db.commit()
-            print(f"  ✓ Deleted {len(duplicates_to_delete)} duplicates")
+        # Report duplicates
+        if duplicates:
+            print(f"\n⚠️  Found {len(duplicates)} DUPLICATE recipes that need manual deletion:\n")
+            for dup in duplicates:
+                print(f"  ID: {dup['id']}")
+                print(f"  Title: {dup['title']}")
+                print(f"  URL: {dup['url']}")
+                print(f"  Source: {dup['source_type']}:{dup['source_id']}")
+                print(f"  (Keeping: {dup['first_id']})")
+                print()
+            print(f"\n⚠️  STOP: Please delete these {len(duplicates)} duplicate recipes manually, then run this script again.\n")
+            return
 
-        # Second pass: update source_type and source_id for remaining recipes
-        cursor.execute("""
-            SELECT id, source_url, source_type
-            FROM recipes
-            WHERE source_type IS NULL
-               OR (source_url LIKE '%instagram.com%' AND source_type != 'instagram')
-               OR (source_url LIKE '%instagr.am%' AND source_type != 'instagram')
-               OR (source_url LIKE '%youtube.com%' AND source_type != 'youtube')
-               OR (source_url LIKE '%youtu.be%' AND source_type != 'youtube')
-        """)
-        remaining_recipes = cursor.fetchall()
-
-        print(f"\nUpdating {len(remaining_recipes)} recipes with correct source_type/source_id...")
+        print(f"\nUpdating {len(recipes)} recipes with correct source_type/source_id...")
 
         updated = 0
         for recipe in remaining_recipes:
