@@ -151,14 +151,23 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
         <nav className="space-y-1 p-4">
           {/* Categories */}
           <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--mx-on-surface-variant)]">Kategorien</p>
-          <button onClick={() => setDrawerOpen(false)} className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition">
+          <Link
+            to="/"
+            onClick={() => setDrawerOpen(false)}
+            className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
+          >
             <span>Alle</span>
             <span className="text-xs opacity-60">{categoryCountsQuery.data?.total ?? 0}</span>
-          </button>
+          </Link>
           {(categoriesQuery.data ?? []).map((cat) => (
-            <button key={cat} onClick={() => setDrawerOpen(false)} className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition">
+            <Link
+              key={cat}
+              to={`/?cat=${encodeURIComponent(cat)}`}
+              onClick={() => setDrawerOpen(false)}
+              className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
+            >
               <span>{cat}</span>
-            </button>
+            </Link>
           ))}
           <hr className="my-2 border-[var(--mx-outline-variant)]/20" />
           <Link
