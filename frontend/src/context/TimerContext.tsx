@@ -23,6 +23,7 @@ interface TimerContextType {
   resetTimer: (id: string) => void
   deleteTimer: (id: string) => void
   adjustTimer: (id: string, deltaSeconds: number) => void
+  initializeTimer: (recipeId: string, stepIndex: number, stepLabel: string, recipeTitle: string, totalSeconds: number) => void
 }
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined)
@@ -283,8 +284,33 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     })
   }, [getRemainingSeconds])
 
+  const initializeTimer = useCallback((
+    recipeId: string,
+    stepIndex: number,
+    stepLabel: string,
+    recipeTitle: string,
+    totalSeconds: number,
+  ) => {
+    const id = `${recipeId}:${stepIndex}`
+    setTimers((prev) => {
+      const existing = prev.get(id)
+      if (existing) return prev
+      const next = new Map(prev)
+      next.set(id, {
+        id, recipeId, recipeTitle, stepIndex,
+        stepLabel: stepLabel.slice(0, 30),
+        totalSeconds,
+        isRunning: false,
+        isDone: false,
+        deadlineMs: null,
+        pausedRemaining: totalSeconds,
+      })
+      return next
+    })
+  }, [])
+
   return (
-    <TimerContext.Provider value={{ timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, deleteTimer, adjustTimer }}>
+    <TimerContext.Provider value={{ timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, deleteTimer, adjustTimer, initializeTimer }}>
       {children}
     </TimerContext.Provider>
   )

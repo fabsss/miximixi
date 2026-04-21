@@ -119,7 +119,7 @@ interface StepTimerProps {
 }
 
 const StepTimer = React.memo(function StepTimer({ recipeId, recipeTitle, stepIndex, stepLabel, minutes }: StepTimerProps) {
-  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
+  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer, initializeTimer } = useTimers()
   const id = `${recipeId}:${stepIndex}`
   const timer = timers.get(id)
   const totalSeconds = minutes * 60
@@ -142,10 +142,20 @@ const StepTimer = React.memo(function StepTimer({ recipeId, recipeTitle, stepInd
         <span className="font-headline text-2xl font-bold tracking-tighter text-[var(--mx-on-surface)]">{formatTime(remaining)}</span>
       </div>
       <div className="flex flex-col gap-1">
-        <button onClick={() => adjustTimer(id, 60)} title="+1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
+        <button onClick={() => {
+          if (!timer) {
+            initializeTimer(recipeId, stepIndex, stepLabel, recipeTitle, totalSeconds)
+          }
+          adjustTimer(id, 60)
+        }} title="+1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
           <span className="material-symbols-outlined text-[14px]">add</span>
         </button>
-        <button onClick={() => adjustTimer(id, -60)} title="-1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
+        <button onClick={() => {
+          if (!timer) {
+            initializeTimer(recipeId, stepIndex, stepLabel, recipeTitle, totalSeconds)
+          }
+          adjustTimer(id, -60)
+        }} title="-1 Minute" className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-primary)]/10 hover:text-[var(--mx-primary)] transition-colors">
           <span className="material-symbols-outlined text-[14px]">remove</span>
         </button>
       </div>

@@ -106,7 +106,7 @@ export function CookPage() {
     enabled: Boolean(recipeId),
   })
 
-  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer } = useTimers()
+  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer, initializeTimer } = useTimers()
 
   const timerId = recipeId ? `${recipeId}:${currentStep}` : null
   const currentTimer = timerId ? timers.get(timerId) : undefined
@@ -226,8 +226,7 @@ export function CookPage() {
                 onClick={() => {
                   if (!recipeId || !recipeQuery.data) return
                   if (!currentTimer) {
-                    startTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
-                    pauseTimer(`${recipeId}:${currentStep}`)
+                    initializeTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
                   }
                   adjustTimer(`${recipeId}:${currentStep}`, -60)
                 }}
@@ -239,8 +238,7 @@ export function CookPage() {
                 onClick={() => {
                   if (!recipeId || !recipeQuery.data) return
                   if (!currentTimer) {
-                    startTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
-                    pauseTimer(`${recipeId}:${currentStep}`)
+                    initializeTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
                   }
                   adjustTimer(`${recipeId}:${currentStep}`, 60)
                 }}
