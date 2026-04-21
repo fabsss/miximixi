@@ -1,5 +1,5 @@
 import { flushSync } from 'react-dom'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, Outlet, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/useNavDrawer'
@@ -13,6 +13,12 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
   const location = useLocation()
+  const scrollPositionsRef = useRef(scrollPositions)
+
+  // Sync ref with prop changes
+  useEffect(() => {
+    scrollPositionsRef.current = scrollPositions
+  }, [scrollPositions])
 
   // Restore scroll position when navigating to a page
   useEffect(() => {
@@ -41,7 +47,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
               <button
                 onClick={() => {
                   // Save scroll position before navigation
-                  scrollPositions[location.pathname] = window.scrollY
+                  scrollPositionsRef.current[location.pathname] = window.scrollY
                   if ('startViewTransition' in document) {
                     document.documentElement.dataset.navdir = 'back'
                     ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {

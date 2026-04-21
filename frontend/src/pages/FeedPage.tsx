@@ -49,7 +49,7 @@ export function FeedPage(): ReactNode {
   const [searchParams, setSearchParams] = useSearchParams()
   const search = searchParams.get('q') ?? ''
   const selectedMainCategory = searchParams.get('cat') || null
-  const selectedTags = new Set(searchParams.getAll('tag'))
+  const selectedTags = useMemo(() => new Set(searchParams.getAll('tag')), [searchParams])
   const showFavoritesOnly = searchParams.get('fav') === '1'
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
