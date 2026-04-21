@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getRecipe } from '../lib/api'
+import { useTimers } from '../context/TimerContext'
 
 function parseIngredientReference(text: string): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
   const parts: Array<{ type: 'text' | 'ref'; content: string; label: string }> = []
@@ -53,9 +54,11 @@ function stripIngredientParens(text: string, allIngredients: Array<{ name: strin
 }
 
 function formatTime(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  const abs = Math.abs(totalSeconds)
+  const minutes = Math.floor(abs / 60)
+  const secs = abs % 60
+  const formatted = `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  return totalSeconds < 0 ? `−${formatted}` : formatted
 }
 
 export function CookPage() {
@@ -66,8 +69,6 @@ export function CookPage() {
     ? recipeSlug.slice(-36)
     : recipeSlug
   const [currentStep, setCurrentStep] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
-  const [secondsOverride, setSecondsOverride] = useState<number | null>(null)
   const [highlightedRef, setHighlightedRef] = useState<string | null>(null)
   const bubbleTimerRef = useRef<number | null>(null)
 
@@ -105,12 +106,18 @@ export function CookPage() {
     enabled: Boolean(recipeId),
   })
 
+  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer, initializeTimer } = useTimers()
+
+  const timerId = recipeId ? `${recipeId}:${currentStep}` : null
+  const currentTimer = timerId ? timers.get(timerId) : undefined
+
   const stepDuration = useMemo(() => {
     const minutes = recipeQuery.data?.steps[currentStep]?.time_minutes ?? 5
     return minutes * 60
   }, [currentStep, recipeQuery.data?.steps])
 
-  const seconds = secondsOverride ?? stepDuration
+  const seconds = currentTimer ? getRemainingSeconds(currentTimer) : stepDuration
+  const isRunning = currentTimer?.isRunning ?? false
 
   const ingredientBySortOrder = useMemo(() => {
     const map = new Map<string, { name: string; amount: number | null; unit: string | null }>()
@@ -119,23 +126,6 @@ export function CookPage() {
     }
     return map
   }, [recipeQuery.data?.ingredients])
-
-  useEffect(() => {
-    if (!isRunning || seconds <= 0) {
-      return
-    }
-    const timer = window.setInterval(() => {
-      setSecondsOverride((prev) => {
-        const value = prev ?? stepDuration
-        const next = Math.max(value - 1, 0)
-        if (next === 0) {
-          setIsRunning(false)
-        }
-        return next
-      })
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [isRunning, seconds, stepDuration])
 
   if (recipeQuery.isLoading) {
     return <p className="mx-shell mt-8 rounded-[2rem] bg-[var(--mx-surface-low)] p-8">Lade Kochmodus …</p>
@@ -233,13 +223,25 @@ export function CookPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setSecondsOverride((s) => Math.max(0, (s ?? stepDuration) - 60))}
+                onClick={() => {
+                  if (!recipeId || !recipeQuery.data) return
+                  if (!currentTimer) {
+                    initializeTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
+                  }
+                  adjustTimer(`${recipeId}:${currentStep}`, -60)
+                }}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-lg font-bold text-[var(--mx-on-surface)]"
               >−</button>
               <p className="text-3xl font-bold text-[var(--mx-primary)] md:text-4xl">{formatTime(seconds)}</p>
               <button
                 type="button"
-                onClick={() => setSecondsOverride((s) => (s ?? stepDuration) + 60)}
+                onClick={() => {
+                  if (!recipeId || !recipeQuery.data) return
+                  if (!currentTimer) {
+                    initializeTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
+                  }
+                  adjustTimer(`${recipeId}:${currentStep}`, 60)
+                }}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--mx-surface-high)] text-lg font-bold text-[var(--mx-on-surface)]"
               >+</button>
             </div>
@@ -247,7 +249,16 @@ export function CookPage() {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setIsRunning((prev) => !prev)}
+              onClick={() => {
+                if (!recipeId || !recipeQuery.data) return
+                if (!currentTimer) {
+                  startTimer(recipeId, currentStep, `Schritt ${currentStep + 1}`, recipeQuery.data.title ?? '', stepDuration)
+                } else if (isRunning) {
+                  pauseTimer(`${recipeId}:${currentStep}`)
+                } else {
+                  resumeTimer(`${recipeId}:${currentStep}`)
+                }
+              }}
               className="rounded-full bg-[var(--mx-primary)] px-6 py-3 text-sm font-bold text-[var(--mx-on-primary)]"
             >
               {isRunning ? 'Pausieren' : 'Starten'}
@@ -255,8 +266,7 @@ export function CookPage() {
             <button
               type="button"
               onClick={() => {
-                setIsRunning(false)
-                setSecondsOverride(null)
+                if (recipeId) resetTimer(`${recipeId}:${currentStep}`)
               }}
               className="rounded-full bg-[var(--mx-surface-high)] px-6 py-3 text-sm font-bold text-[var(--mx-on-surface)]"
             >
@@ -274,8 +284,6 @@ export function CookPage() {
         type="button"
         onClick={() => {
           setCurrentStep((prev) => Math.max(prev - 1, 0))
-          setIsRunning(false)
-          setSecondsOverride(null)
           setHighlightedRef(null)
         }}
         disabled={currentStep === 0}
@@ -287,8 +295,6 @@ export function CookPage() {
         type="button"
         onClick={() => {
           setCurrentStep((prev) => Math.min(prev + 1, recipe.steps.length - 1))
-          setIsRunning(false)
-          setSecondsOverride(null)
           setHighlightedRef(null)
         }}
         disabled={currentStep === recipe.steps.length - 1}

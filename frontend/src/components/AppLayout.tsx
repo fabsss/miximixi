@@ -1,5 +1,7 @@
 import { flushSync } from 'react-dom'
-import { useEffect, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { GlobalTimerButton } from './GlobalTimerButton'
+import { TimerOverlay } from './TimerOverlay'
 import { Link, Outlet, useMatch, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useNavDrawer } from '../context/useNavDrawer'
@@ -9,6 +11,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ scrollPositions }: AppLayoutProps) {
+  const [timerOverlayOpen, setTimerOverlayOpen] = useState(false)
   const { theme, setTheme } = useTheme()
   const { setOpen: openDrawer } = useNavDrawer()
   const navigate = useNavigate()
@@ -30,7 +33,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
     })
   }, [location.pathname, scrollPositions])
 
-  const themeIcon = theme === 'system' ? '🖥️' : theme === 'dark' ? '🌙' : '☀️'
+  const themeIcon = theme === 'system' ? 'brightness_auto' : theme === 'dark' ? 'dark_mode' : 'light_mode'
   const nextTheme: 'light' | 'dark' | 'system' =
     theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
 
@@ -83,6 +86,7 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
 
           {/* Right: cook mode (detail pages) + theme pill */}
           <div className="flex items-center gap-3">
+            <GlobalTimerButton onClick={() => setTimerOverlayOpen(true)} />
             {recipeSlug && (
               <Link
                 to={`/cook/${recipeSlug}`}
@@ -117,15 +121,16 @@ export function AppLayout({ scrollPositions }: AppLayoutProps) {
               <button
                 onClick={() => setTheme(nextTheme)}
                 title={`Theme: ${theme} → ${nextTheme}`}
-                className="rounded-full px-3 py-2 text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:text-[var(--mx-on-surface)] transition"
               >
-                {themeIcon}
+                <span className="material-symbols-outlined text-[20px]">{themeIcon}</span>
               </button>
             </nav>
           </div>
         </div>
       </header>
 
+      <TimerOverlay open={timerOverlayOpen} onClose={() => setTimerOverlayOpen(false)} />
       <main className="mx-shell mt-8">
         <Outlet />
       </main>
