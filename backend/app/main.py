@@ -501,6 +501,8 @@ async def list_recipes(
     if tags is None:
         tags = []
 
+    logger.info(f"list_recipes called with tags={tags}, type={type(tags)}")
+
     db = get_db()
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
@@ -525,6 +527,7 @@ async def list_recipes(
         # Tag filter (case-insensitive OR match)
         if tags:
             tags_lower = [t.lower() for t in tags]
+            logger.info(f"Tag filter applied: tags={tags}, tags_lower={tags_lower}")
             where_clauses.append("EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))")
             params.append(tags_lower)
 
