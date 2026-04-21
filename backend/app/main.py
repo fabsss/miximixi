@@ -250,6 +250,82 @@ async def get_tags(category: str = ""):
         raise HTTPException(status_code=500, detail="Failed to fetch tags")
 
 
+@app.get("/tags/counts")
+async def get_tags_with_counts():
+    """Returns all unique tags with recipe counts, sorted by count descending."""
+    def _fetch_tags_counts():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            cursor.execute(
+                """
+                SELECT DISTINCT ON (lower(t)) t AS tag, COUNT(*) OVER (PARTITION BY lower(t)) AS count
+                FROM recipes, unnest(tags) AS t
+                WHERE t IS NOT NULL
+                ORDER BY lower(t), t, count DESC
+                """
+            )
+            rows = cursor.fetchall()
+            return [{"tag": row["tag"], "count": row["count"]} for row in rows]
+        finally:
+            db.close()
+
+    try:
+        result = await asyncio.to_thread(_fetch_tags_counts)
+        return result
+    except Exception as e:
+        logger.error(f"Tags counts fetch failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch tags with counts")
+
+
+class TagMergeRequest(BaseModel):
+    source_tags: list[str]
+    target_tag: str
+
+
+@app.post("/tags/merge")
+async def merge_tags(req: TagMergeRequest):
+    """Merge multiple source tags into a single target tag (case-insensitive).
+
+    All occurrences of source tags are replaced with target_tag across all recipes.
+    Returns the number of recipes that were updated.
+    """
+    def _merge_tags():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            source_tags_lower = [t.lower() for t in req.source_tags]
+
+            cursor.execute(
+                """
+                UPDATE recipes
+                SET tags = (
+                    SELECT array_agg(CASE WHEN lower(t) = ANY(%s) THEN %s ELSE t END)
+                    FROM unnest(tags) t
+                )
+                WHERE EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))
+                RETURNING id
+                """,
+                (source_tags_lower, req.target_tag, source_tags_lower),
+            )
+            updated_ids = [row["id"] for row in cursor.fetchall()]
+            db.commit()
+            db.close()
+            return len(updated_ids)
+        except Exception as e:
+            db.rollback()
+            db.close()
+            raise e
+
+    try:
+        updated_count = await asyncio.to_thread(_merge_tags)
+        logger.info(f"Merged tags {req.source_tags} → {req.target_tag}: {updated_count} recipes updated")
+        return {"updated_recipes": updated_count}
+    except Exception as e:
+        logger.error(f"Tags merge failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to merge tags: {str(e)}")
+
+
 # ── Import Endpoints ─────────────────────────────────────────────────
 @app.post("/import", response_model=ImportResponse)
 async def create_import(req: ImportRequest):

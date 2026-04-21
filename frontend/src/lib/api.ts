@@ -56,6 +56,23 @@ export async function getTags(category?: string): Promise<string[]> {
   return request<string[]>(`/tags?${params.toString()}`)
 }
 
+export interface TagWithCount {
+  tag: string
+  count: number
+}
+
+export async function getTagsWithCounts(): Promise<TagWithCount[]> {
+  return request<TagWithCount[]>('/tags/counts')
+}
+
+export async function mergeTags(sourceTags: string[], targetTag: string): Promise<{ updated_recipes: number }> {
+  return request<{ updated_recipes: number }>('/tags/merge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_tags: sourceTags, target_tag: targetTag }),
+  })
+}
+
 export async function getHeroRecipes(limit = 6, category?: string): Promise<RecipeListItem[]> {
   const params = new URLSearchParams()
   params.append('limit', String(limit))

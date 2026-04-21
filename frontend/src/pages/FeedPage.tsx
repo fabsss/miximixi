@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { flushSync } from 'react-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getImageUrl, getRecipes, getTags, getHeroRecipes } from '../lib/api'
@@ -262,6 +262,15 @@ export function FeedPage(): ReactNode {
             onSelect={handleMainCat}
             catBtnCls={catBtnCls}
           />
+          <hr className="my-2 border-[var(--mx-outline-variant)]/20" />
+          <Link
+            to="/tags"
+            onClick={() => setDrawerOpen(false)}
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
+          >
+            <span className="material-symbols-outlined text-[18px]">sell</span>
+            <span>Tags</span>
+          </Link>
         </nav>
       </div>
 
@@ -276,6 +285,14 @@ export function FeedPage(): ReactNode {
             onSelect={handleMainCat}
             catBtnCls={catBtnCls}
           />
+          <hr className="my-2 border-[var(--mx-outline-variant)]/20" />
+          <Link
+            to="/tags"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
+          >
+            <span className="material-symbols-outlined text-[18px]">sell</span>
+            <span>Tags</span>
+          </Link>
         </nav>
       </aside>
 

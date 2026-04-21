@@ -4,6 +4,7 @@ import { AppLayout } from './components/AppLayout'
 import { CookPage } from './pages/CookPage'
 import { FeedPage } from './pages/FeedPage'
 import { RecipeDetailPage } from './pages/RecipeDetailPage'
+import { TagsPage } from './pages/TagsPage'
 import { TimerProvider } from './context/TimerContext'
 
 // Store scroll positions per route
@@ -27,6 +28,7 @@ function App() {
         <Route element={<AppLayout scrollPositions={scrollPositions} />}>
           <Route path="/" element={<FeedPage />} />
           <Route path="/recipes/:recipeSlug" element={<RecipeDetailPage />} />
+          <Route path="/tags" element={<TagsPage />} />
         </Route>
         <Route path="/cook/:recipeSlug" element={<CookPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
