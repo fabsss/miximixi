@@ -52,10 +52,52 @@ def backfill():
             print("✓ No recipes need backfilling (all have correct source_type set)")
             return
 
-        print(f"Backfilling {len(recipes)} recipes...")
+        print(f"Found {len(recipes)} recipes needing updates...")
+
+        # First pass: identify duplicates by (source_type, source_id)
+        duplicates_to_delete = set()
+        seen = {}  # (source_type, source_id) -> first recipe id
+
+        for recipe in recipes:
+            source_url = recipe['source_url']
+            source_type = get_source_type_from_url(source_url)
+            source_id = extract_source_id(source_url) if source_type != 'web' else None
+
+            # Only check for duplicates on instagram/youtube
+            if source_type in ('instagram', 'youtube'):
+                key = (source_type, source_id)
+                if key in seen:
+                    # This is a duplicate - mark for deletion
+                    duplicates_to_delete.add(recipe['id'])
+                    print(f"  Duplicate found: {source_type}:{source_id} (id: {recipe['id']}) - will delete")
+                else:
+                    # First occurrence - keep this one
+                    seen[key] = recipe['id']
+
+        # Delete duplicates
+        if duplicates_to_delete:
+            print(f"\nDeleting {len(duplicates_to_delete)} duplicate recipes...")
+            for recipe_id in duplicates_to_delete:
+                cursor.execute("DELETE FROM recipes WHERE id = %s", (recipe_id,))
+            db.commit()
+            print(f"  ✓ Deleted {len(duplicates_to_delete)} duplicates")
+
+        # Second pass: update source_type and source_id for remaining recipes
+        cursor.execute("""
+            SELECT id, source_url, source_type
+            FROM recipes
+            WHERE source_type IS NULL
+               OR (source_url LIKE '%instagram.com%' AND source_type != 'instagram')
+               OR (source_url LIKE '%instagr.am%' AND source_type != 'instagram')
+               OR (source_url LIKE '%youtube.com%' AND source_type != 'youtube')
+               OR (source_url LIKE '%youtu.be%' AND source_type != 'youtube')
+        """)
+        remaining_recipes = cursor.fetchall()
+
+        print(f"\nUpdating {len(remaining_recipes)} recipes with correct source_type/source_id...")
 
         updated = 0
-        for recipe in recipes:
+        for recipe in remaining_recipes:
             source_url = recipe['source_url']
 
             # Use the same extraction logic as the import system
@@ -69,7 +111,7 @@ def backfill():
             updated += 1
 
             if updated % 100 == 0:
-                print(f"  ... updated {updated}/{len(recipes)}")
+                print(f"  ... updated {updated}/{len(remaining_recipes)}")
 
         db.commit()
 
