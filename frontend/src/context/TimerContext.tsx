@@ -253,11 +253,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       const timer = prev.get(id)
       if (!timer || timer.deadlineMs == null) return prev
       const next = new Map(prev)
-      const newDeadline = Math.max(Date.now(), timer.deadlineMs + deltaSeconds * 1000)
+      const currentRemaining = getRemainingSeconds(timer)
+      const newRemaining = Math.max(0, currentRemaining + deltaSeconds)
+      const newDeadline = Date.now() + newRemaining * 1000
       next.set(id, {
         ...timer,
         deadlineMs: newDeadline,
-        isDone: timer.isDone && getRemainingSeconds(timer) <= 0,
       })
       return next
     })

@@ -234,7 +234,7 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
+              className="max-md:hidden flex h-8 w-8 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
