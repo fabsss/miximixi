@@ -59,12 +59,12 @@ export function CookPage() {
 
   const handleGoToRecipe = () => {
     if ('startViewTransition' in document) {
-      document.documentElement.dataset.navdir = 'forward'
+      document.documentElement.dataset.navdir = 'back'
       ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
-        flushSync(() => navigate(`/recipes/${recipeId}`))
+        flushSync(() => navigate(-1))
       })
     } else {
-      navigate(`/recipes/${recipeId}`)
+      navigate(-1)
     }
   }
 

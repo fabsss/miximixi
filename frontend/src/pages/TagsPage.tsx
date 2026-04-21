@@ -113,7 +113,7 @@ export function TagsPage(): ReactNode {
                     handleDeleteTag(tag)
                   }}
                   disabled={isLoading}
-                  className="ml-1 rounded-full p-0.5 opacity-0 transition group-hover:opacity-100 hover:bg-[var(--mx-surface-low)] disabled:opacity-50"
+                  className="ml-1 rounded-full p-0.5 transition hover:bg-[var(--mx-surface-low)] disabled:opacity-50"
                   title="Tag löschen"
                 >
                   <span className="material-symbols-outlined text-[16px]">close</span>
