@@ -14,10 +14,6 @@ import uuid
 # Generate deterministic test UUIDs using UUID v5 (namespace-based)
 TEST_NAMESPACE = uuid.UUID('12345678-1234-5678-1234-567812345678')
 
-def make_make_test_uuid(name: str) -> str:
-    """Generate a deterministic UUID for test data"""
-    return str(uuid.uuid5(TEST_NAMESPACE, name))
-
 
 @pytest.fixture
 def db():
@@ -143,7 +139,7 @@ class TestTelegramBotDeduplication:
         source_type = get_source_type_from_url(url1)
         source_id = extract_source_id(url1)
 
-        recipe_id = make_test_uuid("test-insta-1")
+        recipe_id = str(uuid.uuid5(TEST_NAMESPACE, "test-insta-1"))
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -189,7 +185,7 @@ class TestTelegramBotDeduplication:
         source_type = get_source_type_from_url(url1)
         source_id = extract_source_id(url1)
 
-        recipe_id = make_test_uuid("test-yt-1")
+        recipe_id = str(uuid.uuid5(TEST_NAMESPACE, "test-yt-1"))
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -238,7 +234,7 @@ class TestTelegramBotDeduplication:
         assert source_type == "web"
         assert source_id is None
 
-        recipe_id = make_test_uuid("test-web-1")
+        recipe_id = str(uuid.uuid5(TEST_NAMESPACE, "test-web-1"))
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -286,7 +282,7 @@ class TestQueueWorkerSourceExtraction:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)
                RETURNING source_type, source_id""",
-            (make_test_uuid("test-qw-1"), "Test", url, source_type, source_id)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-qw-1")), "Test", url, source_type, source_id)
         )
         result = cursor.fetchone()
         db.commit()
@@ -312,7 +308,7 @@ class TestQueueWorkerSourceExtraction:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)
                RETURNING source_type, source_id""",
-            (make_test_uuid("test-qw-2"), "Test", url, source_type, source_id)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-qw-2")), "Test", url, source_type, source_id)
         )
         result = cursor.fetchone()
         db.commit()
@@ -339,7 +335,7 @@ class TestOldRecipesBackfill:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, NULL, NULL)
                RETURNING id""",
-            (make_test_uuid("test-old-1"), "Old Recipe", url)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-old-1")), "Old Recipe", url)
         )
         recipe_id = cursor.fetchone()['id']
         db.commit()
@@ -383,7 +379,7 @@ class TestDatabaseConstraints:
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            (make_test_uuid("test-uc-1"), "Recipe 1", "https://instagram.com/p/ABC123/", "instagram", "ABC123")
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-uc-1")), "Recipe 1", "https://instagram.com/p/ABC123/", "instagram", "ABC123")
         )
         db.commit()
 
@@ -393,7 +389,7 @@ class TestDatabaseConstraints:
             cursor.execute(
                 """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                    VALUES (%s, %s, %s, %s, %s)""",
-                (make_make_test_uuid("test-uc-2"), "Recipe 2", "https://instagram.com/p/ABC123/?utm=tracking", "instagram", "ABC123")
+                (str(uuid.uuid5(TEST_NAMESPACE, "test-uc-2")), "Recipe 2", "https://instagram.com/p/ABC123/?utm=tracking", "instagram", "ABC123")
             )
             db.commit()
 
@@ -411,12 +407,12 @@ class TestDatabaseConstraints:
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            (make_test_uuid("test-web-2"), "Web Recipe 1", "https://example.com/recipe1", "web", None)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-web-2")), "Web Recipe 1", "https://example.com/recipe1", "web", None)
         )
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            (make_test_uuid("test-web-3"), "Web Recipe 2", "https://example.com/recipe2", "web", None)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-web-3")), "Web Recipe 2", "https://example.com/recipe2", "web", None)
         )
 
         # Should succeed (no unique constraint violation)
