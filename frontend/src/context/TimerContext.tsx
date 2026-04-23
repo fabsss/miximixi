@@ -150,7 +150,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         startInterval(id)
       }
     }
-  }, []) // Only on mount
+  }, [timers, startInterval]) // Only on mount
 
   // Persist to sessionStorage on every change
   useEffect(() => {
@@ -257,7 +257,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   const adjustTimer = useCallback((id: string, deltaSeconds: number) => {
     setTimers((prev) => {
-      let timer = prev.get(id)
+      const timer = prev.get(id)
       if (!timer) {
         // Timer doesn't exist yet - can't adjust
         return prev
