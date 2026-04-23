@@ -34,6 +34,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://miximixi:miximixi@localhost:5432/miximixi_test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: miximixi
+      DB_PASSWORD: miximixi
+      DB_NAME: miximixi_test
       LLM_PROVIDER: ollama
       GOOGLE_API_KEY: ""
       CLAUDE_API_KEY: ""

@@ -45,9 +45,13 @@ def clean_recipes(db):
             try:
                 with open(migration_file, 'r') as f:
                     migration_sql = f.read()
-                cursor.execute(migration_sql)
+
+                # Split by semicolons and execute each statement separately
+                statements = [s.strip() for s in migration_sql.split(';') if s.strip()]
+                for statement in statements:
+                    cursor.execute(statement)
                 db.commit()
-            except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject):
+            except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject, psycopg2.errors.DuplicateSchema):
                 # Migration already applied
                 db.rollback()
             except Exception as e:
