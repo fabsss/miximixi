@@ -15,7 +15,8 @@
 
 /* Light mode (Heirloom Hearth) */
 :root,
-[data-theme="light"] {
+[data-theme="light"],
+[data-theme="system"] {
   --mx-primary: #a43f14;
   --mx-primary-dim: #943308;
   --mx-primary-container: #ffad90;
@@ -52,9 +53,10 @@
   --mx-glow: rgba(255, 181, 156, 0.1);
 }
 
-/* System preference (default) */
+/* System preference (auto mode) - respects OS dark/light setting */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  [data-theme="system"],
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
     --mx-primary: #ffb59c;
     --mx-primary-dim: #e66d41;
     --mx-primary-container: #e66d41;
@@ -116,13 +118,15 @@ body {
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
 }
 
-:root,
-[data-theme="light"] body {
+body {
+  margin: 0;
+  color: var(--mx-on-surface);
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   background:
-    linear-gradient(to bottom, rgba(255, 173, 144, 0.26), transparent 50%),
-    linear-gradient(to top, rgba(82, 100, 72, 0.22), transparent 50%),
+    linear-gradient(to bottom, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
+    linear-gradient(to top, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
     var(--mx-surface);
-  background-size: 100% 100%, 100% 100%, 100% 100%;
+  background-size: 100% 500vh, 100% 500vh, 100% 100%;
   background-position: 0 0, 0 0, 0 0;
   background-repeat: no-repeat;
   background-attachment: scroll;
@@ -130,10 +134,10 @@ body {
 
 [data-theme="dark"] body {
   background:
-    linear-gradient(to bottom, rgba(82, 100, 72, 0.22), transparent 50%),
-    linear-gradient(to top, rgba(255, 173, 144, 0.26), transparent 50%),
+    linear-gradient(to bottom, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
+    linear-gradient(to top, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
     var(--mx-surface);
-  background-size: 100% 100%, 100% 100%, 100% 100%;
+  background-size: 100% 500vh, 100% 500vh, 100% 100%;
   background-position: 0 0, 0 0, 0 0;
   background-repeat: no-repeat;
   background-attachment: scroll;
