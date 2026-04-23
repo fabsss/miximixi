@@ -261,26 +261,6 @@ When debugging, **do NOT guess at root causes in sequence**. Instead:
 
 ---
 
-## Media/Metadata Processing
-
-### GPS/Geolocation Metadata (EXIF, XMP)
-For GPS/geolocation metadata (EXIF, XMP), **always verify the exact tag names, sign conventions, and format strings against exiftool documentation** before writing. **Latitude south and longitude west must be negative.**
-
-**Critical rules:**
-- **North latitude:** positive, **South latitude:** negative (e.g., Sydney = -33.87)
-- **East longitude:** positive, **West longitude:** negative (e.g., NYC = -74.01)
-- XMP format: `<rdf:li>{coordinate}/1,{coordinate}/1,{coordinate}/1</rdf:li>`
-- EXIF tags: `GPSLatitude`, `GPSLatitudeRef` (N/S), `GPSLongitude`, `GPSLongitudeRef` (E/W)
-- Always check exiftool docs: `exiftool -a -G1 file.jpg | grep -i gps`
-
-**Before writing metadata:**
-1. Verify the exact tag name in exiftool documentation
-2. Double-check sign conventions for your coordinate system
-3. Test on a sample file and validate with exiftool before production use
-4. Log GPS data for verification (don't silently write it)
-
----
-
 ## Installation & Setup
 
 ### Clone & Configure
