@@ -138,9 +138,10 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
       }))
       return () => cancelAnimationFrame(t)
     } else {
-      setVisible(false)
-      const t = setTimeout(() => setMounted(false), 350)
-      return () => clearTimeout(t)
+      const timeouts: number[] = []
+      timeouts.push(setTimeout(() => setVisible(false)) as unknown as number)
+      timeouts.push(setTimeout(() => setMounted(false), 350) as unknown as number)
+      return () => timeouts.forEach(clearTimeout)
     }
   }, [open])
 

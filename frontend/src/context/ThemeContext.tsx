@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from 'react'
-import { applyTheme, type Theme } from '../utils/theme'
+import { type Theme } from '../utils/theme'
 
 interface ThemeContextType {
   theme: Theme
@@ -16,27 +16,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return (stored as Theme) || 'system'
   })
 
-  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>(() =>
-    applyTheme('system'),
+  const [systemPreference, setSystemPreference] = useState<'light' | 'dark'>(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   )
 
-  // Update document attribute and localStorage when theme changes
+  // Listen for system preference changes
   useEffect(() => {
-    setEffectiveTheme(applyTheme(theme))
-  }, [theme])
-
-  // Listen for system preference changes when theme is 'system'
-  useEffect(() => {
-    if (theme !== 'system') return
-
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handler = (e: MediaQueryListEvent) => {
-      setEffectiveTheme(e.matches ? 'dark' : 'light')
+      setSystemPreference(e.matches ? 'dark' : 'light')
     }
 
     mediaQuery.addEventListener('change', handler)
     return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+
+  // Save theme to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('mx-theme', theme)
   }, [theme])
+
+  // Compute effective theme (derived state, not stored state)
+  const effectiveTheme = theme === 'system' ? systemPreference : theme
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme)
