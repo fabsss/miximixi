@@ -9,6 +9,14 @@ These tests verify the complete deduplication flow:
 import pytest
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import uuid
+
+# Generate deterministic test UUIDs using UUID v5 (namespace-based)
+TEST_NAMESPACE = uuid.UUID('12345678-1234-5678-1234-567812345678')
+
+def test_uuid(name: str) -> str:
+    """Generate a deterministic UUID for test data"""
+    return str(uuid.uuid5(TEST_NAMESPACE, name))
 
 
 @pytest.fixture
@@ -135,7 +143,7 @@ class TestTelegramBotDeduplication:
         source_type = get_source_type_from_url(url1)
         source_id = extract_source_id(url1)
 
-        recipe_id = "test-insta-1"
+        recipe_id = test_uuid("test-insta-1")
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -181,7 +189,7 @@ class TestTelegramBotDeduplication:
         source_type = get_source_type_from_url(url1)
         source_id = extract_source_id(url1)
 
-        recipe_id = "test-yt-1"
+        recipe_id = test_uuid("test-yt-1")
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -230,7 +238,7 @@ class TestTelegramBotDeduplication:
         assert source_type == "web"
         assert source_id is None
 
-        recipe_id = "test-web-1"
+        recipe_id = test_uuid("test-web-1")
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -278,7 +286,7 @@ class TestQueueWorkerSourceExtraction:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)
                RETURNING source_type, source_id""",
-            ("test-qw-1", "Test", url, source_type, source_id)
+            (test_uuid("test-qw-1"), "Test", url, source_type, source_id)
         )
         result = cursor.fetchone()
         db.commit()
@@ -304,7 +312,7 @@ class TestQueueWorkerSourceExtraction:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)
                RETURNING source_type, source_id""",
-            ("test-qw-2", "Test", url, source_type, source_id)
+            (test_uuid("test-qw-2"), "Test", url, source_type, source_id)
         )
         result = cursor.fetchone()
         db.commit()
@@ -331,7 +339,7 @@ class TestOldRecipesBackfill:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, NULL, NULL)
                RETURNING id""",
-            ("test-old-1", "Old Recipe", url)
+            (test_uuid("test-old-1"), "Old Recipe", url)
         )
         recipe_id = cursor.fetchone()['id']
         db.commit()
@@ -375,7 +383,7 @@ class TestDatabaseConstraints:
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            ("test-uc-1", "Recipe 1", "https://instagram.com/p/ABC123/", "instagram", "ABC123")
+            (test_uuid("test-uc-1"), "Recipe 1", "https://instagram.com/p/ABC123/", "instagram", "ABC123")
         )
         db.commit()
 
@@ -403,12 +411,12 @@ class TestDatabaseConstraints:
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            ("test-web-2", "Web Recipe 1", "https://example.com/recipe1", "web", None)
+            (test_uuid("test-web-2"), "Web Recipe 1", "https://example.com/recipe1", "web", None)
         )
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            ("test-web-3", "Web Recipe 2", "https://example.com/recipe2", "web", None)
+            (test_uuid("test-web-3"), "Web Recipe 2", "https://example.com/recipe2", "web", None)
         )
 
         # Should succeed (no unique constraint violation)
