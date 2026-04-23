@@ -31,31 +31,61 @@ def db():
 @pytest.fixture
 def clean_recipes(db):
     """Clean up recipes table before and after each test."""
-    cursor = db.cursor()
-
-    # Ensure migrations are run
     import os
     import glob
+    import re
 
+    cursor = db.cursor()
+
+    # Ensure migrations are run by parsing and executing all SQL statements
     migration_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'migrations')
     if os.path.exists(migration_dir):
-        # Find all migration files and apply them
         migration_files = sorted(glob.glob(os.path.join(migration_dir, '[0-9][0-9][0-9]_*.sql')))
         for migration_file in migration_files:
             try:
                 with open(migration_file, 'r') as f:
                     migration_sql = f.read()
 
-                # Split by semicolons and execute each statement separately
-                statements = [s.strip() for s in migration_sql.split(';') if s.strip()]
+                # Remove SQL comments and split into statements
+                # This handles -- comments and /* */ comments
+                lines = migration_sql.split('\n')
+                cleaned_lines = []
+                in_block_comment = False
+
+                for line in lines:
+                    # Handle block comments
+                    if '/*' in line:
+                        in_block_comment = True
+                    if '*/' in line:
+                        in_block_comment = False
+                        continue
+                    if in_block_comment:
+                        continue
+
+                    # Remove line comments
+                    if '--' in line:
+                        line = line[:line.index('--')]
+
+                    cleaned_lines.append(line)
+
+                cleaned_sql = '\n'.join(cleaned_lines)
+
+                # Split statements by semicolon, filter empty statements
+                statements = [s.strip() for s in cleaned_sql.split(';') if s.strip()]
+
                 for statement in statements:
-                    cursor.execute(statement)
+                    try:
+                        cursor.execute(statement)
+                    except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject, psycopg2.errors.DuplicateSchema):
+                        # Migration already applied
+                        pass
+                    except Exception:
+                        # Some statements might fail if already applied, continue
+                        pass
+
                 db.commit()
-            except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject, psycopg2.errors.DuplicateSchema):
-                # Migration already applied
-                db.rollback()
-            except Exception as e:
-                # Log but continue - migration may already be applied
+            except Exception:
+                # Rollback on any error
                 db.rollback()
 
     # Delete test recipes
