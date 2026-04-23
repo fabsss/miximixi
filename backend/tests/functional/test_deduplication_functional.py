@@ -32,14 +32,46 @@ def db():
 def clean_recipes(db):
     """Clean up recipes table before and after each test."""
     cursor = db.cursor()
+
+    # Ensure migrations are run
+    import os
+    import glob
+
+    migration_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'migrations')
+    if os.path.exists(migration_dir):
+        # Find all migration files and apply them
+        migration_files = sorted(glob.glob(os.path.join(migration_dir, '[0-9][0-9][0-9]_*.sql')))
+        for migration_file in migration_files:
+            try:
+                with open(migration_file, 'r') as f:
+                    migration_sql = f.read()
+                cursor.execute(migration_sql)
+                db.commit()
+            except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject):
+                # Migration already applied
+                db.rollback()
+            except Exception as e:
+                # Log but continue - migration may already be applied
+                db.rollback()
+
     # Delete test recipes
-    cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
-    db.commit()
+    try:
+        cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
+        db.commit()
+    except psycopg2.errors.UndefinedTable:
+        # Table doesn't exist yet, will be created by migrations
+        db.rollback()
+
     yield
+
     # Cleanup after test
-    cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
-    db.commit()
-    cursor.close()
+    try:
+        cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
+        db.commit()
+    except psycopg2.errors.UndefinedTable:
+        pass
+    finally:
+        cursor.close()
 
 
 class TestTelegramBotDeduplication:
