@@ -72,7 +72,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --mx-primary: #ffb59c;
     --mx-primary-dim: #e66d41;
     --mx-primary-container: #e66d41;
@@ -160,7 +160,18 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  body {
+  [data-theme="light"] body {
+    background:
+      linear-gradient(to bottom, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
+      linear-gradient(to top, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
+      var(--mx-surface);
+    background-size: 100% 500vh, 100% 500vh, 100% 100%;
+    background-position: 0 0, 0 0, 0 0;
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+  }
+
+  body:not([data-theme="light"]) {
     background:
       linear-gradient(to bottom, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
       linear-gradient(to top, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
@@ -195,6 +206,7 @@ a {
 }
 
 /* Category color variables – SINGLE SOURCE OF TRUTH */
+/* Light mode - explicit takes priority, then media query, then system dark default to light */
 [data-theme="light"] {
   --cat-vorspeisen-bg: #f3d5a5;
   --cat-vorspeisen-text: #8b5a1a;
@@ -208,7 +220,6 @@ a {
   --cat-snacks-text: #2d6b2d;
   --cat-drinks-bg: #d4e8f5;
   --cat-drinks-text: #3a5a7a;
-  /* Sidebar background in light mode matches card container */
   --cat-sidebar-bg: transparent;
 }
 
@@ -226,11 +237,11 @@ a {
     --cat-snacks-text: #2d6b2d;
     --cat-drinks-bg: #d4e8f5;
     --cat-drinks-text: #3a5a7a;
-    /* Sidebar background in light mode matches card container */
     --cat-sidebar-bg: transparent;
   }
 }
 
+/* Dark mode - explicit takes priority, then media query */
 [data-theme="dark"] {
   --cat-vorspeisen-bg: #7d6449;
   --cat-vorspeisen-text: #fef3c7;
@@ -244,12 +255,11 @@ a {
   --cat-snacks-text: #dcfce7;
   --cat-drinks-bg: #465f6a;
   --cat-drinks-text: #e0f2fe;
-  /* Sidebar background in dark mode matches card container */
   --cat-sidebar-bg: var(--mx-surface-low);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --cat-vorspeisen-bg: #7d6449;
     --cat-vorspeisen-text: #fef3c7;
     --cat-hauptspeisen-bg: #7d5538;
@@ -262,7 +272,6 @@ a {
     --cat-snacks-text: #dcfce7;
     --cat-drinks-bg: #465f6a;
     --cat-drinks-text: #e0f2fe;
-    /* Sidebar background in dark mode matches card container */
     --cat-sidebar-bg: var(--mx-surface-low);
   }
 }
