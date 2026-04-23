@@ -14,7 +14,7 @@ import uuid
 # Generate deterministic test UUIDs using UUID v5 (namespace-based)
 TEST_NAMESPACE = uuid.UUID('12345678-1234-5678-1234-567812345678')
 
-def test_uuid(name: str) -> str:
+def make_test_uuid(name: str) -> str:
     """Generate a deterministic UUID for test data"""
     return str(uuid.uuid5(TEST_NAMESPACE, name))
 
@@ -103,9 +103,9 @@ def clean_recipes(db):
                 # Rollback on any error
                 db.rollback()
 
-    # Delete test recipes
+    # Delete ALL recipes for clean slate
     try:
-        cursor.execute("DELETE FROM recipes WHERE id::TEXT LIKE 'test-%'")
+        cursor.execute("DELETE FROM recipes")
         db.commit()
     except psycopg2.errors.UndefinedTable:
         # Table doesn't exist yet, will be created by migrations
@@ -113,9 +113,9 @@ def clean_recipes(db):
 
     yield
 
-    # Cleanup after test
+    # Cleanup after test - delete all recipes
     try:
-        cursor.execute("DELETE FROM recipes WHERE id::TEXT LIKE 'test-%'")
+        cursor.execute("DELETE FROM recipes")
         db.commit()
     except psycopg2.errors.UndefinedTable:
         pass
@@ -393,7 +393,7 @@ class TestDatabaseConstraints:
             cursor.execute(
                 """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                    VALUES (%s, %s, %s, %s, %s)""",
-                ("test-uc-2", "Recipe 2", "https://instagram.com/p/ABC123/?utm=tracking", "instagram", "ABC123")
+                (make_test_uuid("test-uc-2"), "Recipe 2", "https://instagram.com/p/ABC123/?utm=tracking", "instagram", "ABC123")
             )
             db.commit()
 
