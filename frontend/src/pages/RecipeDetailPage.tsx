@@ -328,21 +328,6 @@ export function RecipeDetailPage() {
     }
   }, [recipeQuery.data])
 
-  // Handle fullscreen image state with browser history
-  useEffect(() => {
-    if (showFullscreenImage || fullscreenStepImage) {
-      // Push a history entry when opening an image
-      window.history.pushState({ imageOpen: true }, '')
-
-      const handlePopState = () => {
-        setShowFullscreenImage(false)
-        setFullscreenStepImage(null)
-      }
-
-      window.addEventListener('popstate', handlePopState)
-      return () => window.removeEventListener('popstate', handlePopState)
-    }
-  }, [showFullscreenImage, fullscreenStepImage])
 
   const groupedIngredients = useMemo(() => {
     const map = new Map<string, Ingredient[]>()
@@ -541,7 +526,6 @@ export function RecipeDetailPage() {
           // Don't zoom if clicking on a link
           if ((e.target as HTMLElement).closest('a')) return
           setShowFullscreenImage(true)
-          history.pushState({ imageModal: 'hero' }, '', window.location.href)
         }}>
           <img
             src={imagePreviewUrl ?? getImageUrl(recipe.id)}
@@ -976,7 +960,6 @@ export function RecipeDetailPage() {
                       className="mt-3 inline-block cursor-zoom-in overflow-hidden rounded-lg"
                       onClick={() => {
                         setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))
-                        history.pushState({ imageModal: 'step' }, '', window.location.href)
                       }}
                       style={{ width: '120px', aspectRatio: '16/9' }}
                     >
@@ -1007,7 +990,7 @@ export function RecipeDetailPage() {
 
       {/* FULLSCREEN IMAGE */}
       <div
-        onClick={() => window.history.back()}
+        onClick={() => setShowFullscreenImage(false)}
         className={`fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300 ${showFullscreenImage ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       >
         <img
@@ -1021,7 +1004,7 @@ export function RecipeDetailPage() {
       {fullscreenStepImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          onClick={() => window.history.back()}
+          onClick={() => setFullscreenStepImage(null)}
         >
           <img
             src={fullscreenStepImage}
