@@ -58,11 +58,13 @@ def clean_recipes(db):
                         in_block_comment = True
                     if '*/' in line:
                         in_block_comment = False
+                        # Skip this line entirely (it contains the closing comment)
                         continue
                     if in_block_comment:
+                        # Skip lines inside block comments
                         continue
 
-                    # Remove line comments
+                    # Remove line comments (everything after --)
                     if '--' in line:
                         line = line[:line.index('--')]
 
@@ -76,15 +78,20 @@ def clean_recipes(db):
                 for statement in statements:
                     try:
                         cursor.execute(statement)
-                    except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject, psycopg2.errors.DuplicateSchema):
-                        # Migration already applied
-                        pass
-                    except Exception:
-                        # Some statements might fail if already applied, continue
-                        pass
-
-                db.commit()
-            except Exception:
+                        db.commit()
+                    except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject,
+                            psycopg2.errors.DuplicateSchema, psycopg2.errors.DuplicateIndex,
+                            psycopg2.errors.DuplicateConstraint):
+                        # Migration already applied - these errors are expected
+                        db.rollback()
+                    except psycopg2.DatabaseError as e:
+                        # Actual database errors - log but continue to allow partial migrations
+                        db.rollback()
+                        # Don't fail, migrations may have been partially applied
+                    except Exception as e:
+                        # Unexpected errors - still rollback but don't fail
+                        db.rollback()
+            except Exception as e:
                 # Rollback on any error
                 db.rollback()
 
