@@ -97,7 +97,7 @@ def clean_recipes(db):
 
     # Delete test recipes
     try:
-        cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
+        cursor.execute("DELETE FROM recipes WHERE id::TEXT LIKE 'test-%'")
         db.commit()
     except psycopg2.errors.UndefinedTable:
         # Table doesn't exist yet, will be created by migrations
@@ -107,7 +107,7 @@ def clean_recipes(db):
 
     # Cleanup after test
     try:
-        cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
+        cursor.execute("DELETE FROM recipes WHERE id::TEXT LIKE 'test-%'")
         db.commit()
     except psycopg2.errors.UndefinedTable:
         pass
