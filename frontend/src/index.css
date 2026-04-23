@@ -13,8 +13,7 @@
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--mx-on-surface-variant); }
 
-/* Light mode (Heirloom Hearth) */
-:root,
+/* Light mode (Heirloom Hearth) - explicit and system light */
 [data-theme="light"] {
   --mx-primary: #a43f14;
   --mx-primary-dim: #943308;
@@ -33,29 +32,8 @@
   --mx-glow: rgba(57, 49, 41, 0.08);
 }
 
-/* Dark mode (Midnight Kitchen) */
-[data-theme="dark"] {
-  --mx-primary: #ffb59c;
-  --mx-primary-dim: #e66d41;
-  --mx-primary-container: #e66d41;
-  --mx-on-primary: #5c1900;
-  --mx-secondary: #cfc5b6;
-  --mx-secondary-container: #4f483d;
-  --mx-surface: #161311;
-  --mx-surface-low: #1e1b19;
-  --mx-surface-container: #221f1d;
-  --mx-surface-high: #2d2927;
-  --mx-surface-variant: #383432;
-  --mx-on-surface: #e9e1dd;
-  --mx-on-surface-variant: #dec0b7;
-  --mx-outline-variant: #57423b;
-  --mx-glow: rgba(255, 181, 156, 0.1);
-}
-
-/* System preference (auto mode) - light colors when OS prefers light */
 @media (prefers-color-scheme: light) {
-  [data-theme="system"],
-  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+  :root {
     --mx-primary: #a43f14;
     --mx-primary-dim: #943308;
     --mx-primary-container: #ffad90;
@@ -74,10 +52,27 @@
   }
 }
 
-/* System preference (auto mode) - dark colors when OS prefers dark */
+/* Dark mode (Midnight Kitchen) - explicit and system dark */
+[data-theme="dark"] {
+  --mx-primary: #ffb59c;
+  --mx-primary-dim: #e66d41;
+  --mx-primary-container: #e66d41;
+  --mx-on-primary: #5c1900;
+  --mx-secondary: #cfc5b6;
+  --mx-secondary-container: #4f483d;
+  --mx-surface: #161311;
+  --mx-surface-low: #1e1b19;
+  --mx-surface-container: #221f1d;
+  --mx-surface-high: #2d2927;
+  --mx-surface-variant: #383432;
+  --mx-on-surface: #e9e1dd;
+  --mx-on-surface-variant: #dec0b7;
+  --mx-outline-variant: #57423b;
+  --mx-glow: rgba(255, 181, 156, 0.1);
+}
+
 @media (prefers-color-scheme: dark) {
-  [data-theme="system"],
-  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+  :root {
     --mx-primary: #ffb59c;
     --mx-primary-dim: #e66d41;
     --mx-primary-container: #e66d41;
