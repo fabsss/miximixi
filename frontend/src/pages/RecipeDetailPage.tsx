@@ -328,17 +328,20 @@ export function RecipeDetailPage() {
     }
   }, [recipeQuery.data])
 
-  // Handle browser back button to close fullscreen images
+  // Handle fullscreen image state with browser history
   useEffect(() => {
-    if (!showFullscreenImage && !fullscreenStepImage) return
+    if (showFullscreenImage || fullscreenStepImage) {
+      // Push a history entry when opening an image
+      window.history.pushState({ imageOpen: true }, '')
 
-    const handlePopState = () => {
-      if (showFullscreenImage) setShowFullscreenImage(false)
-      if (fullscreenStepImage) setFullscreenStepImage(null)
+      const handlePopState = () => {
+        setShowFullscreenImage(false)
+        setFullscreenStepImage(null)
+      }
+
+      window.addEventListener('popstate', handlePopState)
+      return () => window.removeEventListener('popstate', handlePopState)
     }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
   }, [showFullscreenImage, fullscreenStepImage])
 
   const groupedIngredients = useMemo(() => {
@@ -1004,7 +1007,7 @@ export function RecipeDetailPage() {
 
       {/* FULLSCREEN IMAGE */}
       <div
-        onClick={() => setShowFullscreenImage(false)}
+        onClick={() => window.history.back()}
         className={`fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300 ${showFullscreenImage ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       >
         <img
@@ -1018,7 +1021,7 @@ export function RecipeDetailPage() {
       {fullscreenStepImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          onClick={() => setFullscreenStepImage(null)}
+          onClick={() => window.history.back()}
         >
           <img
             src={fullscreenStepImage}
