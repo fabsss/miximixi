@@ -15,8 +15,7 @@
 
 /* Light mode (Heirloom Hearth) */
 :root,
-[data-theme="light"],
-[data-theme="system"] {
+[data-theme="light"] {
   --mx-primary: #a43f14;
   --mx-primary-dim: #943308;
   --mx-primary-container: #ffad90;
@@ -53,7 +52,29 @@
   --mx-glow: rgba(255, 181, 156, 0.1);
 }
 
-/* System preference (auto mode) - respects OS dark/light setting */
+/* System preference (auto mode) - light colors when OS prefers light */
+@media (prefers-color-scheme: light) {
+  [data-theme="system"],
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --mx-primary: #a43f14;
+    --mx-primary-dim: #943308;
+    --mx-primary-container: #ffad90;
+    --mx-on-primary: #fff7f5;
+    --mx-secondary: #526448;
+    --mx-secondary-container: #e2f7d3;
+    --mx-surface: #fff8f4;
+    --mx-surface-low: #fdf1e9;
+    --mx-surface-container: #f8ece2;
+    --mx-surface-high: #f3e6db;
+    --mx-surface-variant: #eee0d5;
+    --mx-on-surface: #393129;
+    --mx-on-surface-variant: #675d54;
+    --mx-outline-variant: #bdb0a5;
+    --mx-glow: rgba(57, 49, 41, 0.08);
+  }
+}
+
+/* System preference (auto mode) - dark colors when OS prefers dark */
 @media (prefers-color-scheme: dark) {
   [data-theme="system"],
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
