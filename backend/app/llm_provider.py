@@ -43,9 +43,10 @@ Wichtig:
 - "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als [Wortlaut]{ingredient_id} – schreibe vollständige, grammatikalisch korrekte Sätze und setze das Tag direkt hinter den Zutat-Ausdruck im natürlichen Satz.
-  Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
+  Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert). Bei Sammlungen von Zutaten müssen die Zutaten einzeln mit Name und Referenz angegeben werden.
   NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
   NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
+  NICHT: "Für den Mürbteig alle [Zutaten für den Boden]{1,2,3} rasch zu einem glatten Teig verkneten." – SONDERN: "Für den Mürbteig alle Zutaten für den Boden ([Mehl]{1}, [Butter]{2}, [Zucker]{3}) rasch zu einem glatten Teig verkneten."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
@@ -101,6 +102,7 @@ Wichtig:
   Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
   NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
   NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
+  NICHT: "Für den Mürbteig alle [Zutaten für den Boden]{1,2,3} rasch zu einem glatten Teig verkneten." – SONDERN: "Für den Mürbteig alle Zutaten für den Boden ([Mehl]{1}, [Butter]{2}, [Zucker]{3}) rasch zu einem glatten Teig verkneten."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
