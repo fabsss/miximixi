@@ -75,8 +75,7 @@ export function CookPage() {
     enabled: Boolean(recipeId),
   })
 
-  const recipe = recipeQuery.data
-  useDocumentTitle(recipe ? `Miximixi - ${recipe.title} (Koch-Modus)` : 'Miximixi')
+  useDocumentTitle(recipeQuery.data ? `Miximixi - ${recipeQuery.data.title} (Koch-Modus)` : 'Miximixi')
 
   const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer, initializeTimer } = useTimers()
 
@@ -106,6 +105,7 @@ export function CookPage() {
   if (recipeQuery.error || !recipeQuery.data) {
     return <p className="mx-shell mt-8 rounded-[2rem] bg-red-100/70 p-8 text-red-800">Kochmodus konnte nicht geladen werden.</p>
   }
+  const recipe = recipeQuery.data
   const step = recipe.steps[currentStep]
 
   const renderStepText = (text: string) => {

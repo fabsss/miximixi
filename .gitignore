@@ -50,3 +50,6 @@ instagram_cookies.txt
 graphify-out/**
 .graphify*
 .github/copilot-instructions.md
+
+# rtk
+.rtk/

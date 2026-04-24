@@ -7,6 +7,6 @@ export function useDensities() {
     queryKey: ['densities'],
     queryFn: getDensities,
     staleTime: Infinity,
-    fallbackData: [],
+    initialData: [],
   })
 }
