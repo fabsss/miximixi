@@ -16,6 +16,8 @@ import {
   type TranslationResponse,
 } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
+import { useDensities } from '../lib/useDensities'
+import { isCupUnit, findDensityForIngredient, convertCupToGram } from '../lib/cupConversions'
 import type { Ingredient, RecipeDetail, Step } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
@@ -206,6 +208,7 @@ export function RecipeDetailPage() {
   const categoryOptions = categoriesQuery.data
 
   const [convertToMetric, setConvertToMetric] = useState(true)
+  const densities = useDensities()
   const [displayServings, setDisplayServings] = useState<number | null>(null)
   const [highlightedSortOrder, setHighlightedSortOrder] = useState<string | null>(null)
   const [showTranslateModal, setShowTranslateModal] = useState(false)
@@ -497,9 +500,24 @@ export function RecipeDetailPage() {
     setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
   }
 
-  const getDisplayAmount = (ing: Ingredient): { amount: string; unit: string | null } => {
+  const getDisplayAmount = (ing: Ingredient): { amount: string; unit: string | null; suffix?: string } => {
     const scaled = ing.amount != null ? ing.amount * servingsFactor : null
     if (scaled == null) return { amount: '', unit: ing.unit }
+
+    // Check if unit is a cup and density lookup is available
+    if (convertToMetric && isCupUnit(ing.unit) && densities.data) {
+      const density = findDensityForIngredient(ing.name, densities.data)
+      if (density) {
+        const { grams, ml } = convertCupToGram(scaled, density)
+        const gramsFormatted = formatAmount(grams)
+        return {
+          amount: `~${gramsFormatted}`,
+          unit: 'g',
+          suffix: `(${formatAmount(ml)}ml)`,
+        }
+      }
+    }
+
     if (convertToMetric) {
       const conv = IMPERIAL_TO_METRIC[ing.unit?.toLowerCase() ?? '']
       if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit }
@@ -849,7 +867,7 @@ export function RecipeDetailPage() {
                     {showHeader && <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">{group}</p>}
                     <ul className="space-y-2.5">
                       {items.map((ingredient) => {
-                        const { amount, unit } = getDisplayAmount(ingredient)
+                        const display = getDisplayAmount(ingredient)
                         const isHighlighted = highlightedSortOrder === String(ingredient.sort_order)
                         return (
                           <li
@@ -861,9 +879,11 @@ export function RecipeDetailPage() {
                             <span className={`leading-relaxed transition-all duration-150 ${isHighlighted ? 'text-base font-bold text-[var(--mx-primary)]' : 'text-sm font-medium text-[var(--mx-on-surface)] group-hover:text-[var(--mx-primary)]'}`}>
                               {ingredient.name}
                             </span>
-                            {(amount || unit) && (
+                            {(display.amount || display.unit) && (
                               <span className={`ml-3 flex-shrink-0 font-medium transition-all duration-150 ${isHighlighted ? 'text-base font-bold text-[var(--mx-primary)]' : 'text-sm text-[var(--mx-on-surface-variant)]'}`}>
-                                {amount}{unit ? ` ${unit}` : ''}
+                                {display.amount}
+                                {display.unit && ` ${display.unit}`}
+                                {display.suffix && <span className="text-[var(--mx-on-surface-variant)] text-xs ml-1">{display.suffix}</span>}
                               </span>
                             )}
                           </li>
@@ -930,8 +950,8 @@ export function RecipeDetailPage() {
                       const sortOrder = part.content
                       const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
                       const isHighlighted = highlightedSortOrder === sortOrder
-                      const { amount: tipAmt, unit: tipUnit } = ingredient ? getDisplayAmount(ingredient) : { amount: '', unit: null as string | null }
-                      const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
+                      const displayInfo = ingredient ? getDisplayAmount(ingredient) : { amount: '', unit: null as string | null, suffix: undefined }
+                      const tipText = [displayInfo.amount, displayInfo.unit, displayInfo.suffix].filter(Boolean).join(' ')
                       return (
                         <span key={i} className="relative inline-block">
                           <button type="button" onClick={() => {
