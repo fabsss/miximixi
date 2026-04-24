@@ -111,12 +111,12 @@ def run_migrations():
             except Exception as e:
                 db.rollback()
                 logger.error(f"✗ {sql_file.name}: {e}")
-                raise
+                logger.warning(f"⚠ Migration {sql_file.name} übersprungen - Backend startet trotzdem")
 
         cursor.close()
         db.close()
         logger.info("-" * 60)
-        logger.info(f"✓ {len(pending_migrations)} MIGRATION(S) ERFOLGREICH ABGESCHLOSSEN")
+        logger.info("MIGRATIONS ABGESCHLOSSEN (mit oder ohne Fehler - siehe oben)")
         logger.info("=" * 60)
     except psycopg2.OperationalError as e:
         logger.warning(f"⚠ DB nicht erreichbar - Migrations übersprungen")
@@ -124,8 +124,8 @@ def run_migrations():
         logger.info("=" * 60)
     except Exception as e:
         logger.error(f"✗ MIGRATIONS FEHLGESCHLAGEN: {e}")
+        logger.warning("⚠ Backend startet trotzdem ohne vollständige Migrations")
         logger.info("=" * 60)
-        raise
 
 
 def generate_slug(title: str) -> str:
