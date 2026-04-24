@@ -891,7 +891,7 @@ export function RecipeDetailPage() {
                               <span className={`ml-3 flex-shrink-0 font-medium transition-all duration-150 ${isHighlighted ? 'text-base font-bold text-[var(--mx-primary)]' : 'text-sm text-[var(--mx-on-surface-variant)]'}`}>
                                 {display.amount}
                                 {display.unit && ` ${display.unit}`}
-                                {display.suffix && <span className="font-body text-[var(--mx-on-surface-variant)] text-xs ml-1">{display.suffix}</span>}
+                                {display.suffix && <span className="text-xs ml-1 opacity-60">{display.suffix}</span>}
                               </span>
                             )}
                           </li>
