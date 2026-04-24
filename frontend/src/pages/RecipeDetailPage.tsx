@@ -28,8 +28,8 @@ const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string; suffix?
   cups:     { factor: 236.588, unit: 'ml' },
   tasse:    { factor: 236.588, unit: 'ml' },
   tassen:   { factor: 236.588, unit: 'ml' },
-  tbsp:     { factor: 15,      unit: 'ml', suffix: '(1 EL)' },
-  tsp:      { factor: 5,       unit: 'ml', suffix: '(1 TL)' },
+  tbsp:     { factor: 15,      unit: 'ml', suffix: 'EL' },
+  tsp:      { factor: 5,       unit: 'ml', suffix: 'TL' },
   oz:       { factor: 28.35,   unit: 'g'  },
   ounce:    { factor: 28.35,   unit: 'g'  },
   ounces:   { factor: 28.35,   unit: 'g'  },
@@ -525,7 +525,10 @@ export function RecipeDetailPage() {
 
     if (convertToMetric) {
       const conv = IMPERIAL_TO_METRIC[ing.unit?.toLowerCase() ?? '']
-      if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit, suffix: conv.suffix }
+      if (conv) {
+        const originalLabel = conv.suffix ? `(${formatAmount(scaled)} ${conv.suffix})` : undefined
+        return { amount: formatAmount(scaled * conv.factor), unit: conv.unit, suffix: originalLabel }
+      }
     } else {
       const conv = METRIC_TO_IMPERIAL[ing.unit?.toLowerCase() ?? '']
       if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit }
@@ -888,7 +891,7 @@ export function RecipeDetailPage() {
                               <span className={`ml-3 flex-shrink-0 font-medium transition-all duration-150 ${isHighlighted ? 'text-base font-bold text-[var(--mx-primary)]' : 'text-sm text-[var(--mx-on-surface-variant)]'}`}>
                                 {display.amount}
                                 {display.unit && ` ${display.unit}`}
-                                {display.suffix && <span className="text-[var(--mx-on-surface-variant)] text-xs ml-1">{display.suffix}</span>}
+                                {display.suffix && <span className="font-body text-[var(--mx-on-surface-variant)] text-xs ml-1">{display.suffix}</span>}
                               </span>
                             )}
                           </li>
