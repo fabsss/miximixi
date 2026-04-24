@@ -26,7 +26,10 @@ INSERT INTO ingredient_density_types (id, type_name, display_name, density_g_per
   (gen_random_uuid(), 'oats',           'Haferflocken / Oats',        0.340),
   (gen_random_uuid(), 'cocoa',          'Kakao / Cocoa Powder',       0.520),
   (gen_random_uuid(), 'rice',           'Reis / Rice',                0.780),
-  (gen_random_uuid(), 'salt',           'Salz / Salt',                1.217);
+  (gen_random_uuid(), 'salt',           'Salz / Salt',                1.217),
+  (gen_random_uuid(), 'herbs_dried',    'Getrocknete Kräuter',        0.150),
+  (gen_random_uuid(), 'granules',       'Granulate / Körner',         0.600),
+  (gen_random_uuid(), 'paste',          'Pasten',                     1.100);
 
 -- Seed: Keywords
 INSERT INTO ingredient_density_keywords (id, type_id, keyword)
@@ -84,3 +87,28 @@ SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
   'salz','salt','meersalz','sea salt','tafelsalz','table salt',
   'grobes salz','coarse salt','fleur de sel'
 ]) AS k WHERE type_name = 'salt';
+
+-- Getrocknete Kräuter (0.150 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword)
+SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'dried oregano','dried basil','dried thyme','dried rosemary','dried parsley',
+  'getrocknetes oregano','getrocknetes basilikum','getrockneter thymian','getrockneter rosmarin',
+  'dried herbs','trockengewürze','italian seasoning'
+]) AS k WHERE type_name = 'herbs_dried';
+
+-- Granulate (0.600 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword)
+SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'granules','chilli granules','chilli flakes','dried chillies','chilli crisp',
+  'red pepper flakes','paprika granules','getrocknete chilis','chiliflöckchen',
+  'dried chile','chili powder','paprika powder'
+]) AS k WHERE type_name = 'granules';
+
+-- Pasten (1.100 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword)
+SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'paste','chili paste','tomato paste','miso paste','garlic paste','ginger paste',
+  'curry paste','harissa paste','pesto',
+  'chilipaste','tomatenpaste','misopaste','knobellauchpaste','ingwerpaste',
+  'currypaste','pesto'
+]) AS k WHERE type_name = 'paste';

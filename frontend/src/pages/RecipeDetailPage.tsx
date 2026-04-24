@@ -23,14 +23,16 @@ import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
-const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
+const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string; suffix?: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
   cups:     { factor: 236.588, unit: 'ml' },
   tasse:    { factor: 236.588, unit: 'ml' },
   tassen:   { factor: 236.588, unit: 'ml' },
-  tbsp:     { factor: 15,      unit: 'ml' },
-  tsp:      { factor: 5,       unit: 'ml' },
+  tbsp:     { factor: 15,      unit: 'ml', suffix: '(1 EL)' },
+  tsp:      { factor: 5,       unit: 'ml', suffix: '(1 TL)' },
   oz:       { factor: 28.35,   unit: 'g'  },
+  ounce:    { factor: 28.35,   unit: 'g'  },
+  ounces:   { factor: 28.35,   unit: 'g'  },
   lb:       { factor: 453.592, unit: 'g'  },
   lbs:      { factor: 453.592, unit: 'g'  },
 }
@@ -523,7 +525,7 @@ export function RecipeDetailPage() {
 
     if (convertToMetric) {
       const conv = IMPERIAL_TO_METRIC[ing.unit?.toLowerCase() ?? '']
-      if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit }
+      if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit, suffix: conv.suffix }
     } else {
       const conv = METRIC_TO_IMPERIAL[ing.unit?.toLowerCase() ?? '']
       if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit }
