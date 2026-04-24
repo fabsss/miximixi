@@ -30,7 +30,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def run_migrations():
-    """Führt alle SQL-Migrations aus dem migrations/ Verzeichnis aus."""
+    """Führt alle SQL-Migrations aus dem migrations/ Verzeichnis aus, die noch nicht angewendet wurden."""
     logger.info("=" * 60)
     logger.info("MIGRATIONS-START")
     logger.info("=" * 60)
@@ -51,6 +51,29 @@ def run_migrations():
             logger.info("=" * 60)
             return
 
+        # Create schema_migrations table if it doesn't exist
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id SERIAL PRIMARY KEY,
+                    filename TEXT NOT NULL UNIQUE,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+        except Exception as e:
+            logger.error(f"✗ Fehler beim Erstellen der Migrations-Tabelle: {e}")
+            db.rollback()
+            raise
+
+        # Get list of already applied migrations
+        try:
+            cursor.execute("SELECT filename FROM schema_migrations")
+            applied_migrations = {row[0] for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error(f"✗ Fehler beim Lesen der Migrations-Historie: {e}")
+            applied_migrations = set()
+
         migration_files = sorted(migrations_dir.glob("*.sql"))
         if not migration_files:
             logger.info("Keine Migration-Dateien gefunden")
@@ -59,14 +82,30 @@ def run_migrations():
 
         logger.info(f"Gefundene Migrations: {len(migration_files)}")
         for sql_file in migration_files:
-            logger.info(f"  - {sql_file.name}")
+            status = "✓ (bereits angewendet)" if sql_file.name in applied_migrations else "⏳ (ausstehend)"
+            logger.info(f"  - {sql_file.name} {status}")
+
+        # Filter to only unapplied migrations
+        pending_migrations = [f for f in migration_files if f.name not in applied_migrations]
+
+        if not pending_migrations:
+            logger.info("-" * 60)
+            logger.info("Keine neuen Migrations zum Ausführen")
+            logger.info("=" * 60)
+            cursor.close()
+            db.close()
+            return
 
         logger.info("-" * 60)
-        for sql_file in migration_files:
+        for sql_file in pending_migrations:
             try:
                 with open(sql_file, 'r', encoding='utf-8') as f:
                     sql_content = f.read()
                 cursor.execute(sql_content)
+                cursor.execute(
+                    "INSERT INTO schema_migrations (filename) VALUES (%s)",
+                    (sql_file.name,)
+                )
                 db.commit()
                 logger.info(f"✓ {sql_file.name}")
             except Exception as e:
@@ -77,7 +116,7 @@ def run_migrations():
         cursor.close()
         db.close()
         logger.info("-" * 60)
-        logger.info("✓ ALLE MIGRATIONS ERFOLGREICH ABGESCHLOSSEN")
+        logger.info(f"✓ {len(pending_migrations)} MIGRATION(S) ERFOLGREICH ABGESCHLOSSEN")
         logger.info("=" * 60)
     except psycopg2.OperationalError as e:
         logger.warning(f"⚠ DB nicht erreichbar - Migrations übersprungen")
