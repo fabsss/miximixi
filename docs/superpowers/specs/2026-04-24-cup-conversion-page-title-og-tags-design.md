@@ -62,6 +62,94 @@ CREATE TABLE ingredient_density_keywords (
 | `rice` | 0.780 | reis, rice |
 | `salt` | 1.217 | salz, salt |
 
+### Initiale Tabellenbefüllung (vollständig)
+
+Die folgenden Werte werden per SQL-Migration eingefügt. Dichten sind Näherungswerte für typisch gemessene (nicht verdichtete) Zutaten bei Raumtemperatur.
+
+```sql
+-- ingredient_density_types
+INSERT INTO ingredient_density_types (id, type_name, display_name, density_g_per_ml) VALUES
+  (gen_random_uuid(), 'flour',          'Mehl / Flour',               0.593),
+  (gen_random_uuid(), 'sugar',          'Zucker / Sugar',             0.845),
+  (gen_random_uuid(), 'powdered_sugar', 'Puderzucker / Icing Sugar',  0.560),
+  (gen_random_uuid(), 'butter',         'Butter / Margarine',         0.911),
+  (gen_random_uuid(), 'breadcrumbs',    'Semmelbrösel / Breadcrumbs', 0.370),
+  (gen_random_uuid(), 'oats',           'Haferflocken / Oats',        0.340),
+  (gen_random_uuid(), 'cocoa',          'Kakao / Cocoa Powder',       0.520),
+  (gen_random_uuid(), 'rice',           'Reis / Rice',                0.780),
+  (gen_random_uuid(), 'salt',           'Salz / Salt',                1.217);
+
+-- ingredient_density_keywords (keyword → type_name)
+-- Mehl / Flour (0.593 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'mehl', 'weizenmehl', 'flour', 'all-purpose flour', 'dinkelmehl', 'spelt flour',
+  'roggenmehl', 'rye flour', 'vollkornmehl', 'whole wheat flour',
+  'backpulver', 'baking powder', 'natron', 'baking soda',
+  'stärke', 'speisestärke', 'cornstarch', 'corn starch', 'maisstärke',
+  'kartoffelstärke', 'potato starch'
+]) AS k WHERE type_name = 'flour';
+
+-- Zucker / Sugar (0.845 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'zucker', 'sugar', 'kristallzucker', 'granulated sugar',
+  'brauner zucker', 'brown sugar', 'rohrzucker', 'cane sugar',
+  'vanillezucker', 'vanilla sugar'
+]) AS k WHERE type_name = 'sugar';
+
+-- Puderzucker / Icing Sugar (0.560 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'puderzucker', 'powdered sugar', 'icing sugar', 'confectioners sugar',
+  'staubzucker'
+]) AS k WHERE type_name = 'powdered_sugar';
+
+-- Butter / Margarine (0.911 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'butter', 'margarine', 'pflanzenmargarine', 'vegane butter', 'vegan butter'
+]) AS k WHERE type_name = 'butter';
+
+-- Semmelbrösel / Breadcrumbs (0.370 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'semmelbrösel', 'semmelbröseln', 'breadcrumbs', 'paniermehl',
+  'bread crumbs', 'panko'
+]) AS k WHERE type_name = 'breadcrumbs';
+
+-- Haferflocken / Oats (0.340 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'haferflocken', 'oats', 'rolled oats', 'instant oats', 'porridge oats',
+  'zartblatt haferflocken', 'kernige haferflocken'
+]) AS k WHERE type_name = 'oats';
+
+-- Kakao / Cocoa Powder (0.520 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'kakao', 'cocoa', 'cocoa powder', 'kakaopulver', 'backkakao',
+  'dutch process cocoa', 'unsweetened cocoa'
+]) AS k WHERE type_name = 'cocoa';
+
+-- Reis / Rice (0.780 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'reis', 'rice', 'langkornreis', 'long grain rice', 'rundkornreis',
+  'short grain rice', 'jasminreis', 'jasmine rice', 'basmatireis', 'basmati rice',
+  'risottoreis', 'risotto rice'
+]) AS k WHERE type_name = 'rice';
+
+-- Salz / Salt (1.217 g/ml)
+INSERT INTO ingredient_density_keywords (id, type_id, keyword) SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
+  'salz', 'salt', 'meersalz', 'sea salt', 'tafelsalz', 'table salt',
+  'grobes salz', 'coarse salt', 'fleur de sel'
+]) AS k WHERE type_name = 'salt';
+```
+
+**Hinweise zu den Dichten:**
+- Mehl 0.593 g/ml: ungesiebtes Weizenmehl Type 405, leicht eingeschüttet (US-Messmethode)
+- Zucker 0.845 g/ml: weißer Kristallzucker, nicht verdichtet
+- Puderzucker 0.560 g/ml: gesiebt, locker
+- Butter 0.911 g/ml: weiche (nicht flüssige) Butter; entspricht dem US-Standard von ~227g pro Cup
+- Semmelbrösel 0.370 g/ml: grobe Paniermehl-Konsistenz
+- Haferflocken 0.340 g/ml: kernige Haferflocken, locker eingeschüttet
+- Kakao 0.520 g/ml: Kakaopulver ungesüßt, locker
+- Reis 0.780 g/ml: roher Langkornreis
+- Salz 1.217 g/ml: feines Tafelsalz
+
 ### Backend API
 
 ```
