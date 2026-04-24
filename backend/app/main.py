@@ -172,6 +172,30 @@ async def health():
         raise HTTPException(status_code=503, detail="Database not available")
 
 
+@app.get("/ingredient-densities")
+async def get_ingredient_densities():
+    """Liefert alle Zutatendichte-Typen mit Keywords für Cup-zu-Gramm-Konvertierung."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute("""
+            SELECT
+                t.type_name,
+                t.display_name,
+                t.density_g_per_ml::float AS density_g_per_ml,
+                array_agg(k.keyword ORDER BY k.keyword) AS keywords
+            FROM ingredient_density_types t
+            LEFT JOIN ingredient_density_keywords k ON k.type_id = t.id
+            GROUP BY t.id, t.type_name, t.display_name, t.density_g_per_ml
+            ORDER BY t.type_name
+        """)
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        cursor.close()
+        db.close()
+
+
 # ── Configuration Endpoints ──────────────────────────────────────────
 @app.get("/categories")
 async def get_categories():
