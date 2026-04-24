@@ -31,6 +31,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 def run_migrations():
     """Führt alle SQL-Migrations aus dem migrations/ Verzeichnis aus."""
+    logger.info("=" * 60)
+    logger.info("MIGRATIONS-START")
+    logger.info("=" * 60)
+
     try:
         db = psycopg2.connect(
             host=settings.db_host,
@@ -44,27 +48,44 @@ def run_migrations():
 
         if not migrations_dir.exists():
             logger.warning(f"Migrations-Verzeichnis nicht gefunden: {migrations_dir}")
+            logger.info("=" * 60)
             return
 
-        for sql_file in sorted(migrations_dir.glob("*.sql")):
+        migration_files = sorted(migrations_dir.glob("*.sql"))
+        if not migration_files:
+            logger.info("Keine Migration-Dateien gefunden")
+            logger.info("=" * 60)
+            return
+
+        logger.info(f"Gefundene Migrations: {len(migration_files)}")
+        for sql_file in migration_files:
+            logger.info(f"  - {sql_file.name}")
+
+        logger.info("-" * 60)
+        for sql_file in migration_files:
             try:
                 with open(sql_file, 'r', encoding='utf-8') as f:
                     sql_content = f.read()
                 cursor.execute(sql_content)
                 db.commit()
-                logger.info(f"Migration ausgeführt: {sql_file.name}")
+                logger.info(f"✓ {sql_file.name}")
             except Exception as e:
                 db.rollback()
-                logger.error(f"Fehler bei Migration {sql_file.name}: {e}")
+                logger.error(f"✗ {sql_file.name}: {e}")
                 raise
 
         cursor.close()
         db.close()
-        logger.info("Alle Migrations erfolgreich abgeschlossen")
+        logger.info("-" * 60)
+        logger.info("✓ ALLE MIGRATIONS ERFOLGREICH ABGESCHLOSSEN")
+        logger.info("=" * 60)
     except psycopg2.OperationalError as e:
-        logger.warning(f"DB nicht erreichbar beim Startup - Migrations übersprungen: {e}")
+        logger.warning(f"⚠ DB nicht erreichbar - Migrations übersprungen")
+        logger.warning(f"  Details: {e}")
+        logger.info("=" * 60)
     except Exception as e:
-        logger.error(f"Fehler beim Ausführen der Migrations: {e}")
+        logger.error(f"✗ MIGRATIONS FEHLGESCHLAGEN: {e}")
+        logger.info("=" * 60)
         raise
 
 
