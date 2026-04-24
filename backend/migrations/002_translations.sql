@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS translations (
 CREATE INDEX IF NOT EXISTS translations_recipe_id_idx ON translations (recipe_id);
 
 -- ── updated_at Trigger ───────────────────────────────────────────────
+DROP TRIGGER IF EXISTS translations_updated_at ON translations;
 CREATE TRIGGER translations_updated_at
   BEFORE UPDATE ON translations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -37,6 +38,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger auf recipes (Titeländerung)
+DROP TRIGGER IF EXISTS recipe_title_changed_stale ON recipes;
 CREATE TRIGGER recipe_title_changed_stale
   AFTER UPDATE OF title ON recipes
   FOR EACH ROW
@@ -57,11 +59,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS ingredients_changed_stale ON ingredients;
 CREATE TRIGGER ingredients_changed_stale
   AFTER INSERT OR UPDATE OR DELETE ON ingredients
   FOR EACH ROW EXECUTE FUNCTION mark_translations_stale_by_recipe();
 
 -- Trigger auf steps (Schritte geändert)
+DROP TRIGGER IF EXISTS steps_changed_stale ON steps;
 CREATE TRIGGER steps_changed_stale
   AFTER INSERT OR UPDATE OR DELETE ON steps
   FOR EACH ROW EXECUTE FUNCTION mark_translations_stale_by_recipe();

@@ -85,10 +85,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS recipes_updated_at ON recipes;
 CREATE TRIGGER recipes_updated_at
   BEFORE UPDATE ON recipes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS import_queue_updated_at ON import_queue;
 CREATE TRIGGER import_queue_updated_at
   BEFORE UPDATE ON import_queue
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
