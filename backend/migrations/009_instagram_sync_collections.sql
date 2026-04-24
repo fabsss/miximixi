@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS instagram_sync_collections (
 );
 
 -- Ensure only ONE collection is enabled at a time
-CREATE UNIQUE INDEX idx_instagram_sync_only_one_enabled 
-ON instagram_sync_collections(id) 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_instagram_sync_only_one_enabled
+ON instagram_sync_collections(id)
 WHERE enabled_at IS NOT NULL AND disabled_at IS NULL;
 
-CREATE INDEX idx_instagram_sync_enabled ON instagram_sync_collections(enabled_at DESC);
-CREATE INDEX idx_instagram_sync_collection_id ON instagram_sync_collections(collection_id);
+CREATE INDEX IF NOT EXISTS idx_instagram_sync_enabled ON instagram_sync_collections(enabled_at DESC);
+CREATE INDEX IF NOT EXISTS idx_instagram_sync_collection_id ON instagram_sync_collections(collection_id);
