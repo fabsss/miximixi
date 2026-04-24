@@ -21,6 +21,7 @@ import { isCupUnit, findDensityForIngredient, convertCupToGram } from '../lib/cu
 import type { Ingredient, RecipeDetail, Step } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
@@ -253,6 +254,8 @@ export function RecipeDetailPage() {
     queryFn: () => getRecipe(recipeId!),
     enabled: Boolean(recipeId),
   })
+
+  useDocumentTitle(recipeQuery.data ? `Miximixi - ${recipeQuery.data.title}` : 'Miximixi')
 
   const translateMutation = useMutation({
     mutationFn: ({ id, lang }: { id: string; lang: string }) => translateRecipe(id, lang),

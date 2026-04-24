@@ -7,6 +7,7 @@ import { useCategories, useCategoryCounts } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 import { useNavDrawer } from '../context/useNavDrawer'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 interface CategoryNavProps {
   categories: string[]
@@ -54,6 +55,8 @@ export function FeedPage(): ReactNode {
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
+
+  useDocumentTitle('Miximixi - Entdecken')
   const mainRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const prevRecipeIdsRef = useRef<Set<string>>(new Set())

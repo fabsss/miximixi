@@ -1,8 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getTagsWithCounts, mergeTags } from '../lib/api'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export function TagsPage(): ReactNode {
+  useDocumentTitle('Miximixi - Tags')
+
   const queryClient = useQueryClient()
   const tagsQuery = useQuery({
     queryKey: ['tagsWithCounts'],
