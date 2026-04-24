@@ -112,7 +112,7 @@ INSERT INTO ingredient_density_keywords (id, type_id, keyword)
 SELECT gen_random_uuid(), id, k FROM ingredient_density_types, unnest(ARRAY[
   'granules','chilli granules','chilli flakes','dried chillies','chilli crisp',
   'red pepper flakes','paprika granules','getrocknete chilis','chiliflöckchen',
-  'dried chile','chili powder','paprika powder', 'flakes','chili flakes','chili granules','chili crisp','chili knusper','paprikaflocken',
+  'dried chile','chili powder','paprika powder', 'flakes','chili flakes','chili granules','chili crisp','chili knusper','paprikaflocken'
 ]) AS k WHERE type_name = 'granules'
 ON CONFLICT (keyword) DO NOTHING;
 
