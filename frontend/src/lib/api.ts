@@ -1,4 +1,5 @@
 import type { HealthResponse, RecipeDetail, RecipeListItem } from '../types'
+import type { DensityType } from './cupConversions'
 
 const baseUrl =
   import.meta.env.VITE_API_BASE_URL?.trim() || 'https://miximixi-api.sektbirne.fun'
@@ -228,4 +229,8 @@ export interface CategoryCountsResponse {
 
 export async function getCategoryCounts(): Promise<CategoryCountsResponse> {
   return request<CategoryCountsResponse>('/categories/counts')
+}
+
+export async function getDensities(): Promise<DensityType[]> {
+  return request<DensityType[]>('/ingredient-densities')
 }
