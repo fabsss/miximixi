@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor
 import shutil
 from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from app.config import settings
@@ -586,6 +586,59 @@ async def instagram_sync():
         db.close()
         logger.error(f"Instagram sync failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/og/recipes/{recipe_slug}", response_class=HTMLResponse)
+async def get_og_recipe(recipe_slug: str):
+    """Liefert OG-Meta-Tags für Messenger-Link-Previews."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        if len(recipe_slug) > 36 and recipe_slug[-37] == '-':
+            recipe_id = recipe_slug[-36:]
+        else:
+            recipe_id = recipe_slug
+
+        cursor.execute(
+            "SELECT id, title, category, prep_time, image_filename FROM recipes WHERE id = %s",
+            (recipe_id,),
+        )
+        recipe = cursor.fetchone()
+
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        frontend_url = os.environ.get("FRONTEND_URL", "https://miximixi.sektbirne.fun")
+        recipe_url = f"{frontend_url}/recipes/{recipe_slug}"
+        image_url = f"{frontend_url}/images/{recipe['id']}" if recipe.get("image_filename") else ""
+
+        description_parts = []
+        if recipe.get("category"):
+            description_parts.append(recipe["category"])
+        if recipe.get("prep_time"):
+            description_parts.append(f"Zubereitungszeit: {recipe['prep_time']}")
+        description = " · ".join(description_parts) if description_parts else "Rezept auf Miximixi"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>{recipe['title']}</title>
+  <meta property="og:title" content="{recipe['title']}" />
+  <meta property="og:description" content="{description}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="{recipe_url}" />
+  {f'<meta property="og:image" content="{image_url}" />' if image_url else ''}
+  <meta http-equiv="refresh" content="0;url={recipe_url}" />
+</head>
+<body>
+  <p>Weiterleitung zu <a href="{recipe_url}">{recipe['title']}</a>...</p>
+</body>
+</html>"""
+        return HTMLResponse(content=html)
+    finally:
+        cursor.close()
+        db.close()
 
 
 # ── Recipes Endpoints ───────────────────────────────────────────────
