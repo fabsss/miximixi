@@ -36,6 +36,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Copy application code
 COPY app/ ./app/
+# Copy migrations
+COPY migrations/ ./migrations/
 # Copy scripts (for migrations etc)
 COPY scripts/ ./scripts/
 

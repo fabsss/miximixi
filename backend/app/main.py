@@ -5,6 +5,7 @@ import os
 import re
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -28,6 +29,45 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+def run_migrations():
+    """Führt alle SQL-Migrations aus dem migrations/ Verzeichnis aus."""
+    try:
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+        migrations_dir = Path(__file__).parent.parent / "migrations"
+
+        if not migrations_dir.exists():
+            logger.warning(f"Migrations-Verzeichnis nicht gefunden: {migrations_dir}")
+            return
+
+        for sql_file in sorted(migrations_dir.glob("*.sql")):
+            try:
+                with open(sql_file, 'r', encoding='utf-8') as f:
+                    sql_content = f.read()
+                cursor.execute(sql_content)
+                db.commit()
+                logger.info(f"Migration ausgeführt: {sql_file.name}")
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Fehler bei Migration {sql_file.name}: {e}")
+                raise
+
+        cursor.close()
+        db.close()
+        logger.info("Alle Migrations erfolgreich abgeschlossen")
+    except psycopg2.OperationalError as e:
+        logger.warning(f"DB nicht erreichbar beim Startup - Migrations übersprungen: {e}")
+    except Exception as e:
+        logger.error(f"Fehler beim Ausführen der Migrations: {e}")
+        raise
+
+
 def generate_slug(title: str) -> str:
     """Generiert einen URL-sicheren Slug aus dem Rezepttitel."""
     import re
@@ -39,6 +79,10 @@ def generate_slug(title: str) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Migrations ausführen
+    logger.info("Starten der Datenbank-Migrations...")
+    run_migrations()
+
     # Temp-Verzeichnis anlegen
     os.makedirs(settings.tmp_dir, exist_ok=True)
     os.makedirs(settings.images_dir, exist_ok=True)
