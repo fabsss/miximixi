@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getRecipe } from '../lib/api'
 import { useTimers } from '../context/TimerContext'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 function parseIngredientReference(text: string): Array<{ type: 'text' | 'ref'; content: string; label: string }> {
   const parts: Array<{ type: 'text' | 'ref'; content: string; label: string }> = []
@@ -59,12 +60,12 @@ export function CookPage() {
 
   const handleGoToRecipe = () => {
     if ('startViewTransition' in document) {
-      document.documentElement.dataset.navdir = 'forward'
+      document.documentElement.dataset.navdir = 'back'
       ;(document as Document & { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
-        flushSync(() => navigate(`/recipes/${recipeId}`))
+        flushSync(() => navigate(-1))
       })
     } else {
-      navigate(`/recipes/${recipeId}`)
+      navigate(-1)
     }
   }
 
@@ -73,6 +74,8 @@ export function CookPage() {
     queryFn: () => getRecipe(recipeId || ''),
     enabled: Boolean(recipeId),
   })
+
+  useDocumentTitle(recipeQuery.data ? `Miximixi - ${recipeQuery.data.title} (Koch-Modus)` : 'Miximixi')
 
   const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, resetTimer, adjustTimer, initializeTimer } = useTimers()
 
@@ -102,7 +105,6 @@ export function CookPage() {
   if (recipeQuery.error || !recipeQuery.data) {
     return <p className="mx-shell mt-8 rounded-[2rem] bg-red-100/70 p-8 text-red-800">Kochmodus konnte nicht geladen werden.</p>
   }
-
   const recipe = recipeQuery.data
   const step = recipe.steps[currentStep]
 

@@ -132,13 +132,16 @@ export function TimerOverlay({ open, onClose }: TimerOverlayProps) {
 
   useEffect(() => {
     if (open) {
-      setMounted(true)
-      // Double rAF: first frame mounts with hidden state, second triggers transition
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
+      const t = requestAnimationFrame(() => requestAnimationFrame(() => {
+        setMounted(true)
+        setVisible(true)
+      }))
+      return () => cancelAnimationFrame(t)
     } else {
-      setVisible(false)
-      const t = setTimeout(() => setMounted(false), 350)
-      return () => clearTimeout(t)
+      const timeouts: number[] = []
+      timeouts.push(setTimeout(() => setVisible(false)) as unknown as number)
+      timeouts.push(setTimeout(() => setMounted(false), 350) as unknown as number)
+      return () => timeouts.forEach(clearTimeout)
     }
   }, [open])
 

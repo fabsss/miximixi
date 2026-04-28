@@ -9,15 +9,15 @@ Without this backfill, old recipes will not be detected as duplicates
 when the same content is imported again.
 
 Usage:
-    cd /c/Users/fabia/git/miximixi/backend
-    python scripts/backfill_source_type.py
+    cd backend && poetry run python scripts/backfill_source_type.py
 """
 import sys
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # Add backend to path so we can import app modules
-sys.path.insert(0, '/c/Users/fabia/git/miximixi/backend')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.source_identifier import extract_source_id, get_source_type_from_url
 from app.config import settings
@@ -35,18 +35,68 @@ def backfill():
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # Get recipes without source_type set
-        cursor.execute("SELECT id, source_url FROM recipes WHERE source_type IS NULL")
+        # Get recipes that need source_type/source_id corrections
+        # This includes recipes where source_type was set to 'web' but URL indicates Instagram/YouTube
+        cursor.execute("""
+            SELECT id, source_url, source_type, title
+            FROM recipes
+            WHERE source_type IS NULL
+               OR (source_url LIKE '%instagram.com%' AND source_type != 'instagram')
+               OR (source_url LIKE '%instagr.am%' AND source_type != 'instagram')
+               OR (source_url LIKE '%youtube.com%' AND source_type != 'youtube')
+               OR (source_url LIKE '%youtu.be%' AND source_type != 'youtube')
+        """)
         recipes = cursor.fetchall()
 
         if not recipes:
-            print("✓ No recipes need backfilling (all have source_type set)")
+            print("✓ No recipes need backfilling (all have correct source_type set)")
             return
 
-        print(f"Backfilling {len(recipes)} recipes...")
+        print(f"Found {len(recipes)} recipes needing updates...")
+
+        # First pass: identify duplicates by (source_type, source_id)
+        duplicates = []
+        seen = {}  # (source_type, source_id) -> (first recipe id, title, url)
+
+        for recipe in recipes:
+            source_url = recipe['source_url']
+            source_type = get_source_type_from_url(source_url)
+            source_id = extract_source_id(source_url) if source_type != 'web' else None
+
+            # Only check for duplicates on instagram/youtube
+            if source_type in ('instagram', 'youtube'):
+                key = (source_type, source_id)
+                if key in seen:
+                    # This is a duplicate
+                    duplicates.append({
+                        'id': recipe['id'],
+                        'title': recipe.get('title', 'N/A'),
+                        'url': source_url,
+                        'source_type': source_type,
+                        'source_id': source_id,
+                        'first_id': seen[key][0]
+                    })
+                else:
+                    # First occurrence - store it
+                    seen[key] = (recipe['id'], recipe.get('title', 'N/A'), source_url)
+
+        # Report duplicates
+        if duplicates:
+            print(f"\n⚠️  Found {len(duplicates)} DUPLICATE recipes that need manual deletion:\n")
+            for dup in duplicates:
+                print(f"  ID: {dup['id']}")
+                print(f"  Title: {dup['title']}")
+                print(f"  URL: {dup['url']}")
+                print(f"  Source: {dup['source_type']}:{dup['source_id']}")
+                print(f"  (Keeping: {dup['first_id']})")
+                print()
+            print(f"\n⚠️  STOP: Please delete these {len(duplicates)} duplicate recipes manually, then run this script again.\n")
+            return
+
+        print(f"\nUpdating {len(recipes)} recipes with correct source_type/source_id...")
 
         updated = 0
-        for recipe in recipes:
+        for recipe in remaining_recipes:
             source_url = recipe['source_url']
 
             # Use the same extraction logic as the import system
@@ -60,7 +110,7 @@ def backfill():
             updated += 1
 
             if updated % 100 == 0:
-                print(f"  ... updated {updated}/{len(recipes)}")
+                print(f"  ... updated {updated}/{len(remaining_recipes)}")
 
         db.commit()
 

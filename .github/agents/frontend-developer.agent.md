@@ -99,7 +99,7 @@ applyTo: ["frontend/", "src/", "*.tsx", "*.jsx", "*.css"]
 ## Branching & Code Standards
 
 ## Coding Style should follow these guidelines:
-- **Always** use Test Driven Development (TDD) for new features and bug fixes
+- **Always** invoke /test-driven-development skill for new features and bug fixes
 - Use type hints on all function signatures and variables where possible
 - Write clear, user-friendly error messages for API responses           
 - **Always** document new endpoints and database schema changes in `docs/architecture.md`

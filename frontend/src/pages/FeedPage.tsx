@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { flushSync } from 'react-dom'
-import { useInfiniteQuery } from '@tanstack/react-query'
-import { getImageUrl, getRecipes } from '../lib/api'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { getImageUrl, getRecipes, getTags, getHeroRecipes } from '../lib/api'
 import { useCategories, useCategoryCounts } from '../lib/useCategories'
 import { HeartIcon, RecipeCard } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
 import { useNavDrawer } from '../context/useNavDrawer'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 interface CategoryNavProps {
   categories: string[]
@@ -54,6 +55,8 @@ export function FeedPage(): ReactNode {
   const [heroIndex, setHeroIndex] = useState(0)
   const [heroImgOk, setHeroImgOk] = useState(true)
   const { open: drawerOpen, setOpen: setDrawerOpen } = useNavDrawer()
+
+  useDocumentTitle('Miximixi - Entdecken')
   const mainRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const prevRecipeIdsRef = useRef<Set<string>>(new Set())
@@ -62,9 +65,22 @@ export function FeedPage(): ReactNode {
 
   const categoriesQuery = useCategories()
   const categoryCountsQuery = useCategoryCounts()
+
+  // Hero query: only category-filtered, ignores search/tags/favorites
+  const heroQuery = useQuery({
+    queryKey: ['heroRecipes', selectedMainCategory],
+    queryFn: () => getHeroRecipes(6, selectedMainCategory || undefined),
+  })
+  const heroRecipes = heroQuery.data ?? []
+
   const recipesQuery = useInfiniteQuery({
-    queryKey: ['recipes'],
-    queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number),
+    queryKey: ['recipes', { q: search, category: selectedMainCategory, tags: Array.from(selectedTags), fav: showFavoritesOnly }],
+    queryFn: ({ pageParam }) => getRecipes(PAGE_SIZE, pageParam as number, {
+      q: search,
+      category: selectedMainCategory || undefined,
+      tags: Array.from(selectedTags),
+      favorites: showFavoritesOnly,
+    }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.length < PAGE_SIZE) return undefined
@@ -75,16 +91,16 @@ export function FeedPage(): ReactNode {
 
   const allRecipes = useMemo(() => recipesQuery.data?.pages.flat() ?? [], [recipesQuery.data])
 
-  // Rotate hero every 5s through first 6 recipes
+  // Rotate hero every 5s through first 6 recipes (from hero query only, not filtered search)
   useEffect(() => {
-    const total = Math.min(allRecipes.length, 6)
+    const total = Math.min(heroRecipes.length, 6)
     if (total <= 1) return
     const id = setInterval(() => {
       setHeroIndex(i => (i + 1) % total)
       setHeroImgOk(true)
     }, 5000)
     return () => clearInterval(id)
-  }, [allRecipes.length])
+  }, [heroRecipes.length])
 
   // Close drawer on scroll
   useEffect(() => {
@@ -117,40 +133,24 @@ export function FeedPage(): ReactNode {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipesQuery.hasNextPage, recipesQuery.isFetchingNextPage, recipesQuery.fetchNextPage])
 
-  const heroRecipe = allRecipes[heroIndex]
+  const heroRecipe = heroRecipes[heroIndex]
 
   const categoryCounts = categoryCountsQuery.data?.counts ?? {}
 
-  const availableTags = useMemo(() => {
-    const tagMap = new Map<string, string>() // lowercase key → display label (first seen)
-    for (const r of allRecipes) {
-      if (!selectedMainCategory || r.category === selectedMainCategory) {
-        for (const t of r.tags ?? []) {
-          const lower = t.toLowerCase()
-          if (!tagMap.has(lower)) tagMap.set(lower, t)
-        }
-      }
-    }
-    return Array.from(tagMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [allRecipes, selectedMainCategory])
+  // Fetch all tags from DB (optionally filtered by category)
+  const tagsQuery = useQuery({
+    queryKey: ['tags', selectedMainCategory],
+    queryFn: () => getTags(selectedMainCategory || undefined),
+  })
 
-  const filteredRecipes = useMemo(() => {
-    const value = search.trim().toLowerCase()
-    return allRecipes.filter((recipe) => {
-      const titleMatch = recipe.title.toLowerCase().includes(value)
-      const tagMatch = recipe.tags?.some((t) => t.toLowerCase().includes(value))
-      const categoryMatch = recipe.category?.toLowerCase().includes(value)
-      const searchOk = !value || titleMatch || tagMatch || categoryMatch
-      const mainCatOk = !selectedMainCategory || recipe.category === selectedMainCategory
-      const tagOk = selectedTags.size === 0 || recipe.tags?.some((t) => selectedTags.has(t.toLowerCase()))
-      const favoriteOk = !showFavoritesOnly || recipe.rating === 1
-      return searchOk && mainCatOk && tagOk && favoriteOk
-    })
-  }, [allRecipes, search, selectedMainCategory, selectedTags, showFavoritesOnly])
+  const availableTags = useMemo(() => {
+    // Convert flat list to [lowercase, displayLabel] entries for consistency
+    return (tagsQuery.data ?? []).map(tag => [tag.toLowerCase(), tag] as [string, string])
+  }, [tagsQuery.data])
 
   // Track new and removed cards for animations
   useEffect(() => {
-    const currentIds = new Set(filteredRecipes.map(r => r.id))
+    const currentIds = new Set(allRecipes.map(r => r.id))
     const prevIds = prevRecipeIdsRef.current
 
     // Cards that are new (in current but not in previous)
@@ -199,7 +199,7 @@ export function FeedPage(): ReactNode {
       if (enterTimer !== undefined) clearTimeout(enterTimer)
       if (exitTimer !== undefined) clearTimeout(exitTimer)
     }
-  }, [filteredRecipes])
+  }, [allRecipes])
 
   // Scroll to top on major filter changes, but NOT on tag toggle (user may be mid-scroll selecting tags)
   useEffect(() => {
@@ -243,31 +243,6 @@ export function FeedPage(): ReactNode {
         />
       )}
 
-      {/* ── Mobile slide-in drawer ── */}
-      <div
-        className={`fixed inset-y-0 left-0 z-40 w-72 bg-[var(--mx-surface)] shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--mx-outline-variant)]/20 px-5 py-5">
-          <span className="font-headline text-lg font-bold text-[var(--mx-on-surface)]">Kategorien</span>
-          <button
-            onClick={() => setDrawerOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition-colors"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-        <nav className="space-y-1 p-4">
-          <CategoryNav
-            categories={categoriesQuery.data ?? []}
-            categoryCounts={categoryCounts}
-            selectedMainCategory={selectedMainCategory}
-            recipesCount={categoryCountsQuery.data?.total ?? allRecipes.length}
-            onSelect={handleMainCat}
-            catBtnCls={catBtnCls}
-          />
-        </nav>
-      </div>
-
       {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:block lg:sticky lg:top-28 lg:w-52 lg:flex-shrink-0">
         <nav className="rounded-[2rem] bg-[var(--cat-sidebar-bg)] p-4 space-y-1">
@@ -279,6 +254,14 @@ export function FeedPage(): ReactNode {
             onSelect={handleMainCat}
             catBtnCls={catBtnCls}
           />
+          <hr className="my-2 border-[var(--mx-outline-variant)]/20" />
+          <Link
+            to="/tags"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--mx-on-surface-variant)] hover:bg-[var(--mx-surface-container)] transition"
+          >
+            <span className="material-symbols-outlined text-[18px]">sell</span>
+            <span>Tags</span>
+          </Link>
         </nav>
       </aside>
 
@@ -353,9 +336,9 @@ export function FeedPage(): ReactNode {
             </div>
 
             {/* Dot indicators */}
-            {allRecipes.length > 1 && (
+            {heroRecipes.length > 1 && (
               <div className="mt-3 flex justify-center gap-1.5">
-                {Array.from({ length: Math.min(allRecipes.length, 6) }, (_, i) => (
+                {Array.from({ length: Math.min(heroRecipes.length, 6) }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => { setHeroIndex(i); setHeroImgOk(true) }}
@@ -453,7 +436,7 @@ export function FeedPage(): ReactNode {
         {/* Grid */}
         {!recipesQuery.isLoading && !recipesQuery.error && (
           <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-            {filteredRecipes.map((recipe, index) => {
+            {allRecipes.map((recipe, index) => {
               const isAnimating = animatingCardIds.includes(recipe.id)
               const animationClass = isAnimating ? 'mx-card-enter' : ''
               return (
@@ -487,7 +470,7 @@ export function FeedPage(): ReactNode {
         )}
 
         {/* Empty state */}
-        {!recipesQuery.isLoading && !recipesQuery.error && filteredRecipes.length === 0 && (
+        {!recipesQuery.isLoading && !recipesQuery.error && allRecipes.length === 0 && (
           <div className="rounded-[2rem] bg-[var(--mx-surface-low)] p-10 text-center text-[var(--mx-on-surface-variant)]">
             {search ? `Keine Treffer f\u00fcr \u201e${search}\u201c` : 'Keine Rezepte in dieser Kategorie.'}
           </div>

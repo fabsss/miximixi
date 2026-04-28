@@ -46,3 +46,11 @@ instagram_cookies.txt
 
 # Playwrite server files
 .playwright-mcp/*
+
+# graphify - knowledge graph (generated, not source)
+graphify-out/**
+.graphify*
+.github/copilot-instructions.md
+
+# rtk
+.rtk/

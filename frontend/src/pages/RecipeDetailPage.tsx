@@ -16,18 +16,23 @@ import {
   type TranslationResponse,
 } from '../lib/api'
 import { useCategories } from '../lib/useCategories'
+import { useDensities } from '../lib/useDensities'
+import { isCupUnit, findDensityForIngredient, convertCupToGram } from '../lib/cupConversions'
 import type { Ingredient, RecipeDetail, Step } from '../types'
 import { HeartIcon } from '../components/RecipeCard'
 import { categoryChipCls, getCategoryIcon } from '../lib/categoryUtils'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
-const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string }> = {
+const IMPERIAL_TO_METRIC: Record<string, { factor: number; unit: string; suffix?: string }> = {
   cup:      { factor: 236.588, unit: 'ml' },
   cups:     { factor: 236.588, unit: 'ml' },
   tasse:    { factor: 236.588, unit: 'ml' },
   tassen:   { factor: 236.588, unit: 'ml' },
-  tbsp:     { factor: 15,      unit: 'ml' },
-  tsp:      { factor: 5,       unit: 'ml' },
+  tbsp:     { factor: 15,      unit: 'ml', suffix: 'EL' },
+  tsp:      { factor: 5,       unit: 'ml', suffix: 'TL' },
   oz:       { factor: 28.35,   unit: 'g'  },
+  ounce:    { factor: 28.35,   unit: 'g'  },
+  ounces:   { factor: 28.35,   unit: 'g'  },
   lb:       { factor: 453.592, unit: 'g'  },
   lbs:      { factor: 453.592, unit: 'g'  },
 }
@@ -206,6 +211,7 @@ export function RecipeDetailPage() {
   const categoryOptions = categoriesQuery.data
 
   const [convertToMetric, setConvertToMetric] = useState(true)
+  const densities = useDensities()
   const [displayServings, setDisplayServings] = useState<number | null>(null)
   const [highlightedSortOrder, setHighlightedSortOrder] = useState<string | null>(null)
   const [showTranslateModal, setShowTranslateModal] = useState(false)
@@ -250,6 +256,8 @@ export function RecipeDetailPage() {
     queryFn: () => getRecipe(recipeId!),
     enabled: Boolean(recipeId),
   })
+
+  useDocumentTitle(recipeQuery.data ? `Miximixi - ${recipeQuery.data.title}` : 'Miximixi')
 
   const translateMutation = useMutation({
     mutationFn: ({ id, lang }: { id: string; lang: string }) => translateRecipe(id, lang),
@@ -328,18 +336,6 @@ export function RecipeDetailPage() {
     }
   }, [recipeQuery.data])
 
-  // Handle browser back button to close fullscreen images
-  useEffect(() => {
-    if (!showFullscreenImage && !fullscreenStepImage) return
-
-    const handlePopState = () => {
-      if (showFullscreenImage) setShowFullscreenImage(false)
-      if (fullscreenStepImage) setFullscreenStepImage(null)
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [showFullscreenImage, fullscreenStepImage])
 
   const groupedIngredients = useMemo(() => {
     const map = new Map<string, Ingredient[]>()
@@ -509,12 +505,30 @@ export function RecipeDetailPage() {
     setStepImageDeleted(prev => { const next = { ...prev }; delete next[stepIdx]; return next })
   }
 
-  const getDisplayAmount = (ing: Ingredient): { amount: string; unit: string | null } => {
+  const getDisplayAmount = (ing: Ingredient): { amount: string; unit: string | null; suffix?: string } => {
     const scaled = ing.amount != null ? ing.amount * servingsFactor : null
     if (scaled == null) return { amount: '', unit: ing.unit }
+
+    // Check if unit is a cup and density lookup is available
+    if (convertToMetric && isCupUnit(ing.unit) && densities.data) {
+      const density = findDensityForIngredient(ing.name, densities.data)
+      if (density) {
+        const { grams, ml } = convertCupToGram(scaled, density)
+        const gramsFormatted = formatAmount(grams)
+        return {
+          amount: `~${gramsFormatted}`,
+          unit: 'g',
+          suffix: `(${formatAmount(ml)}ml)`,
+        }
+      }
+    }
+
     if (convertToMetric) {
       const conv = IMPERIAL_TO_METRIC[ing.unit?.toLowerCase() ?? '']
-      if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit }
+      if (conv) {
+        const originalLabel = conv.suffix ? `(${formatAmount(scaled)} ${conv.suffix})` : undefined
+        return { amount: formatAmount(scaled * conv.factor), unit: conv.unit, suffix: originalLabel }
+      }
     } else {
       const conv = METRIC_TO_IMPERIAL[ing.unit?.toLowerCase() ?? '']
       if (conv) return { amount: formatAmount(scaled * conv.factor), unit: conv.unit }
@@ -538,7 +552,6 @@ export function RecipeDetailPage() {
           // Don't zoom if clicking on a link
           if ((e.target as HTMLElement).closest('a')) return
           setShowFullscreenImage(true)
-          history.pushState({ imageModal: 'hero' }, '', window.location.href)
         }}>
           <img
             src={imagePreviewUrl ?? getImageUrl(recipe.id)}
@@ -862,7 +875,7 @@ export function RecipeDetailPage() {
                     {showHeader && <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--mx-on-surface-variant)]">{group}</p>}
                     <ul className="space-y-2.5">
                       {items.map((ingredient) => {
-                        const { amount, unit } = getDisplayAmount(ingredient)
+                        const display = getDisplayAmount(ingredient)
                         const isHighlighted = highlightedSortOrder === String(ingredient.sort_order)
                         return (
                           <li
@@ -874,9 +887,11 @@ export function RecipeDetailPage() {
                             <span className={`leading-relaxed transition-all duration-150 ${isHighlighted ? 'text-base font-bold text-[var(--mx-primary)]' : 'text-sm font-medium text-[var(--mx-on-surface)] group-hover:text-[var(--mx-primary)]'}`}>
                               {ingredient.name}
                             </span>
-                            {(amount || unit) && (
+                            {(display.amount || display.unit) && (
                               <span className={`ml-3 flex-shrink-0 font-medium transition-all duration-150 ${isHighlighted ? 'text-base font-bold text-[var(--mx-primary)]' : 'text-sm text-[var(--mx-on-surface-variant)]'}`}>
-                                {amount}{unit ? ` ${unit}` : ''}
+                                {display.amount}
+                                {display.unit && ` ${display.unit}`}
+                                {display.suffix && <span className="text-xs ml-1 opacity-60">{display.suffix}</span>}
                               </span>
                             )}
                           </li>
@@ -943,8 +958,8 @@ export function RecipeDetailPage() {
                       const sortOrder = part.content
                       const ingredient = Array.from(groupedIngredients.values()).flat().find((ing) => String(ing.sort_order) === sortOrder)
                       const isHighlighted = highlightedSortOrder === sortOrder
-                      const { amount: tipAmt, unit: tipUnit } = ingredient ? getDisplayAmount(ingredient) : { amount: '', unit: null as string | null }
-                      const tipText = [tipAmt, tipUnit].filter(Boolean).join(' ')
+                      const displayInfo = ingredient ? getDisplayAmount(ingredient) : { amount: '', unit: null as string | null, suffix: undefined }
+                      const tipText = [displayInfo.amount, displayInfo.unit, displayInfo.suffix].filter(Boolean).join(' ')
                       return (
                         <span key={i} className="relative inline-block">
                           <button type="button" onClick={() => {
@@ -973,7 +988,6 @@ export function RecipeDetailPage() {
                       className="mt-3 inline-block cursor-zoom-in overflow-hidden rounded-lg"
                       onClick={() => {
                         setFullscreenStepImage(getStepImageUrl(recipe.id, step.step_image_filename!))
-                        history.pushState({ imageModal: 'step' }, '', window.location.href)
                       }}
                       style={{ width: '120px', aspectRatio: '16/9' }}
                     >

@@ -5,13 +5,15 @@ import os
 import re
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import shutil
-from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
+from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel
 
 from app.config import settings
 from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CategoryCountsResponse, CATEGORIES
@@ -27,6 +29,105 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+def run_migrations():
+    """Führt alle SQL-Migrations aus dem migrations/ Verzeichnis aus, die noch nicht angewendet wurden."""
+    logger.info("=" * 60)
+    logger.info("MIGRATIONS-START")
+    logger.info("=" * 60)
+
+    try:
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+        migrations_dir = Path(__file__).parent.parent / "migrations"
+
+        if not migrations_dir.exists():
+            logger.warning(f"Migrations-Verzeichnis nicht gefunden: {migrations_dir}")
+            logger.info("=" * 60)
+            return
+
+        # Create schema_migrations table if it doesn't exist
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id SERIAL PRIMARY KEY,
+                    filename TEXT NOT NULL UNIQUE,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+        except Exception as e:
+            logger.error(f"✗ Fehler beim Erstellen der Migrations-Tabelle: {e}")
+            db.rollback()
+            raise
+
+        # Get list of already applied migrations
+        try:
+            cursor.execute("SELECT filename FROM schema_migrations")
+            applied_migrations = {row[0] for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error(f"✗ Fehler beim Lesen der Migrations-Historie: {e}")
+            applied_migrations = set()
+
+        migration_files = sorted(migrations_dir.glob("*.sql"))
+        if not migration_files:
+            logger.info("Keine Migration-Dateien gefunden")
+            logger.info("=" * 60)
+            return
+
+        logger.info(f"Gefundene Migrations: {len(migration_files)}")
+        for sql_file in migration_files:
+            status = "✓ (bereits angewendet)" if sql_file.name in applied_migrations else "⏳ (ausstehend)"
+            logger.info(f"  - {sql_file.name} {status}")
+
+        # Filter to only unapplied migrations
+        pending_migrations = [f for f in migration_files if f.name not in applied_migrations]
+
+        if not pending_migrations:
+            logger.info("-" * 60)
+            logger.info("Keine neuen Migrations zum Ausführen")
+            logger.info("=" * 60)
+            cursor.close()
+            db.close()
+            return
+
+        logger.info("-" * 60)
+        for sql_file in pending_migrations:
+            try:
+                with open(sql_file, 'r', encoding='utf-8') as f:
+                    sql_content = f.read()
+                cursor.execute(sql_content)
+                cursor.execute(
+                    "INSERT INTO schema_migrations (filename) VALUES (%s)",
+                    (sql_file.name,)
+                )
+                db.commit()
+                logger.info(f"✓ {sql_file.name}")
+            except Exception as e:
+                db.rollback()
+                logger.error(f"✗ {sql_file.name}: {e}")
+                logger.warning(f"⚠ Migration {sql_file.name} übersprungen - Backend startet trotzdem")
+
+        cursor.close()
+        db.close()
+        logger.info("-" * 60)
+        logger.info("MIGRATIONS ABGESCHLOSSEN (mit oder ohne Fehler - siehe oben)")
+        logger.info("=" * 60)
+    except psycopg2.OperationalError as e:
+        logger.warning(f"⚠ DB nicht erreichbar - Migrations übersprungen")
+        logger.warning(f"  Details: {e}")
+        logger.info("=" * 60)
+    except Exception as e:
+        logger.error(f"✗ MIGRATIONS FEHLGESCHLAGEN: {e}")
+        logger.warning("⚠ Backend startet trotzdem ohne vollständige Migrations")
+        logger.info("=" * 60)
+
+
 def generate_slug(title: str) -> str:
     """Generiert einen URL-sicheren Slug aus dem Rezepttitel."""
     import re
@@ -38,6 +139,10 @@ def generate_slug(title: str) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Migrations ausführen
+    logger.info("Starten der Datenbank-Migrations...")
+    run_migrations()
+
     # Temp-Verzeichnis anlegen
     os.makedirs(settings.tmp_dir, exist_ok=True)
     os.makedirs(settings.images_dir, exist_ok=True)
@@ -171,6 +276,30 @@ async def health():
         raise HTTPException(status_code=503, detail="Database not available")
 
 
+@app.get("/ingredient-densities")
+async def get_ingredient_densities():
+    """Liefert alle Zutatendichte-Typen mit Keywords für Cup-zu-Gramm-Konvertierung."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute("""
+            SELECT
+                t.type_name,
+                t.display_name,
+                t.density_g_per_ml::float AS density_g_per_ml,
+                array_agg(k.keyword ORDER BY k.keyword) AS keywords
+            FROM ingredient_density_types t
+            LEFT JOIN ingredient_density_keywords k ON k.type_id = t.id
+            GROUP BY t.id, t.type_name, t.display_name, t.density_g_per_ml
+            ORDER BY t.type_name
+        """)
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        cursor.close()
+        db.close()
+
+
 # ── Configuration Endpoints ──────────────────────────────────────────
 @app.get("/categories")
 async def get_categories():
@@ -206,6 +335,124 @@ async def get_category_counts():
     except Exception as e:
         logger.error(f"Category counts failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch category counts")
+
+
+@app.get("/tags")
+async def get_tags(category: str = ""):
+    """Returns all unique tags across recipes, case-insensitively deduplicated.
+
+    Optionally filtered by category. Display label is first occurrence's original casing.
+    """
+    def _fetch_tags():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            if category:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT ON (lower(t)) t AS tag
+                    FROM recipes, unnest(tags) AS t
+                    WHERE category = %s AND t IS NOT NULL AND t != ''
+                    ORDER BY lower(t), t
+                    """,
+                    (category,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT ON (lower(t)) t AS tag
+                    FROM recipes, unnest(tags) AS t
+                    WHERE t IS NOT NULL AND t != ''
+                    ORDER BY lower(t), t
+                    """
+                )
+            rows = cursor.fetchall()
+            return [row["tag"] for row in rows]
+        finally:
+            db.close()
+
+    try:
+        result = await asyncio.to_thread(_fetch_tags)
+        return result
+    except Exception as e:
+        logger.error(f"Tags fetch failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch tags")
+
+
+@app.get("/tags/counts")
+async def get_tags_with_counts():
+    """Returns all unique tags with recipe counts, sorted by count descending."""
+    def _fetch_tags_counts():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            cursor.execute(
+                """
+                SELECT DISTINCT ON (lower(t)) t AS tag, COUNT(*) OVER (PARTITION BY lower(t)) AS count
+                FROM recipes, unnest(tags) AS t
+                WHERE t IS NOT NULL AND t != ''
+                ORDER BY lower(t), t, count DESC
+                """
+            )
+            rows = cursor.fetchall()
+            return [{"tag": row["tag"], "count": row["count"]} for row in rows]
+        finally:
+            db.close()
+
+    try:
+        result = await asyncio.to_thread(_fetch_tags_counts)
+        return result
+    except Exception as e:
+        logger.error(f"Tags counts fetch failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch tags with counts")
+
+
+class TagMergeRequest(BaseModel):
+    source_tags: list[str]
+    target_tag: str
+
+
+@app.post("/tags/merge")
+async def merge_tags(req: TagMergeRequest):
+    """Merge multiple source tags into a single target tag (case-insensitive).
+
+    All occurrences of source tags are replaced with target_tag across all recipes.
+    Returns the number of recipes that were updated.
+    """
+    def _merge_tags():
+        db = get_db()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        try:
+            source_tags_lower = [t.lower() for t in req.source_tags]
+
+            cursor.execute(
+                """
+                UPDATE recipes
+                SET tags = (
+                    SELECT array_agg(CASE WHEN lower(t) = ANY(%s) THEN %s ELSE t END)
+                    FROM unnest(tags) t
+                )
+                WHERE EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))
+                RETURNING id
+                """,
+                (source_tags_lower, req.target_tag, source_tags_lower),
+            )
+            updated_ids = [row["id"] for row in cursor.fetchall()]
+            db.commit()
+            db.close()
+            return len(updated_ids)
+        except Exception as e:
+            db.rollback()
+            db.close()
+            raise e
+
+    try:
+        updated_count = await asyncio.to_thread(_merge_tags)
+        logger.info(f"Merged tags {req.source_tags} → {req.target_tag}: {updated_count} recipes updated")
+        return {"updated_recipes": updated_count}
+    except Exception as e:
+        logger.error(f"Tags merge failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to merge tags: {str(e)}")
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────
@@ -445,20 +692,120 @@ async def instagram_sync():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/og/recipes/{recipe_slug}", response_class=HTMLResponse)
+async def get_og_recipe(recipe_slug: str):
+    """Liefert OG-Meta-Tags für Messenger-Link-Previews."""
+    db = get_db()
+    cursor = db.cursor(cursor_factory=RealDictCursor)
+    try:
+        if len(recipe_slug) > 36 and recipe_slug[-37] == '-':
+            recipe_id = recipe_slug[-36:]
+        else:
+            recipe_id = recipe_slug
+
+        cursor.execute(
+            "SELECT id, title, category, prep_time, image_filename FROM recipes WHERE id = %s",
+            (recipe_id,),
+        )
+        recipe = cursor.fetchone()
+
+        if not recipe:
+            raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+        frontend_url = os.environ.get("FRONTEND_URL", "https://miximixi.sektbirne.fun")
+        recipe_url = f"{frontend_url}/recipes/{recipe_slug}"
+        image_url = f"{frontend_url}/images/{recipe['id']}" if recipe.get("image_filename") else ""
+
+        description_parts = []
+        if recipe.get("category"):
+            description_parts.append(recipe["category"])
+        if recipe.get("prep_time"):
+            description_parts.append(f"Zubereitungszeit: {recipe['prep_time']}")
+        description = " · ".join(description_parts) if description_parts else "Rezept auf Miximixi"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>{recipe['title']}</title>
+  <meta property="og:title" content="{recipe['title']}" />
+  <meta property="og:description" content="{description}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="{recipe_url}" />
+  {f'<meta property="og:image" content="{image_url}" />' if image_url else ''}
+  <meta http-equiv="refresh" content="0;url={recipe_url}" />
+</head>
+<body>
+  <p>Weiterleitung zu <a href="{recipe_url}">{recipe['title']}</a>...</p>
+</body>
+</html>"""
+        return HTMLResponse(content=html)
+    finally:
+        cursor.close()
+        db.close()
+
+
 # ── Recipes Endpoints ───────────────────────────────────────────────
 @app.get("/recipes")
-async def list_recipes(limit: int = 20, offset: int = 0):
-    """Alle Rezepte auflisten."""
+async def list_recipes(
+    limit: int = 20,
+    offset: int = 0,
+    q: str = "",
+    category: str = "",
+    tags: list[str] = Query(default=None),
+    favorites: bool = False,
+):
+    """Rezepte mit Filtern: Textsuche (q), Kategorie, Tags (case-insensitiv), Favoriten."""
+    if tags is None:
+        tags = []
+
+    logger.info(f"list_recipes called with tags={tags}, type={type(tags)}")
+
     db = get_db()
     cursor = db.cursor(cursor_factory=RealDictCursor)
 
     try:
+        # Build WHERE clause dynamically
+        where_clauses = []
+        params = []
+
+        # Text search: title, category, or any tag (case-insensitive)
+        if q:
+            q_pattern = f"%{q}%"
+            where_clauses.append(
+                "(title ILIKE %s OR category ILIKE %s OR EXISTS (SELECT 1 FROM unnest(tags) t WHERE t ILIKE %s))"
+            )
+            params.extend([q_pattern, q_pattern, q_pattern])
+
+        # Category filter (exact match)
+        if category:
+            where_clauses.append("category = %s")
+            params.append(category)
+
+        # Tag filter (case-insensitive OR match)
+        if tags:
+            tags_lower = [t.lower() for t in tags]
+            logger.info(f"Tag filter applied: tags={tags}, tags_lower={tags_lower}")
+            where_clauses.append("EXISTS (SELECT 1 FROM unnest(tags) t WHERE lower(t) = ANY(%s))")
+            params.append(tags_lower)
+
+        # Favorites filter
+        if favorites:
+            where_clauses.append("rating = 1")
+
+        where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        # Add pagination params
+        params.extend([limit, offset])
+
         cursor.execute(
-            """
+            f"""
             SELECT id, title, category, image_filename, source_url, source_label, source_type, source_id, rating, tags, created_at
-            FROM recipes ORDER BY created_at DESC LIMIT %s OFFSET %s
+            FROM recipes
+            WHERE {where_clause}
+            ORDER BY created_at DESC LIMIT %s OFFSET %s
             """,
-            (limit, offset),
+            params,
         )
         recipes = cursor.fetchall()
         db.close()

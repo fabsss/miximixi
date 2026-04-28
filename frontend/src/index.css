@@ -13,8 +13,7 @@
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--mx-on-surface-variant); }
 
-/* Light mode (Heirloom Hearth) */
-:root,
+/* Light mode (Heirloom Hearth) - explicit and system light */
 [data-theme="light"] {
   --mx-primary: #a43f14;
   --mx-primary-dim: #943308;
@@ -33,7 +32,27 @@
   --mx-glow: rgba(57, 49, 41, 0.08);
 }
 
-/* Dark mode (Midnight Kitchen) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --mx-primary: #a43f14;
+    --mx-primary-dim: #943308;
+    --mx-primary-container: #ffad90;
+    --mx-on-primary: #fff7f5;
+    --mx-secondary: #526448;
+    --mx-secondary-container: #e2f7d3;
+    --mx-surface: #fff8f4;
+    --mx-surface-low: #fdf1e9;
+    --mx-surface-container: #f8ece2;
+    --mx-surface-high: #f3e6db;
+    --mx-surface-variant: #eee0d5;
+    --mx-on-surface: #393129;
+    --mx-on-surface-variant: #675d54;
+    --mx-outline-variant: #bdb0a5;
+    --mx-glow: rgba(57, 49, 41, 0.08);
+  }
+}
+
+/* Dark mode (Midnight Kitchen) - explicit and system dark */
 [data-theme="dark"] {
   --mx-primary: #ffb59c;
   --mx-primary-dim: #e66d41;
@@ -52,7 +71,6 @@
   --mx-glow: rgba(255, 181, 156, 0.1);
 }
 
-/* System preference (default) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --mx-primary: #ffb59c;
@@ -114,10 +132,55 @@ body {
   margin: 0;
   color: var(--mx-on-surface);
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  color: var(--mx-on-surface);
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at 10% 10%, rgba(255, 173, 144, 0.26), transparent 40%),
-    radial-gradient(circle at 90% 5%, rgba(82, 100, 72, 0.22), transparent 35%),
+    linear-gradient(to bottom, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
+    linear-gradient(to top, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
     var(--mx-surface);
+  background-size: 100% 500vh, 100% 500vh, 100% 100%;
+  background-position: 0 0, 0 0, 0 0;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+}
+
+[data-theme="dark"] body {
+  background:
+    linear-gradient(to bottom, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
+    linear-gradient(to top, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
+    var(--mx-surface);
+  background-size: 100% 500vh, 100% 500vh, 100% 100%;
+  background-position: 0 0, 0 0, 0 0;
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="light"] body {
+    background:
+      linear-gradient(to bottom, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
+      linear-gradient(to top, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
+      var(--mx-surface);
+    background-size: 100% 500vh, 100% 500vh, 100% 100%;
+    background-position: 0 0, 0 0, 0 0;
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+  }
+
+  body:not([data-theme="light"]) {
+    background:
+      linear-gradient(to bottom, rgba(82, 100, 72, 0.22), transparent 20%, var(--mx-surface) 100%),
+      linear-gradient(to top, rgba(255, 173, 144, 0.26), transparent 20%, var(--mx-surface) 100%),
+      var(--mx-surface);
+    background-size: 100% 500vh, 100% 500vh, 100% 100%;
+    background-position: 0 0, 0 0, 0 0;
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+  }
 }
 
 h1,
@@ -143,7 +206,7 @@ a {
 }
 
 /* Category color variables – SINGLE SOURCE OF TRUTH */
-:root,
+/* Light mode - explicit takes priority, then media query, then system dark default to light */
 [data-theme="light"] {
   --cat-vorspeisen-bg: #f3d5a5;
   --cat-vorspeisen-text: #8b5a1a;
@@ -157,10 +220,28 @@ a {
   --cat-snacks-text: #2d6b2d;
   --cat-drinks-bg: #d4e8f5;
   --cat-drinks-text: #3a5a7a;
-  /* Sidebar background in light mode matches card container */
   --cat-sidebar-bg: transparent;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --cat-vorspeisen-bg: #f3d5a5;
+    --cat-vorspeisen-text: #8b5a1a;
+    --cat-hauptspeisen-bg: #f5d4b3;
+    --cat-hauptspeisen-text: #8b4a1a;
+    --cat-desserts-bg: #e8d4f1;
+    --cat-desserts-text: #6a3a6a;
+    --cat-brunch-bg: #f5d4de;
+    --cat-brunch-text: #7a3a4a;
+    --cat-snacks-bg: #d4f1d4;
+    --cat-snacks-text: #2d6b2d;
+    --cat-drinks-bg: #d4e8f5;
+    --cat-drinks-text: #3a5a7a;
+    --cat-sidebar-bg: transparent;
+  }
+}
+
+/* Dark mode - explicit takes priority, then media query */
 [data-theme="dark"] {
   --cat-vorspeisen-bg: #7d6449;
   --cat-vorspeisen-text: #fef3c7;
@@ -174,8 +255,25 @@ a {
   --cat-snacks-text: #dcfce7;
   --cat-drinks-bg: #465f6a;
   --cat-drinks-text: #e0f2fe;
-  /* Sidebar background in dark mode matches card container */
   --cat-sidebar-bg: var(--mx-surface-low);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cat-vorspeisen-bg: #7d6449;
+    --cat-vorspeisen-text: #fef3c7;
+    --cat-hauptspeisen-bg: #7d5538;
+    --cat-hauptspeisen-text: #fed7aa;
+    --cat-desserts-bg: #58445a;
+    --cat-desserts-text: #fce7f3;
+    --cat-brunch-bg: #664e5a;
+    --cat-brunch-text: #ffe4e6;
+    --cat-snacks-bg: #4d6a52;
+    --cat-snacks-text: #dcfce7;
+    --cat-drinks-bg: #465f6a;
+    --cat-drinks-text: #e0f2fe;
+    --cat-sidebar-bg: var(--mx-surface-low);
+  }
 }
 
 /* Category colors are now directly referenced via CSS variables in all components */

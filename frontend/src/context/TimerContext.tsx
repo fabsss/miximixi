@@ -34,20 +34,31 @@ function getAudioContext() {
   return _audioCtx
 }
 
+function playGongStrike(ctx: AudioContext, startTime: number) {
+  // Low fundamental with harmonics for a loud gong sound
+  const freqs = [180, 360, 540, 900, 1260]
+  const gains = [1.0, 0.6, 0.4, 0.25, 0.15]
+  freqs.forEach((freq, i) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.type = i === 0 ? 'sine' : 'triangle'
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0, startTime)
+    gain.gain.linearRampToValueAtTime(gains[i], startTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 2.5)
+    osc.start(startTime); osc.stop(startTime + 2.5)
+  })
+}
+
 function playBell() {
   try {
     const ctx = getAudioContext()
-    ;[1047, 1319, 1568].forEach((freq, i) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain); gain.connect(ctx.destination)
-      osc.type = 'sine'; osc.frequency.value = freq
-      const t = ctx.currentTime + i * 0.28
-      gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.35, t + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.1)
-      osc.start(t); osc.stop(t + 1.1)
-    })
+    const strikeCount = 3
+    const strikeInterval = 2.8
+    for (let i = 0; i < strikeCount; i++) {
+      playGongStrike(ctx, ctx.currentTime + i * strikeInterval)
+    }
   } catch { /* ignore */ }
 }
 
@@ -150,7 +161,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         startInterval(id)
       }
     }
-  }, []) // Only on mount
+  }, [timers, startInterval]) // Only on mount
 
   // Persist to sessionStorage on every change
   useEffect(() => {
@@ -257,7 +268,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   const adjustTimer = useCallback((id: string, deltaSeconds: number) => {
     setTimers((prev) => {
-      let timer = prev.get(id)
+      const timer = prev.get(id)
       if (!timer) {
         // Timer doesn't exist yet - can't adjust
         return prev

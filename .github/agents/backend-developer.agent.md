@@ -118,7 +118,7 @@ docker exec -it miximixi-db psql -U postgres -d miximixi \
 
 ## Coding Style should follow these guidelines:
 - **PEP 8** for Python code (use `black` for formatting)
-- **Always** use Test Driven Development (TDD) for new features and bug fixes
+- **Always** invoke /test-driven-development skill for new features and bug fixes
 - Use type hints on all function signatures and variables where possible
 - Write clear, user-friendly error messages for API responses           
 - **Always** document new endpoints and database schema changes in `docs/architecture.md`

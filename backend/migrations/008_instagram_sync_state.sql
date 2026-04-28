@@ -12,6 +12,6 @@ CREATE TABLE IF NOT EXISTS instagram_sync_state (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_instagram_sync_collection_id ON instagram_sync_state(collection_id);
-CREATE INDEX idx_instagram_sync_post_id ON instagram_sync_state(post_id);
-CREATE INDEX idx_instagram_sync_synced_at ON instagram_sync_state(synced_at DESC);
+CREATE INDEX IF NOT EXISTS idx_instagram_sync_collection_id ON instagram_sync_state(collection_id);
+CREATE INDEX IF NOT EXISTS idx_instagram_sync_post_id ON instagram_sync_state(post_id);
+CREATE INDEX IF NOT EXISTS idx_instagram_sync_synced_at ON instagram_sync_state(synced_at DESC);

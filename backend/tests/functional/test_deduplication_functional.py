@@ -9,6 +9,10 @@ These tests verify the complete deduplication flow:
 import pytest
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import uuid
+
+# Generate deterministic test UUIDs using UUID v5 (namespace-based)
+TEST_NAMESPACE = uuid.UUID('12345678-1234-5678-1234-567812345678')
 
 
 @pytest.fixture
@@ -31,15 +35,88 @@ def db():
 @pytest.fixture
 def clean_recipes(db):
     """Clean up recipes table before and after each test."""
+    import os
+    import glob
+    import re
+
     cursor = db.cursor()
-    # Delete test recipes
-    cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
-    db.commit()
+
+    # Ensure migrations are run by parsing and executing all SQL statements
+    migration_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'migrations')
+    if os.path.exists(migration_dir):
+        migration_files = sorted(glob.glob(os.path.join(migration_dir, '[0-9][0-9][0-9]_*.sql')))
+        for migration_file in migration_files:
+            try:
+                with open(migration_file, 'r') as f:
+                    migration_sql = f.read()
+
+                # Remove SQL comments and split into statements
+                # This handles -- comments and /* */ comments
+                lines = migration_sql.split('\n')
+                cleaned_lines = []
+                in_block_comment = False
+
+                for line in lines:
+                    # Handle block comments
+                    if '/*' in line:
+                        in_block_comment = True
+                    if '*/' in line:
+                        in_block_comment = False
+                        # Skip this line entirely (it contains the closing comment)
+                        continue
+                    if in_block_comment:
+                        # Skip lines inside block comments
+                        continue
+
+                    # Remove line comments (everything after --)
+                    if '--' in line:
+                        line = line[:line.index('--')]
+
+                    cleaned_lines.append(line)
+
+                cleaned_sql = '\n'.join(cleaned_lines)
+
+                # Split statements by semicolon, filter empty statements
+                statements = [s.strip() for s in cleaned_sql.split(';') if s.strip()]
+
+                for statement in statements:
+                    try:
+                        cursor.execute(statement)
+                        db.commit()
+                    except (psycopg2.errors.DuplicateTable, psycopg2.errors.DuplicateObject,
+                            psycopg2.errors.DuplicateSchema, psycopg2.errors.DuplicateIndex,
+                            psycopg2.errors.DuplicateConstraint):
+                        # Migration already applied - these errors are expected
+                        db.rollback()
+                    except psycopg2.DatabaseError as e:
+                        # Actual database errors - log but continue to allow partial migrations
+                        db.rollback()
+                        # Don't fail, migrations may have been partially applied
+                    except Exception as e:
+                        # Unexpected errors - still rollback but don't fail
+                        db.rollback()
+            except Exception as e:
+                # Rollback on any error
+                db.rollback()
+
+    # Delete ALL recipes for clean slate
+    try:
+        cursor.execute("DELETE FROM recipes")
+        db.commit()
+    except psycopg2.errors.UndefinedTable:
+        # Table doesn't exist yet, will be created by migrations
+        db.rollback()
+
     yield
-    # Cleanup after test
-    cursor.execute("DELETE FROM recipes WHERE id LIKE 'test-%'")
-    db.commit()
-    cursor.close()
+
+    # Cleanup after test - delete all recipes
+    try:
+        cursor.execute("DELETE FROM recipes")
+        db.commit()
+    except psycopg2.errors.UndefinedTable:
+        pass
+    finally:
+        cursor.close()
 
 
 class TestTelegramBotDeduplication:
@@ -62,7 +139,7 @@ class TestTelegramBotDeduplication:
         source_type = get_source_type_from_url(url1)
         source_id = extract_source_id(url1)
 
-        recipe_id = "test-insta-1"
+        recipe_id = str(uuid.uuid5(TEST_NAMESPACE, "test-insta-1"))
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -108,7 +185,7 @@ class TestTelegramBotDeduplication:
         source_type = get_source_type_from_url(url1)
         source_id = extract_source_id(url1)
 
-        recipe_id = "test-yt-1"
+        recipe_id = str(uuid.uuid5(TEST_NAMESPACE, "test-yt-1"))
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -157,7 +234,7 @@ class TestTelegramBotDeduplication:
         assert source_type == "web"
         assert source_id is None
 
-        recipe_id = "test-web-1"
+        recipe_id = str(uuid.uuid5(TEST_NAMESPACE, "test-web-1"))
         cursor = db.cursor()
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
@@ -205,7 +282,7 @@ class TestQueueWorkerSourceExtraction:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)
                RETURNING source_type, source_id""",
-            ("test-qw-1", "Test", url, source_type, source_id)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-qw-1")), "Test", url, source_type, source_id)
         )
         result = cursor.fetchone()
         db.commit()
@@ -231,7 +308,7 @@ class TestQueueWorkerSourceExtraction:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)
                RETURNING source_type, source_id""",
-            ("test-qw-2", "Test", url, source_type, source_id)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-qw-2")), "Test", url, source_type, source_id)
         )
         result = cursor.fetchone()
         db.commit()
@@ -258,7 +335,7 @@ class TestOldRecipesBackfill:
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, NULL, NULL)
                RETURNING id""",
-            ("test-old-1", "Old Recipe", url)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-old-1")), "Old Recipe", url)
         )
         recipe_id = cursor.fetchone()['id']
         db.commit()
@@ -302,7 +379,7 @@ class TestDatabaseConstraints:
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            ("test-uc-1", "Recipe 1", "https://instagram.com/p/ABC123/", "instagram", "ABC123")
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-uc-1")), "Recipe 1", "https://instagram.com/p/ABC123/", "instagram", "ABC123")
         )
         db.commit()
 
@@ -312,7 +389,7 @@ class TestDatabaseConstraints:
             cursor.execute(
                 """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                    VALUES (%s, %s, %s, %s, %s)""",
-                ("test-uc-2", "Recipe 2", "https://instagram.com/p/ABC123/?utm=tracking", "instagram", "ABC123")
+                (str(uuid.uuid5(TEST_NAMESPACE, "test-uc-2")), "Recipe 2", "https://instagram.com/p/ABC123/?utm=tracking", "instagram", "ABC123")
             )
             db.commit()
 
@@ -330,12 +407,12 @@ class TestDatabaseConstraints:
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            ("test-web-2", "Web Recipe 1", "https://example.com/recipe1", "web", None)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-web-2")), "Web Recipe 1", "https://example.com/recipe1", "web", None)
         )
         cursor.execute(
             """INSERT INTO recipes (id, title, source_url, source_type, source_id)
                VALUES (%s, %s, %s, %s, %s)""",
-            ("test-web-3", "Web Recipe 2", "https://example.com/recipe2", "web", None)
+            (str(uuid.uuid5(TEST_NAMESPACE, "test-web-3")), "Web Recipe 2", "https://example.com/recipe2", "web", None)
         )
 
         # Should succeed (no unique constraint violation)

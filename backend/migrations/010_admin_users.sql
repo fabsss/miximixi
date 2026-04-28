@@ -12,5 +12,5 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 -- Index for fast lookup of admin status
-CREATE INDEX idx_admin_users_telegram_id ON admin_users(telegram_user_id);
-CREATE INDEX idx_admin_users_active ON admin_users(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_admin_users_telegram_id ON admin_users(telegram_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_users_active ON admin_users(is_active) WHERE is_active = true;
