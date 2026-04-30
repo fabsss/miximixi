@@ -52,12 +52,14 @@ Wichtig:
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
-  Stelle dir vor jedem Schritt diese Kontrollfragen:
+  PFLICHTREGELN – alle müssen gleichzeitig erfüllt sein:
   1. Ist die Aktion dieses Schritts das HAUPTMOTIV des Frames – nicht Nebenaktion oder Hintergrund?
   2. Würde ein Leser den Frame sehen und SOFORT verstehen, was in diesem Schritt zu tun ist?
-  3. Zeigt dieser Frame etwas, das sich von allen anderen bereits vergebenen Step-Frames klar unterscheidet?
-  Nur wenn alle drei Fragen mit JA beantwortet werden: Timestamp vergeben.
-  NULL für: Würzen/Salzen, einfaches Umrühren, Zutaten hinzufügen, Wartezeiten, Schritte die im Video kaum sichtbar sind, Schritte deren Frame einem bereits vergebenen sehr ähnlich sieht.
+  3. Zeigt dieser Frame etwas, das sich von allen anderen bereits vergebenen Step-Frames VISUELL DEUTLICH unterscheidet? (anderes Motiv, andere Perspektive, anderer Zubereitungsstand)
+  4. Liegt dieser Timestamp mindestens 5 Sekunden vom nächstgelegenen bereits vergebenen Step-Timestamp entfernt?
+  Nur wenn ALLE VIER Fragen mit JA beantwortet werden: Timestamp vergeben. Sonst zwingend NULL.
+  NULL für: Würzen/Salzen, einfaches Umrühren, Zutaten hinzufügen, Wartezeiten, Schritte die im Video kaum sichtbar sind, Schritte deren Frame einem bereits vergebenen sehr ähnlich sieht, Schritte die weniger als 5 Sekunden nach einem anderen Step-Frame liegen.
+  Lieber zu wenige als zu viele Timestamps – ein NULL-Schritt ist besser als ein Duplikat-Foto.
   Wähle den Frame, in dem die Aktion am schärfsten und deutlichsten zu sehen ist.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
@@ -91,7 +93,7 @@ JSON-Format:
     {"id": 1, "name": "Zutat", "amount": 200, "unit": "g", "group_name": "Für den Teig"}
   ],
   "steps": [
-    {"id": 1, "text": "Den [grünen Spargel]{1} kurz in Salzwasser blanchieren.", "time_minutes": 5, "step_timestamp": "00:15:08"}
+    {"id": 1, "text": "Den [grünen Spargel]{1} kurz in Salzwasser blanchieren.", "time_minutes": 5, "step_timestamp": "00:45:12"}
   ],
   "cover_frame_index": 2
 }
@@ -109,13 +111,14 @@ Wichtig:
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
-  Stelle dir vor jedem Schritt diese Kontrollfragen:
+  PFLICHTREGELN – alle müssen gleichzeitig erfüllt sein:
   1. Ist die Aktion dieses Schritts das HAUPTMOTIV des Frames – nicht Nebenaktion oder Hintergrund?
   2. Würde ein Leser den Frame sehen und SOFORT verstehen, was in diesem Schritt zu tun ist?
-  3. Zeigt dieser Frame etwas, das sich von allen anderen bereits vergebenen Step-Frames klar unterscheidet?
-  Nur wenn alle drei Fragen mit JA beantwortet werden: Timestamp vergeben.
-  NULL für: Würzen/Salzen, einfaches Umrühren, Zutaten hinzufügen, Wartezeiten, Schritte die in den Bildern kaum sichtbar sind, Schritte deren Frame einem bereits vergebenen sehr ähnlich sieht.
-  Nutze die übergebenen Bilder um den Moment zu identifizieren, wo die Aktion am schärfsten zu sehen ist.
+  3. Zeigt dieser Frame etwas, das sich von allen anderen bereits vergebenen Step-Frames VISUELL DEUTLICH unterscheidet? (anderes Motiv, andere Perspektive, anderer Zubereitungsstand)
+  4. Liegt dieser Timestamp mindestens 5 Sekunden vom nächstgelegenen bereits vergebenen Step-Timestamp entfernt?
+  Nur wenn ALLE VIER Fragen mit JA beantwortet werden: Timestamp vergeben. Sonst zwingend NULL.
+  NULL für: Würzen/Salzen, einfaches Umrühren, Zutaten hinzufügen, Wartezeiten, Schritte kaum sichtbar in den Frames, Schritte deren Frame einem bereits vergebenen sehr ähnlich sieht, Schritte weniger als 5 Sekunden nach einem anderen Step-Frame.
+  Lieber zu wenige als zu viele – ein NULL-Schritt ist besser als ein Duplikat-Foto.
 - Mengen als Zahlen, nicht als Text ("200" statt "zweihundert")
 - "group_name" = Gruppe der Zutat falls das Rezept Abschnitte hat (z.B. "Für das Soja-Hack", "Dressing", "Toppings"). NULL wenn keine Gruppen vorhanden.
 - "cover_frame_index" = Index (0-basiert) des Bildes, das das fertige Gericht am appetitlichsten zeigt.

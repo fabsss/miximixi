@@ -34,6 +34,7 @@ from app.media_processor import (
     prepare_media_for_frames,
     prepare_media_for_gemini,
     save_cover_to_storage,
+    timestamp_to_seek,
 )
 from app.source_identifier import extract_source_id, get_source_type_from_url
 
@@ -230,6 +231,20 @@ async def process_job(job: dict, notify_callback=None) -> None:
         if recipe_data.steps and media_paths and any(is_video(p) for p in media_paths):
             video_path = next((p for p in media_paths if is_video(p)), None)
             if video_path:
+                # Deduplizierung: Timestamps die weniger als 3s auseinander liegen → NULL
+                seen_seconds: list[float] = []
+                for step in recipe_data.steps:
+                    if step.step_timestamp:
+                        try:
+                            t = float(timestamp_to_seek(step.step_timestamp))
+                        except (ValueError, TypeError):
+                            t = None
+                        if t is not None and any(abs(t - s) < 3.0 for s in seen_seconds):
+                            logger.warning(f"Step {step.id} Timestamp {step.step_timestamp!r} zu nah an vorherigem Frame – übersprungen")
+                            step.step_timestamp = None
+                        elif t is not None:
+                            seen_seconds.append(t)
+
                 for step in recipe_data.steps:
                     if step.step_timestamp:
                         try:
