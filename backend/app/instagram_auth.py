@@ -189,18 +189,19 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             logger.info(f"Playwright: aktuelle URL nach goto: {page.url}")
             logger.info(f"Playwright: Seitentitel: {await page.title()}")
 
-            # Cookie-Banner wegklicken (verschiedene Sprachen/Varianten)
-            for cookie_text in ["Alle Cookies akzeptieren", "Allow all cookies", "Accept all", "Akzeptieren"]:
+            # Cookie-Banner wegklicken — erst auf Banner warten, dann klicken
+            for cookie_text in ["Allow all cookies", "Alle Cookies akzeptieren", "Accept all", "Akzeptieren"]:
                 try:
-                    await page.click(f"text={cookie_text}", timeout=2000)
-                    await asyncio.sleep(random.uniform(0.5, 1.0))
+                    await page.wait_for_selector(f"text={cookie_text}", timeout=4000)
+                    await page.click(f"text={cookie_text}")
+                    await asyncio.sleep(random.uniform(1.5, 2.5))
                     break
                 except Exception:
                     pass
 
-            # Warten bis Login-Formular sichtbar ist
+            # Warten bis Login-Formular sichtbar ist (erscheint erst nach Banner-Dismiss)
             try:
-                await page.wait_for_selector('input[name="username"]', timeout=10000)
+                await page.wait_for_selector('input[name="username"]', timeout=15000)
             except Exception:
                 current_url = page.url
                 page_content = await page.content()
