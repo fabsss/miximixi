@@ -33,6 +33,7 @@ COPY pyproject.toml poetry.lock ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     poetry config virtualenvs.create false && \
     poetry install --no-cache --no-interaction --no-root --only main
+RUN poetry run playwright install chromium --with-deps
 
 # Copy application code
 COPY app/ ./app/

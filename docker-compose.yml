@@ -57,8 +57,8 @@ services:
     volumes:
       - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
       - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images
-      - /mnt/data/backup/miximixi/instagram_session.json:/app/instagram_session.json
-      - /mnt/data/backup/miximixi/instagram_cookies.txt:/app/instagram_cookies.txt
+      - /mnt/data/backup/miximixi/instagram_cookies.txt:/mnt/data/miximixi/instagram_cookies.txt
+      - /mnt/data/backup/miximixi/instagram_browser_state:/mnt/data/miximixi/instagram_browser_state
     depends_on:
       db:
         condition: service_healthy
