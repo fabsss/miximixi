@@ -225,10 +225,9 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
 
             # Warten bis Login-Formular sichtbar ist (erscheint erst nach Banner-Dismiss)
             # Instagram entfernt name-Attribute — per ARIA-Label oder type suchen
-            username_selector = 'input[name="username"], input[aria-label*="username" i], input[aria-label*="Mobile" i], input[autocomplete="username"]'
-            password_selector = 'input[name="password"], input[aria-label*="password" i], input[type="password"]'
+            # Warten auf erstes Input-Feld (Username) — kein stabiles name/aria-label vorhanden
             try:
-                await page.wait_for_selector(username_selector, timeout=15000)
+                await page.wait_for_selector('input', timeout=15000)
             except Exception:
                 current_url = page.url
                 page_content = await page.content()
@@ -238,13 +237,16 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
                 )
                 raise
 
-            username_field = page.locator(username_selector).first
+            # Erstes Input = Username, zweites = Passwort
+            inputs = page.locator('input')
+            username_field = inputs.nth(0)
+            password_field = inputs.nth(1)
+
             await username_field.click()
             for char in username:
                 await username_field.type(char, delay=random.randint(80, 200))
             await asyncio.sleep(random.uniform(0.3, 0.8))
 
-            password_field = page.locator(password_selector).first
             await password_field.click()
             for char in password:
                 await password_field.type(char, delay=random.randint(80, 200))
