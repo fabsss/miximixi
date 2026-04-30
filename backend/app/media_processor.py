@@ -38,6 +38,7 @@ def is_video(path: str) -> bool:
 class DownloadResult:
     media_paths: list[str] = field(default_factory=list)
     description: str = ""  # Caption / YouTube-Beschreibung / bereinigter HTML-Text
+    thumbnail_path: str | None = None  # Vom Anbieter gesetztes Thumbnail (z.B. Instagram Cover)
 
 
 # ── yt-dlp: Instagram + YouTube ──────────────────────────────────────
@@ -77,11 +78,12 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     except Exception as e:
         logger.warning(f"yt-dlp Beschreibung fehlgeschlagen: {e}")
 
-    # Schritt 2: Medien herunterladen
+    # Schritt 2: Medien + Thumbnail herunterladen
     def _download():
         return subprocess.run(
             ["yt-dlp", "--no-playlist", "--no-warnings"] + cookie_args +
-            ["-o", output_template, url],
+            ["--write-thumbnail", "--convert-thumbnails", "jpg",
+             "-o", output_template, url],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
         )
     try:
@@ -106,12 +108,25 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
             logger.error(f"yt-dlp Fehler ({url}): {result.stderr[:500]}")
             return DownloadResult(description=description)
 
-    media_paths = [
-        str(f) for f in Path(output_dir).iterdir()
-        if f.suffix.lower() in VIDEO_EXTS | IMAGE_EXTS
-    ]
+    all_files = list(Path(output_dir).iterdir())
+    media_paths = [str(f) for f in all_files if f.suffix.lower() in VIDEO_EXTS | IMAGE_EXTS]
+
+    # Thumbnail: yt-dlp schreibt es als <id>.jpg neben das Video
+    # Erkenne es als Bild-Datei, die nicht im VIDEO_EXTS ist und keinen Video-Partner hat
+    video_stems = {Path(p).stem for p in media_paths if Path(p).suffix.lower() in VIDEO_EXTS}
+    thumbnail_path = next(
+        (str(f) for f in all_files
+         if f.suffix.lower() in {".jpg", ".jpeg", ".webp", ".png"}
+         and f.stem in video_stems),
+        None,
+    )
+    if thumbnail_path:
+        logger.info(f"yt-dlp: Thumbnail gefunden: {thumbnail_path}")
+        # Thumbnail nicht in media_paths – wird separat als Cover genutzt
+        media_paths = [p for p in media_paths if p != thumbnail_path]
+
     logger.info(f"yt-dlp: {len(media_paths)} Datei(en) heruntergeladen")
-    return DownloadResult(media_paths=media_paths, description=description)
+    return DownloadResult(media_paths=media_paths, description=description, thumbnail_path=thumbnail_path)
 
 
 # ── Website-Import: HTML-Parsing für Rezept-Extraktion ──────────────────

@@ -211,6 +211,7 @@ async def process_job(job: dict, notify_callback=None) -> None:
 
         raw_source_text = job.get("caption") or download.description or ""
         media_paths = download.media_paths
+        thumbnail_path = download.thumbnail_path
 
         # If no media found, check if we have caption/description for fallback
         if not media_paths and not raw_source_text:
@@ -286,7 +287,7 @@ async def process_job(job: dict, notify_callback=None) -> None:
         image_filename: Optional[str] = None
         extraction_status = "success"
 
-        cover_path = await asyncio.to_thread(_resolve_cover, extraction, media_paths, llm_media, tmp_job_dir)
+        cover_path = await asyncio.to_thread(_resolve_cover, extraction, media_paths, llm_media, tmp_job_dir, thumbnail_path)
         if cover_path:
             try:
                 image_filename = await asyncio.to_thread(save_cover_to_storage, cover_path, recipe_id)
@@ -391,13 +392,25 @@ def _resolve_cover(
     media_paths: list[str],
     llm_media: list[str],
     tmp_dir: str,
+    thumbnail_path: Optional[str] = None,
 ) -> Optional[str]:
     """
     Ermittelt den Cover-Frame basierend auf dem LLM-Ergebnis.
+
+    Priorität:
+    1. Anbieter-Thumbnail (z.B. Instagram-Cover) – vom Creator bewusst gesetzt
+    2. Gemini cover_timestamp → Frame per ffmpeg
+    3. Andere Provider: cover_frame_index aus llm_media
+    4. Fallback: mittlerer Frame via ffmpeg
     """
     from app.media_processor import is_video
 
-    # Gemini: Timestamp → Frame extrahieren
+    # 1. Anbieter-Thumbnail bevorzugen (z.B. Instagram-Cover)
+    if thumbnail_path and os.path.exists(thumbnail_path):
+        logger.info(f"Cover via Anbieter-Thumbnail: {thumbnail_path}")
+        return thumbnail_path
+
+    # 2. Gemini: Timestamp → Frame extrahieren
     if extraction.cover_timestamp:
         for path in media_paths:
             if is_video(path):
@@ -406,14 +419,14 @@ def _resolve_cover(
                     logger.info(f"Cover via Timestamp {extraction.cover_timestamp}: {cover}")
                     return cover
 
-    # Andere Provider: Frame-Index aus der llm_media-Liste
+    # 3. Andere Provider: Frame-Index aus der llm_media-Liste
     if extraction.cover_frame_index is not None:
         idx = extraction.cover_frame_index
         if 0 <= idx < len(llm_media):
             logger.info(f"Cover via Frame-Index {idx}: {llm_media[idx]}")
             return llm_media[idx]
 
-    # Fallback: Mittlerer Frame
+    # 4. Fallback: Mittlerer Frame
     logger.info("Kein Cover-Hint vom LLM – Fallback auf mittleren Frame")
     return extract_cover_frame(media_paths, tmp_dir)
 
