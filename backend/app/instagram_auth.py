@@ -189,15 +189,27 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             logger.info(f"Playwright: aktuelle URL nach goto: {page.url}")
             logger.info(f"Playwright: Seitentitel: {await page.title()}")
 
-            # Cookie-Banner wegklicken — erst auf Banner warten, dann klicken
-            for cookie_text in ["Allow all cookies", "Alle Cookies akzeptieren", "Accept all", "Akzeptieren"]:
-                try:
-                    await page.wait_for_selector(f"text={cookie_text}", timeout=4000)
-                    await page.click(f"text={cookie_text}")
-                    await asyncio.sleep(random.uniform(1.5, 2.5))
-                    break
-                except Exception:
-                    pass
+            # Cookie-Banner wegklicken — auf Dialog warten, dann Button klicken
+            try:
+                await page.wait_for_selector("button", timeout=5000)
+                # Versuche alle bekannten Cookie-Accept-Buttons
+                for selector in [
+                    'button:has-text("Allow all cookies")',
+                    'button:has-text("Alle Cookies akzeptieren")',
+                    'button:has-text("Accept all")',
+                    '[role="dialog"] button:first-of-type',
+                ]:
+                    try:
+                        btn = page.locator(selector).first
+                        await btn.wait_for(state="visible", timeout=2000)
+                        await btn.click()
+                        logger.info(f"Playwright: Cookie-Banner geklickt via '{selector}'")
+                        await asyncio.sleep(random.uniform(1.5, 2.5))
+                        break
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
             # Warten bis Login-Formular sichtbar ist (erscheint erst nach Banner-Dismiss)
             # Instagram entfernt name-Attribute — per ARIA-Label oder type suchen
