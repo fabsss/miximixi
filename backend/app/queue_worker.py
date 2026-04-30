@@ -13,6 +13,7 @@ Fallback-Kaskade:
 import asyncio
 import logging
 import os
+import re
 import shutil
 import uuid
 from typing import Optional
@@ -40,6 +41,21 @@ from app.source_identifier import extract_source_id, get_source_type_from_url
 
 logger = logging.getLogger(__name__)
 llm = LLMProvider()
+
+_MULTI_REF_RE = re.compile(r'\[([^\]]+)\]\{(\d+(?:,\s*\d+)+)\}')
+
+
+def _sanitize_step_text(text: str) -> str:
+    """Entfernt [Sammelbegriff]{1,2,3}-Tags, die das Frontend nicht rendern kann.
+
+    Ersetzt sie durch den bloßen Wortlaut ohne Tag, damit der Satz lesbar bleibt.
+    """
+    def _replace(m: re.Match) -> str:
+        label = m.group(1)
+        logger.warning(f"Ungültige Multi-Referenz entfernt: {m.group(0)!r} → {label!r}")
+        return label
+
+    return _MULTI_REF_RE.sub(_replace, text)
 
 
 def get_db_connection():
@@ -223,6 +239,11 @@ async def process_job(job: dict, notify_callback=None) -> None:
         extraction = await asyncio.to_thread(llm.extract_recipe, llm_media, raw_source_text)
         recipe_data = extraction.recipe
         logger.info(f"Rezept extrahiert: '{recipe_data.title}'")
+
+        # Bereinige ungültige Multi-Referenzen in Step-Texten ([Sammelbegriff]{1,2,3})
+        if recipe_data.steps:
+            for step in recipe_data.steps:
+                step.text = _sanitize_step_text(step.text)
 
         # Recipe ID früh generieren (wird für Step-Frame-Namen benötigt)
         recipe_id = str(uuid.uuid4())

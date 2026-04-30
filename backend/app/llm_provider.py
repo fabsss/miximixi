@@ -43,11 +43,14 @@ Wichtig:
 - "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als [Wortlaut]{ingredient_id} – schreibe vollständige, grammatikalisch korrekte Sätze und setze das Tag direkt hinter den Zutat-Ausdruck im natürlichen Satz.
-  Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert). Bei Sammlungen von Zutaten müssen die Zutaten einzeln mit Name und Referenz angegeben werden.
-  Wenn ein Teilprodukt aus mehreren Zustaten in einem Schritt entstanden ist, dürfen die Zuaten bei allen weiteren Schritten nicht noch einmal mit angegeben werden.
+  SYNTAX-PFLICHT: Ein {}-Tag enthält IMMER genau eine einzige Zahl. {1,2,3} ist VERBOTEN – das ist ein kritischer Fehler.
+  Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
+  Bei mehreren Zutaten in einem Schritt: jede Zutat einzeln mit eigenem Tag nennen.
+  Wenn ein Teilprodukt aus mehreren Zutaten in einem Schritt entstanden ist, dürfen die Zutaten bei allen weiteren Schritten nicht noch einmal mit angegeben werden.
   NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
   NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
-  NICHT: "Für den Mürbteig alle [Zutaten für den Boden]{1,2,3} rasch zu einem glatten Teig verkneten." – SONDERN: "Für den Mürbteig alle Zutaten für den Boden ([Mehl]{1}, [Butter]{2}, [Zucker]{3}) rasch zu einem glatten Teig verkneten."
+  NICHT: "Alle [Zutaten]{1,2,3,4,5} vermengen." – SONDERN: "Den [Käse]{1}, die [Tomaten]{2}, das [Basilikum]{3}, das [Öl]{4} und das [Salz]{5} vermengen."
+  NICHT: "Für den Mürbteig alle [Zutaten]{1,2,3} verkneten." – SONDERN: "Für den Mürbteig [Mehl]{1}, [Butter]{2} und [Zucker]{3} rasch zu einem glatten Teig verkneten."
   NICHT: "Schritt 1: Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung ([Rhabarber]{1}, [Pudding]{2}) in die Form geben." – SONDERN: "Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung in die Form geben."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
@@ -103,10 +106,13 @@ Wichtig:
 - "category" = GENAU EINER dieser sechs Werte: Vorspeisen, Hauptspeisen, Desserts, Brunch, Snacks, Drinks
 - "tags" = 2–5 feingranulare Deskriptoren (NICHT die Hauptkategorie wiederholen). Beispiele: Vegetarisch, Vegan, Glutenfrei, Italienisch, Asiatisch, Französisch, Pasta, Suppe, Salat, Fleisch, Fisch, Dessert, Snack, Frühstück, Schnell, Einfach, Party, Gesund
 - Zutaten-Referenzen in Steps als [Wortlaut]{ingredient_id} – schreibe vollständige, grammatikalisch korrekte Sätze und setze das Tag direkt hinter den Zutat-Ausdruck im natürlichen Satz.
+  SYNTAX-PFLICHT: Ein {}-Tag enthält IMMER genau eine einzige Zahl. {1,2,3} ist VERBOTEN – das ist ein kritischer Fehler.
   Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
+  Bei mehreren Zutaten in einem Schritt: jede Zutat einzeln mit eigenem Tag nennen.
   NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
   NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
-  NICHT: "Für den Mürbteig alle [Zutaten für den Boden]{1,2,3} rasch zu einem glatten Teig verkneten." – SONDERN: "Für den Mürbteig alle Zutaten für den Boden ([Mehl]{1}, [Butter]{2}, [Zucker]{3}) rasch zu einem glatten Teig verkneten."
+  NICHT: "Alle [Zutaten]{1,2,3,4,5} vermengen." – SONDERN: "Den [Käse]{1}, die [Tomaten]{2}, das [Basilikum]{3}, das [Öl]{4} und das [Salz]{5} vermengen."
+  NICHT: "Für den Mürbteig alle [Zutaten]{1,2,3} verkneten." – SONDERN: "Für den Mürbteig [Mehl]{1}, [Butter]{2} und [Zucker]{3} rasch zu einem glatten Teig verkneten."
   NICHT: "Schritt 1: Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung ([Rhabarber]{1}, [Pudding]{2}) in die Form geben." – SONDERN: "Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung in die Form geben."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
