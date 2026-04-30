@@ -218,6 +218,11 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             except Exception:
                 pass
 
+            # Screenshot nach Cookie-Banner-Click
+            await page.screenshot(path="/tmp/miximixi/playwright_after_cookie.png", full_page=True)
+            buttons2 = await page.locator("button").all_text_contents()
+            logger.info(f"Playwright: Buttons nach Cookie-Click: {buttons2[:10]}")
+
             # Warten bis Login-Formular sichtbar ist (erscheint erst nach Banner-Dismiss)
             # Instagram entfernt name-Attribute — per ARIA-Label oder type suchen
             username_selector = 'input[name="username"], input[aria-label*="username" i], input[aria-label*="Mobile" i], input[autocomplete="username"]'
