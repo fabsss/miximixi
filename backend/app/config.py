@@ -86,7 +86,11 @@ class Settings(BaseSettings):
     instagram_password: str = ""
     instagram_collection_id: str = ""
     instagram_session_file: str = "instagram_session.json"
-    instagram_cookies_file: str = "instagram_cookies.txt"  # yt-dlp cookies export
+    instagram_cookies_file: str = "/mnt/data/miximixi/instagram_cookies.txt"
+    instagram_browser_state_dir: str = "/mnt/data/miximixi/instagram_browser_state"
+    instagram_cookie_refresh_threshold_days: int = 7
+    instagram_cookie_max_refresh_retries: int = 2
+    instagram_cookie_retry_interval: int = 1800  # 30 Minuten
 
     # Instagram Sync Worker
     instagram_sync_enabled: bool = True  # Can disable for testing
