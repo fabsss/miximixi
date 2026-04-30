@@ -352,11 +352,11 @@ async def refresh_cookies_handler(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_text("Keine Berechtigung.")
         return
 
-    from app.instagram_auth import refresh_cookies_via_playwright, get_auth_state, is_cookie_valid
-    await update.message.reply_text("🔄 Starte Playwright Cookie-Refresh — das kann 30–60 Sekunden dauern...")
+    from app.instagram_auth import refresh_cookies_via_instaloader, get_auth_state, is_cookie_valid
+    await update.message.reply_text("🔄 Starte Instagram Login via instaloader...")
 
     try:
-        success = await refresh_cookies_via_playwright()
+        success = await refresh_cookies_via_instaloader()
     except Exception as e:
         await update.message.reply_text(f"❌ Playwright-Fehler:\n\n`{e}`", parse_mode="Markdown")
         return

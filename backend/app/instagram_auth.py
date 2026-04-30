@@ -145,6 +145,68 @@ def _export_cookies_to_file(cookies: list, filepath: str) -> None:
     logger.info(f"Cookies exportiert nach {filepath} ({len(cookies)} Einträge)")
 
 
+async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
+    """Login via instaloader API — kein Browser nötig, weniger Bot-Detection."""
+    import instaloader
+
+    username = settings.instagram_username
+    password = settings.instagram_password
+
+    if not username or not password:
+        logger.error("INSTAGRAM_USERNAME oder INSTAGRAM_PASSWORD nicht konfiguriert")
+        update_auth_state(account_id=account_id, last_error="Credentials fehlen")
+        return False
+
+    logger.info(f"Starte instaloader Login für Account '{username}'")
+    try:
+        L = instaloader.Instaloader(quiet=True)
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: L.login(username, password)
+        )
+
+        # sessionid aus der Session extrahieren
+        session_id = L.context._session.cookies.get("sessionid", domain=".instagram.com")
+        if not session_id:
+            raise ValueError("Kein sessionid nach Login erhalten")
+
+        # Als cookies.txt schreiben damit _get_loader() es lesen kann
+        cookies = [
+            {
+                "domain": ".instagram.com",
+                "httpOnly": True,
+                "path": "/",
+                "secure": True,
+                "expires": None,
+                "name": "sessionid",
+                "value": session_id,
+            }
+        ]
+        _export_cookies_to_file(cookies, settings.instagram_cookies_file)
+
+        update_auth_state(
+            account_id=account_id,
+            last_checked_at=datetime.now(timezone.utc),
+            last_refresh_at=datetime.now(timezone.utc),
+            refresh_fail_count=0,
+            last_error=None,
+        )
+        logger.info("instaloader Login erfolgreich, cookies.txt aktualisiert")
+        return True
+
+    except instaloader.exceptions.BadCredentialsException:
+        logger.error("instaloader: Falsche Credentials")
+        update_auth_state(account_id=account_id, last_error="Falsche Credentials")
+        return False
+    except instaloader.exceptions.TwoFactorAuthRequiredException:
+        logger.error("instaloader: 2FA erforderlich")
+        update_auth_state(account_id=account_id, last_error="2FA erforderlich")
+        return False
+    except Exception as e:
+        logger.exception(f"instaloader Login fehlgeschlagen: {e}")
+        update_auth_state(account_id=account_id, last_error=str(e)[:200])
+        return False
+
+
 async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
     from playwright.async_api import async_playwright
 
@@ -323,7 +385,7 @@ async def _refresh_with_retry(account_id: str = "default") -> bool:
     retry_interval = settings.instagram_cookie_retry_interval
     for attempt in range(1, max_retries + 1):
         logger.info(f"Cookie-Refresh Versuch {attempt}/{max_retries}")
-        success = await refresh_cookies_via_playwright(account_id=account_id)
+        success = await refresh_cookies_via_instaloader(account_id=account_id)
         if success:
             return True
         if attempt < max_retries:
