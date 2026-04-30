@@ -188,6 +188,14 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
 
             logger.info(f"Playwright: aktuelle URL nach goto: {page.url}")
             logger.info(f"Playwright: Seitentitel: {await page.title()}")
+            # Screenshot für Debugging
+            screenshot_path = "/tmp/miximixi/playwright_debug.png"
+            os.makedirs("/tmp/miximixi", exist_ok=True)
+            await page.screenshot(path=screenshot_path, full_page=True)
+            logger.info(f"Playwright: Screenshot gespeichert unter {screenshot_path}")
+            # Alle sichtbaren Buttons loggen
+            buttons = await page.locator("button").all_text_contents()
+            logger.info(f"Playwright: Sichtbare Buttons: {buttons[:10]}")
 
             # Cookie-Banner wegklicken — auf Dialog warten, dann Button klicken
             try:
