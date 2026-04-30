@@ -358,7 +358,7 @@ async def refresh_cookies_handler(update: Update, context: ContextTypes.DEFAULT_
     try:
         success = await refresh_cookies_via_instaloader()
     except Exception as e:
-        await update.message.reply_text(f"❌ Playwright-Fehler:\n\n`{e}`", parse_mode="Markdown")
+        await update.message.reply_text(f"❌ Login-Fehler:\n\n`{e}`", parse_mode="Markdown")
         return
 
     if success:

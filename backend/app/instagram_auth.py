@@ -27,28 +27,15 @@ def get_db_connection():
 
 
 def is_cookie_valid(threshold_days: int = 7, account_id: str = "default") -> bool:
-    cookies_file = settings.instagram_cookies_file
-    if not os.path.exists(cookies_file):
-        logger.warning(f"Cookies-Datei nicht gefunden: {cookies_file}")
+    """Prüft ob eine gültige instaloader Session-Datei vorhanden ist."""
+    username = settings.instagram_username or account_id
+    session_file = os.path.join(settings.instagram_browser_state_dir, f"session-{username}")
+    if not os.path.exists(session_file):
+        logger.warning(f"Keine instaloader Session-Datei gefunden: {session_file}")
         return False
-    try:
-        jar = MozillaCookieJar(cookies_file)
-        jar.load(ignore_discard=True, ignore_expires=True)
-    except Exception as e:
-        logger.warning(f"Cookies-Datei konnte nicht geladen werden: {e}")
-        return False
-    session_cookie = next(
-        (c for c in jar if c.name == "sessionid" and "instagram.com" in c.domain),
-        None,
-    )
-    if not session_cookie:
-        logger.warning("Kein sessionid-Cookie gefunden")
-        return False
-    if not session_cookie.expires:
-        return True  # Session-Cookie ohne Ablaufdatum gilt als gültig
-    now_ts = datetime.now(timezone.utc).timestamp()
-    remaining = session_cookie.expires - now_ts
-    return remaining >= threshold_days * 24 * 3600
+    # Session-Datei existiert — als gültig betrachten
+    # instaloader prüft die Gültigkeit beim tatsächlichen API-Call
+    return True
 
 
 def get_auth_state(account_id: str = "default") -> dict:

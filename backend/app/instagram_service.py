@@ -1,47 +1,34 @@
 """
 Instagram Collection Poller via instaloader.
-Authentifizierung via cookies.txt (sessionid Cookie) – kein programmatischer Login nötig.
+Authentifizierung via gespeicherter instaloader Session-Datei pro Account.
 """
 import logging
 import os
-from http.cookiejar import MozillaCookieJar
-from pathlib import Path
 
 import instaloader
 
 from app.config import settings
-from app.instagram_auth import is_cookie_valid
 
 logger = logging.getLogger(__name__)
 
 
-def _get_loader():
+def _get_session_file(account_id: str = "default") -> str:
+    username = settings.instagram_username or account_id
+    return os.path.join(settings.instagram_browser_state_dir, f"session-{username}")
+
+
+def _get_loader(account_id: str = "default") -> instaloader.Instaloader:
     """
-    Erstellt einen authentifizierten instaloader-Client via sessionid aus cookies.txt.
-    Wirft ValueError wenn die Cookies-Datei fehlt oder keinen sessionid-Eintrag hat.
+    Erstellt einen authentifizierten instaloader-Client via gespeicherter Session-Datei.
+    Wirft ValueError wenn keine Session-Datei vorhanden ist.
     """
-    cookies_file = settings.instagram_cookies_file
-    if not os.path.exists(cookies_file):
+    session_file = _get_session_file(account_id)
+
+    if not os.path.exists(session_file):
         raise ValueError(
-            f"Keine Cookies-Datei gefunden: {cookies_file}. "
-            "Bitte cookies.txt aus dem Browser exportieren (z.B. via 'Get cookies.txt LOCALLY')."
+            f"Keine instaloader Session gefunden für Account '{account_id}'. "
+            "Bitte /refresh_cookies ausführen um die Session zu erneuern."
         )
-
-    if not is_cookie_valid(threshold_days=settings.instagram_cookie_refresh_threshold_days):
-        logger.warning(
-            "Instagram-Cookies sind abgelaufen oder laufen bald ab. "
-            "Automatischer Refresh wird vom Sync-Worker ausgelöst."
-        )
-
-    # sessionid aus cookies.txt extrahieren
-    jar = MozillaCookieJar(cookies_file)
-    jar.load(ignore_discard=True, ignore_expires=True)
-    session_id = next(
-        (c.value for c in jar if c.name == "sessionid" and "instagram.com" in c.domain),
-        None,
-    )
-    if not session_id:
-        raise ValueError("Kein 'sessionid' Cookie in der Cookies-Datei gefunden.")
 
     L = instaloader.Instaloader(
         download_pictures=False,
@@ -53,9 +40,14 @@ def _get_loader():
         quiet=True,
     )
 
-    # Session direkt via sessionid setzen – kein Login-Request
-    L.context._session.cookies.set("sessionid", session_id, domain=".instagram.com")
-    L.context.username = settings.instagram_username or "unknown"
+    try:
+        L.load_session_from_file(settings.instagram_username, session_file)
+        logger.debug(f"instaloader Session geladen für Account '{account_id}'")
+    except Exception as e:
+        raise ValueError(
+            f"instaloader Session-Datei ungültig für Account '{account_id}': {e}. "
+            "Bitte /refresh_cookies ausführen."
+        )
 
     return L
 
