@@ -346,6 +346,29 @@ async def auth_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
+async def refresh_cookies_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
+        await update.message.reply_text("Keine Berechtigung.")
+        return
+
+    from app.instagram_auth import refresh_cookies_via_playwright, get_auth_state, is_cookie_valid
+    await update.message.reply_text("🔄 Starte Playwright Cookie-Refresh — das kann 30–60 Sekunden dauern...")
+
+    try:
+        success = await refresh_cookies_via_playwright()
+    except Exception as e:
+        await update.message.reply_text(f"❌ Playwright-Fehler:\n\n`{e}`", parse_mode="Markdown")
+        return
+
+    if success:
+        await update.message.reply_text("✅ Cookie-Refresh erfolgreich! Instagram-Cookies wurden erneuert.")
+    else:
+        state = get_auth_state()
+        error = state.get("last_error") or "Unbekannter Fehler"
+        await update.message.reply_text(f"❌ Cookie-Refresh fehlgeschlagen:\n\n`{error}`", parse_mode="Markdown")
+
+
 # ── Instagram Sync Commands (admin-only) ─────────────────────────────────────
 async def sync_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /sync_status command — show Instagram sync state."""
@@ -690,6 +713,7 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     app.add_handler(CommandHandler("sync_disable", sync_disable_handler))
     app.add_handler(CommandHandler("sync_now", sync_now_handler))
     app.add_handler(CommandHandler("auth_status", auth_status_handler))
+    app.add_handler(CommandHandler("refresh_cookies", refresh_cookies_handler))
     app.add_handler(CallbackQueryHandler(collection_select_callback, pattern="^select_collection_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
