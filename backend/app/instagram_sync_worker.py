@@ -7,13 +7,14 @@ Multi-user ready: currently single admin (env var), scales to multi-user with au
 import asyncio
 import logging
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, List, Callable
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 
 from app.config import settings
 from app.instagram_service import _get_loader
+from app.instagram_auth import ensure_valid_cookies, get_auth_state, update_auth_state
 
 logger = logging.getLogger(__name__)
 
@@ -470,6 +471,34 @@ async def run_instagram_sync(
                 await asyncio.sleep(sync_interval)
                 continue
             
+            # Proaktiver Cookie-Check: einmal täglich
+            now = datetime.now(timezone.utc)
+            auth_state = get_auth_state()
+            last_checked = auth_state.get("last_checked_at")
+            should_check = (
+                last_checked is None
+                or (now - last_checked).total_seconds() >= 86400
+            )
+            if should_check:
+                logger.info("Täglicher proaktiver Cookie-Validity-Check")
+                cookies_ok = await ensure_valid_cookies()
+                if not cookies_ok:
+                    if notify_admin:
+                        await notify_admin(
+                            "⚠️ Instagram Cookie-Refresh fehlgeschlagen\n\n"
+                            "Automatischer Login konnte Cookies nicht erneuern "
+                            "(möglicherweise Checkpoint).\n\n"
+                            "Bitte Cookies manuell erneuern:\n"
+                            "1. instagram.com im Browser öffnen und einloggen\n"
+                            "2. Cookies via 'Get cookies.txt LOCALLY' exportieren\n"
+                            f"3. Datei nach {settings.instagram_cookies_file} kopieren"
+                        )
+                    if run_once:
+                        return {"error": "Cookie-Refresh fehlgeschlagen", "queued": 0}
+                    await asyncio.sleep(sync_interval)
+                    continue
+                update_auth_state(last_checked_at=now)
+
             # Get the selected collection
             collection = await get_monitored_collection()
             
@@ -509,33 +538,40 @@ async def run_instagram_sync(
             await asyncio.sleep(sync_interval)
         
         except ValueError as auth_error:
-            # Instagram authentication failed
             error_msg = str(auth_error)
             logger.error(f"Instagram auth failed during sync: {error_msg}")
-            
-            # Notify admin
+
+            logger.info("Starte reaktiven Cookie-Refresh nach Auth-Fehler")
+            refresh_ok = await ensure_valid_cookies()
+
+            if refresh_ok:
+                logger.info("Reaktiver Cookie-Refresh erfolgreich — Sync wird fortgesetzt")
+                if notify_admin:
+                    try:
+                        await notify_admin(
+                            "✅ Instagram Cookies automatisch erneuert\n\nDer Sync läuft weiter."
+                        )
+                    except Exception:
+                        pass
+                continue
+
+            logger.error("Reaktiver Cookie-Refresh fehlgeschlagen — Sync pausiert")
             if notify_admin:
                 try:
                     await notify_admin(
-                        message=(
-                            "⚠️ Instagram Sync Auth Error\n\n"
-                            "Die Instagram-Authentifizierung ist abgelaufen!\n\n"
-                            f"Fehler: {error_msg}\n\n"
-                            "Lösung:\n"
-                            "1. Gehe zu instagram.com und melde dich an\n"
-                            "2. Exportiere neue cookies.txt via 'Get cookies.txt LOCALLY'\n"
-                            "3. Ersetze backend/instagram_cookies.txt\n"
-                            "4. Starte den Server neu\n"
-                            "5. Nutze /sync_setup um die Authentifizierung zu testen"
-                        )
+                        "⚠️ Instagram Sync Auth Error\n\n"
+                        "Automatischer Cookie-Refresh fehlgeschlagen!\n\n"
+                        f"Fehler: {error_msg}\n\n"
+                        "Bitte Cookies manuell erneuern:\n"
+                        "1. instagram.com im Browser öffnen und einloggen\n"
+                        "2. Cookies via 'Get cookies.txt LOCALLY' exportieren\n"
+                        f"3. Datei nach {settings.instagram_cookies_file} kopieren"
                     )
                 except Exception as notify_error:
                     logger.warning(f"Failed to notify admin: {notify_error}")
-            
+
             if run_once:
-                return {"error": error_msg, "total_posts": 0, "queued": 0}
-            
-            # Continue trying on next interval
+                return {"error": error_msg, "queued": 0}
             await asyncio.sleep(sync_interval)
         
         except Exception as e:
