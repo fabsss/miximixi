@@ -19,6 +19,11 @@ from app.instagram_auth import ensure_valid_cookies, get_auth_state, update_auth
 logger = logging.getLogger(__name__)
 
 
+class RateLimitError(Exception):
+    """Instagram Rate-Limit oder Spam-Block — nicht durch Cookie-Refresh behebbar."""
+    pass
+
+
 class SyncControl:
     """Manages sync state: enabled/disabled, selected collection, status"""
     
@@ -261,8 +266,14 @@ async def fetch_collection_posts(collection_id: str) -> List[Dict]:
                     try:
                         body = resp.json()
                     except Exception:
-                        body = resp.text[:200]
+                        body = {"raw": resp.text[:200]}
                     logger.warning(f"Instagram API {resp.status_code} on collection posts: {body}")
+                    message = body.get("message", "") if isinstance(body, dict) else ""
+                    if message == "feedback_required" or body.get("is_spam"):
+                        raise RateLimitError(
+                            f"Instagram Rate-Limit aktiv (Try Again Later). "
+                            "Sync pausiert für 30 Minuten."
+                        )
                     raise ValueError(
                         f"Instagram authentication failed (HTTP {resp.status_code}). "
                         "Your cookies may have expired."
@@ -542,6 +553,20 @@ async def run_instagram_sync(
             
             await asyncio.sleep(sync_interval)
         
+        except RateLimitError as rate_error:
+            error_msg = str(rate_error)
+            logger.warning(f"Instagram Rate-Limit erkannt: {error_msg}")
+            if notify_admin:
+                try:
+                    await notify_admin(
+                        f"⏳ Instagram Rate-Limit aktiv\n\n{error_msg}\n\nSync pausiert für 30 Minuten."
+                    )
+                except Exception:
+                    pass
+            if run_once:
+                return {"error": error_msg, "queued": 0}
+            await asyncio.sleep(1800)  # 30 Minuten warten
+
         except ValueError as auth_error:
             error_msg = str(auth_error)
             logger.error(f"Instagram auth failed during sync: {error_msg}")
