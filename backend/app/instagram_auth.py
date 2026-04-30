@@ -197,21 +197,20 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             buttons = await page.locator("button").all_text_contents()
             logger.info(f"Playwright: Sichtbare Buttons: {buttons[:10]}")
 
-            # Cookie-Banner wegklicken — auf Dialog warten, dann Button klicken
+            # Cookie-Banner wegklicken — auf Dialog warten, dann Accept-Button klicken
             try:
-                await page.wait_for_selector("button", timeout=5000)
-                # Versuche alle bekannten Cookie-Accept-Buttons
-                for selector in [
-                    'button:has-text("Allow all cookies")',
-                    'button:has-text("Alle Cookies akzeptieren")',
-                    'button:has-text("Accept all")',
-                    '[role="dialog"] button:first-of-type',
+                await page.wait_for_selector('[role="dialog"]', timeout=5000)
+                for text in [
+                    "Alle Cookies erlauben",
+                    "Allow all cookies",
+                    "Alle Cookies akzeptieren",
+                    "Accept all",
                 ]:
                     try:
-                        btn = page.locator(selector).first
+                        btn = page.get_by_role("button", name=text)
                         await btn.wait_for(state="visible", timeout=2000)
                         await btn.click()
-                        logger.info(f"Playwright: Cookie-Banner geklickt via '{selector}'")
+                        logger.info(f"Playwright: Cookie-Banner geklickt: '{text}'")
                         await asyncio.sleep(random.uniform(1.5, 2.5))
                         break
                     except Exception:
