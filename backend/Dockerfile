@@ -46,6 +46,6 @@ COPY scripts/ ./scripts/
 RUN apt-get purge -y --auto-remove \
     build-essential gcc g++ libssl-dev libffi-dev python3-dev \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/ /root/.cache/*
+    && rm -rf /var/lib/apt/lists/ /root/.cache/pip
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
