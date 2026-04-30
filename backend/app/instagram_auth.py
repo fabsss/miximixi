@@ -157,12 +157,38 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
         update_auth_state(account_id=account_id, last_error="Credentials fehlen")
         return False
 
+    session_file = os.path.join(
+        settings.instagram_browser_state_dir, f"session-{username}"
+    )
+    os.makedirs(settings.instagram_browser_state_dir, exist_ok=True)
+
     logger.info(f"Starte instaloader Login für Account '{username}'")
     try:
         L = instaloader.Instaloader(quiet=True)
+
+        # Gespeicherte Session laden falls vorhanden
+        if os.path.exists(session_file):
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: L.load_session_from_file(username, session_file)
+                )
+                logger.info("instaloader: gespeicherte Session geladen")
+            except Exception as e:
+                logger.warning(f"instaloader: Session-Datei ungültig, Login mit Passwort: {e}")
+                await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: L.login(username, password)
+                )
+        else:
+            logger.info("instaloader: keine Session-Datei gefunden, Login mit Passwort")
+            await asyncio.get_event_loop().run_in_executor(
+                None, lambda: L.login(username, password)
+            )
+
+        # Session für nächsten Refresh speichern
         await asyncio.get_event_loop().run_in_executor(
-            None, lambda: L.login(username, password)
+            None, lambda: L.save_session_to_file(session_file)
         )
+        logger.info(f"instaloader: Session gespeichert unter {session_file}")
 
         # sessionid aus der Session extrahieren
         session_id = L.context._session.cookies.get("sessionid", domain=".instagram.com")
