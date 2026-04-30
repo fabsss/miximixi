@@ -519,23 +519,26 @@ async def run_instagram_sync(
             )
             if should_check:
                 logger.info("Täglicher proaktiver Cookie-Validity-Check")
+                update_auth_state(last_checked_at=now)  # immer setzen, auch bei Fehler
                 cookies_ok = await ensure_valid_cookies()
                 if not cookies_ok:
                     if notify_admin:
-                        await notify_admin(
-                            "⚠️ Instagram Cookie-Refresh fehlgeschlagen\n\n"
-                            "Automatischer Login konnte Cookies nicht erneuern "
-                            "(möglicherweise Checkpoint).\n\n"
-                            "Bitte Cookies manuell erneuern:\n"
-                            "1. instagram.com im Browser öffnen und einloggen\n"
-                            "2. Cookies via 'Get cookies.txt LOCALLY' exportieren\n"
-                            f"3. Datei nach {settings.instagram_cookies_file} kopieren"
-                        )
+                        try:
+                            await notify_admin(
+                                "⚠️ Instagram Cookie-Refresh fehlgeschlagen\n\n"
+                                "Automatischer Login konnte Cookies nicht erneuern "
+                                "(möglicherweise Checkpoint).\n\n"
+                                "Bitte Cookies manuell erneuern:\n"
+                                "1. instagram.com im Browser öffnen und einloggen\n"
+                                "2. Cookies via 'Get cookies.txt LOCALLY' exportieren\n"
+                                f"3. Datei nach {settings.instagram_cookies_file} kopieren"
+                            )
+                        except Exception:
+                            pass
                     if run_once:
                         return {"error": "Cookie-Refresh fehlgeschlagen", "queued": 0}
                     await asyncio.sleep(sync_interval)
                     continue
-                update_auth_state(last_checked_at=now)
 
             # Get the selected collection
             collection = await get_monitored_collection()
