@@ -192,7 +192,7 @@ async def get_available_collections() -> List[Dict]:
                 f"Your cookies may have expired. "
                 f"Please export new cookies from instagram.com and restart the server."
             )
-        raise ValueError(f"Failed to fetch Instagram collections: {error_msg}")
+        raise RuntimeError(f"Failed to fetch Instagram collections: {error_msg}")
 
 
 async def get_monitored_collection(user_id: Optional[int] = None) -> Optional[Dict]:
@@ -315,7 +315,7 @@ async def fetch_collection_posts(collection_id: str) -> List[Dict]:
                 f"Instagram authentication failed. Your cookies may have expired. "
                 f"Error: {error_msg}"
             )
-        raise ValueError(f"Failed to fetch collection posts: {error_msg}")
+        raise RuntimeError(f"Failed to fetch collection posts: {error_msg}")
 
 
 async def has_recipe(caption: str) -> bool:
@@ -553,6 +553,7 @@ async def run_instagram_sync(
                         )
                     except Exception:
                         pass
+                await asyncio.sleep(30)  # kurze Pause vor erneutem Versuch
                 continue
 
             logger.error("Reaktiver Cookie-Refresh fehlgeschlagen — Sync pausiert")
