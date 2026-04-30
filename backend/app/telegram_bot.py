@@ -291,7 +291,6 @@ async def notify(
         if success and recipe_title and recipe_id:
             slug = f"{_generate_slug(recipe_title)}-{recipe_id}"
             base_url = settings.frontend_url.rstrip("/")
-            logger.info(f"[notify] frontend_url={repr(base_url)} recipe_id={repr(recipe_id)}")
             recipe_url = f"{base_url}/recipes/{slug}"
 
             # Use HTML parse mode — Markdown breaks on titles with parentheses/special chars
@@ -309,8 +308,6 @@ async def notify(
                 f"Wenn das Problem weiterhin besteht, kontaktiere den Admin."
             )
 
-        logger.info(f"frontend_url={repr(settings.frontend_url)} recipe_id={repr(recipe_id)}")
-        logger.info(f"Sending notification text: {repr(text)}")
         await app.bot.send_message(
             chat_id=int(chat_id),
             text=text,
