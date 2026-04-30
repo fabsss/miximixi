@@ -257,7 +257,12 @@ async def fetch_collection_posts(collection_id: str) -> List[Dict]:
 
                 resp = L.context._session.get(url, params=params, headers=headers)
 
-                if resp.status_code in (401, 403):
+                if resp.status_code in (400, 401, 403):
+                    try:
+                        body = resp.json()
+                    except Exception:
+                        body = resp.text[:200]
+                    logger.warning(f"Instagram API {resp.status_code} on collection posts: {body}")
                     raise ValueError(
                         f"Instagram authentication failed (HTTP {resp.status_code}). "
                         "Your cookies may have expired."
