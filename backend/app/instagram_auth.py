@@ -252,6 +252,12 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
                 await password_field.type(char, delay=random.randint(80, 200))
             await asyncio.sleep(random.uniform(0.5, 1.2))
 
+            # Debug: Feldwerte vor Submit loggen
+            username_val = await username_field.input_value()
+            password_val = await password_field.input_value()
+            logger.info(f"Playwright: username_field='{username_val}', password_field länge={len(password_val)}")
+            await page.screenshot(path="/tmp/miximixi/playwright_prefill.png", full_page=True)
+
             await page.get_by_role("button", name="Anmelden").first.click()
             await page.wait_for_load_state("networkidle", timeout=15000)
             await asyncio.sleep(random.uniform(2, 4))
