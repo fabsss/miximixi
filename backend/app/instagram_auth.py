@@ -132,10 +132,43 @@ def _export_cookies_to_file(cookies: list, filepath: str) -> None:
     logger.info(f"Cookies exportiert nach {filepath} ({len(cookies)} Einträge)")
 
 
-async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
-    """Login via instaloader API — kein Browser nötig, weniger Bot-Detection."""
+def _build_instaloader_session_from_cookies(session_id: str, username: str) -> None:
+    """
+    Erstellt eine instaloader Session-Datei aus einer sessionid (z.B. von Playwright).
+    Umgeht L.login() komplett — Instagram blockiert programmatische API-Logins.
+    """
+    import pickle
+    import requests
     import instaloader
 
+    session_file = os.path.join(
+        settings.instagram_browser_state_dir, f"session-{username}"
+    )
+    os.makedirs(settings.instagram_browser_state_dir, exist_ok=True)
+
+    # Requests-Session mit der sessionid aufbauen — exakt wie instaloader es erwartet
+    session = requests.Session()
+    session.cookies.set("sessionid", session_id, domain=".instagram.com")
+    session.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+            "Mobile/15E148 Instagram 105.0.0.11.118"
+        )
+    })
+
+    # Als instaloader Session-Datei speichern (pickle-Format das instaloader erwartet)
+    with open(session_file, "wb") as f:
+        pickle.dump(session.cookies, f)
+
+    logger.info(f"instaloader Session-Datei aus Playwright-Cookies erstellt: {session_file}")
+
+
+async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
+    """
+    Login via Playwright — extrahiert sessionid und baut daraus eine instaloader Session.
+    Direkte instaloader API-Logins (L.login()) werden von Instagram blockiert.
+    """
     username = settings.instagram_username
     password = settings.instagram_password
 
@@ -147,95 +180,63 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
     session_file = os.path.join(
         settings.instagram_browser_state_dir, f"session-{username}"
     )
-    os.makedirs(settings.instagram_browser_state_dir, exist_ok=True)
 
-    logger.info(f"Starte instaloader Login für Account '{username}'")
+    # Zuerst: existierende Session testen ob sie noch gültig ist
+    if os.path.exists(session_file):
+        import instaloader
+        try:
+            L = instaloader.Instaloader(quiet=True)
+            L.load_session_from_file(username, session_file)
+            # Kurzer Test-Call um Session-Gültigkeit zu prüfen
+            test_username = L.test_login()
+            if test_username:
+                logger.info(f"instaloader: existierende Session noch gültig für '{test_username}'")
+                update_auth_state(
+                    account_id=account_id,
+                    last_checked_at=datetime.now(timezone.utc),
+                    last_refresh_at=datetime.now(timezone.utc),
+                    refresh_fail_count=0,
+                    last_error=None,
+                )
+                return True
+            logger.info("instaloader: Session abgelaufen, starte Playwright-Login")
+        except Exception as e:
+            logger.info(f"instaloader: Session ungültig ({e}), starte Playwright-Login")
+
+    # Playwright-Login: Browser-Login umgeht Instagram's API-Blocking
+    logger.info(f"Starte Playwright-Login für Account '{username}'")
+    session_id = await _login_via_playwright_get_sessionid(username, password, account_id)
+    if not session_id:
+        return False
+
+    # sessionid → instaloader Session-Datei
     try:
-        L = instaloader.Instaloader(quiet=True)
-
-        # Gespeicherte Session laden falls vorhanden
-        if os.path.exists(session_file):
-            try:
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: L.load_session_from_file(username, session_file)
-                )
-                logger.info("instaloader: gespeicherte Session geladen")
-            except Exception as e:
-                logger.warning(f"instaloader: Session-Datei ungültig, Login mit Passwort: {e}")
-                await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: L.login(username, password)
-                )
-        else:
-            logger.info("instaloader: keine Session-Datei gefunden, Login mit Passwort")
-            await asyncio.get_event_loop().run_in_executor(
-                None, lambda: L.login(username, password)
-            )
-
-        # Session für nächsten Refresh speichern
-        await asyncio.get_event_loop().run_in_executor(
-            None, lambda: L.save_session_to_file(session_file)
-        )
-        logger.info(f"instaloader: Session gespeichert unter {session_file}")
-
-        # sessionid aus der Session extrahieren
-        session_id = L.context._session.cookies.get("sessionid", domain=".instagram.com")
-        if not session_id:
-            raise ValueError("Kein sessionid nach Login erhalten")
-
-        # Als cookies.txt schreiben damit _get_loader() es lesen kann
-        cookies = [
-            {
-                "domain": ".instagram.com",
-                "httpOnly": True,
-                "path": "/",
-                "secure": True,
-                "expires": None,
-                "name": "sessionid",
-                "value": session_id,
-            }
-        ]
-        _export_cookies_to_file(cookies, settings.instagram_cookies_file)
-
-        update_auth_state(
-            account_id=account_id,
-            last_checked_at=datetime.now(timezone.utc),
-            last_refresh_at=datetime.now(timezone.utc),
-            refresh_fail_count=0,
-            last_error=None,
-        )
-        logger.info("instaloader Login erfolgreich, cookies.txt aktualisiert")
-        return True
-
-    except instaloader.exceptions.BadCredentialsException:
-        logger.error("instaloader: Falsche Credentials")
-        update_auth_state(account_id=account_id, last_error="Falsche Credentials")
-        return False
-    except instaloader.exceptions.TwoFactorAuthRequiredException:
-        logger.error("instaloader: 2FA erforderlich")
-        update_auth_state(account_id=account_id, last_error="2FA erforderlich")
-        return False
+        _build_instaloader_session_from_cookies(session_id, username)
     except Exception as e:
-        logger.exception(f"instaloader Login fehlgeschlagen: {e}")
+        logger.exception(f"Fehler beim Erstellen der instaloader Session-Datei: {e}")
         update_auth_state(account_id=account_id, last_error=str(e)[:200])
         return False
 
+    update_auth_state(
+        account_id=account_id,
+        last_checked_at=datetime.now(timezone.utc),
+        last_refresh_at=datetime.now(timezone.utc),
+        refresh_fail_count=0,
+        last_error=None,
+    )
+    logger.info("Cookie-Refresh via Playwright erfolgreich, instaloader Session erstellt")
+    return True
 
-async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
+
+async def _login_via_playwright_get_sessionid(
+    username: str, password: str, account_id: str
+) -> str | None:
+    """Führt Playwright-Login durch und gibt die sessionid zurück, oder None bei Fehler."""
     from playwright.async_api import async_playwright
-
-    username = settings.instagram_username
-    password = settings.instagram_password
-
-    if not username or not password:
-        logger.error("INSTAGRAM_USERNAME oder INSTAGRAM_PASSWORD nicht konfiguriert")
-        update_auth_state(account_id=account_id, last_error="Credentials fehlen")
-        return False
 
     browser_state_path = os.path.join(settings.instagram_browser_state_dir, account_id)
     os.makedirs(browser_state_path, exist_ok=True)
     storage_state_file = os.path.join(browser_state_path, "storage_state.json")
-
-    logger.info(f"Starte Playwright Cookie-Refresh für Account '{account_id}'")
 
     async with async_playwright() as p:
         context_options = {
@@ -261,18 +262,7 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             )
             await asyncio.sleep(random.uniform(1, 3))
 
-            logger.info(f"Playwright: aktuelle URL nach goto: {page.url}")
-            logger.info(f"Playwright: Seitentitel: {await page.title()}")
-            # Screenshot für Debugging
-            screenshot_path = "/tmp/miximixi/playwright_debug.png"
-            os.makedirs("/tmp/miximixi", exist_ok=True)
-            await page.screenshot(path=screenshot_path, full_page=True)
-            logger.info(f"Playwright: Screenshot gespeichert unter {screenshot_path}")
-            # Alle sichtbaren Buttons loggen
-            buttons = await page.locator("button").all_text_contents()
-            logger.info(f"Playwright: Sichtbare Buttons: {buttons[:10]}")
-
-            # Cookie-Banner wegklicken — auf Dialog warten, dann Accept-Button klicken
+            # Cookie-Banner wegklicken
             try:
                 await page.wait_for_selector('[role="dialog"]', timeout=5000)
                 for text in [
@@ -293,27 +283,14 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             except Exception:
                 pass
 
-            # Screenshot nach Cookie-Banner-Click
-            await page.screenshot(path="/tmp/miximixi/playwright_after_cookie.png", full_page=True)
-            buttons2 = await page.locator("button").all_text_contents()
-            logger.info(f"Playwright: Buttons nach Cookie-Click: {buttons2[:10]}")
-
-            # Warten bis Login-Formular sichtbar ist (erscheint erst nach Banner-Dismiss)
-            # Instagram entfernt name-Attribute — per ARIA-Label oder type suchen
-            # Warten auf erstes Input-Feld (Username) — kein stabiles name/aria-label vorhanden
+            # Auf Login-Formular warten
             try:
-                await page.wait_for_selector('input', timeout=15000)
+                await page.wait_for_selector("input", timeout=15000)
             except Exception:
-                current_url = page.url
-                page_content = await page.content()
-                logger.error(
-                    f"Playwright: Login-Formular nicht gefunden. URL: {current_url}. "
-                    f"HTML-Ausschnitt: {page_content[:500]}"
-                )
-                raise
+                logger.error(f"Playwright: Login-Formular nicht gefunden. URL: {page.url}")
+                return None
 
-            # Erstes Input = Username, zweites = Passwort
-            inputs = page.locator('input')
+            inputs = page.locator("input")
             username_field = inputs.nth(0)
             password_field = inputs.nth(1)
 
@@ -326,12 +303,6 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             for char in password:
                 await password_field.type(char, delay=random.randint(80, 200))
             await asyncio.sleep(random.uniform(0.5, 1.2))
-
-            # Debug: Feldwerte vor Submit loggen
-            username_val = await username_field.input_value()
-            password_val = await password_field.input_value()
-            logger.info(f"Playwright: username_field='{username_val}', password_field länge={len(password_val)}")
-            await page.screenshot(path="/tmp/miximixi/playwright_prefill.png", full_page=True)
 
             await page.get_by_role("button", name="Anmelden").first.click()
             await page.wait_for_load_state("networkidle", timeout=15000)
@@ -346,43 +317,48 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
                     refresh_fail_count=_increment_fail_count(account_id),
                     last_error=f"Checkpoint: {current_url}",
                 )
-                return False
+                return None
 
             if "login" in current_url:
-                logger.error("Login fehlgeschlagen — möglicherweise falsche Credentials")
+                logger.error("Playwright: Login fehlgeschlagen — falsche Credentials?")
                 update_auth_state(
                     account_id=account_id,
                     last_checked_at=datetime.now(timezone.utc),
                     refresh_fail_count=_increment_fail_count(account_id),
                     last_error="Login fehlgeschlagen (falsche Credentials?)",
                 )
-                return False
+                return None
 
-            await context.storage_state(path=storage_state_file)
+            # sessionid aus Cookies extrahieren
             cookies = await context.cookies()
-            _export_cookies_to_file(cookies, settings.instagram_cookies_file)
-
-            update_auth_state(
-                account_id=account_id,
-                last_checked_at=datetime.now(timezone.utc),
-                last_refresh_at=datetime.now(timezone.utc),
-                refresh_fail_count=0,
-                last_error=None,
+            session_id = next(
+                (c["value"] for c in cookies if c["name"] == "sessionid"), None
             )
-            logger.info("Cookie-Refresh erfolgreich")
-            return True
+            if not session_id:
+                logger.error("Playwright: Kein sessionid-Cookie nach Login")
+                update_auth_state(
+                    account_id=account_id,
+                    last_error="Kein sessionid nach Playwright-Login",
+                )
+                return None
+
+            # storage_state für nächsten Login speichern
+            await context.storage_state(path=storage_state_file)
+            logger.info("Playwright-Login erfolgreich, sessionid extrahiert")
+            return session_id
 
         except Exception as e:
-            logger.exception(f"Playwright-Fehler beim Cookie-Refresh: {e}")
+            logger.exception(f"Playwright-Fehler beim Login: {e}")
             update_auth_state(
                 account_id=account_id,
                 last_checked_at=datetime.now(timezone.utc),
                 last_error=str(e),
             )
-            return False
+            return None
         finally:
             await context.close()
             await browser.close()
+
 
 
 async def ensure_valid_cookies(account_id: str = "default") -> bool:
