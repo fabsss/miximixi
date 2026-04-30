@@ -53,7 +53,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_ADMIN_IDS=${TELEGRAM_ADMIN_IDS}
       - TELEGRAM_ALLOWED_USER_IDS=${TELEGRAM_ALLOWED_USER_IDS}
-      - FRONTEND_URL=${FRONTEND_DOMAIN}
+      - FRONTEND_URL=${FRONTEND_URL}
     volumes:
       - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
       - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images
