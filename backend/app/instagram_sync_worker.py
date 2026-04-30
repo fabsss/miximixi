@@ -344,7 +344,7 @@ async def fetch_collection_posts(collection_id: str) -> List[Dict]:
         logger.info(f"Fetched {len(posts)} posts from collection {collection_id}")
         return posts
 
-    except ValueError:
+    except (ValueError, RateLimitError):
         raise
     except Exception as e:
         error_msg = str(e)
