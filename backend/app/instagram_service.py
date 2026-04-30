@@ -7,7 +7,10 @@ import os
 from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 
+import instaloader
+
 from app.config import settings
+from app.instagram_auth import is_cookie_valid
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +20,17 @@ def _get_loader():
     Erstellt einen authentifizierten instaloader-Client via sessionid aus cookies.txt.
     Wirft ValueError wenn die Cookies-Datei fehlt oder keinen sessionid-Eintrag hat.
     """
-    import instaloader
-
     cookies_file = settings.instagram_cookies_file
     if not os.path.exists(cookies_file):
         raise ValueError(
             f"Keine Cookies-Datei gefunden: {cookies_file}. "
             "Bitte cookies.txt aus dem Browser exportieren (z.B. via 'Get cookies.txt LOCALLY')."
+        )
+
+    if not is_cookie_valid(threshold_days=settings.instagram_cookie_refresh_threshold_days):
+        logger.warning(
+            "Instagram-Cookies sind abgelaufen oder laufen bald ab. "
+            "Automatischer Refresh wird vom Sync-Worker ausgelöst."
         )
 
     # sessionid aus cookies.txt extrahieren
@@ -60,8 +67,6 @@ def get_collection_media_urls(limit: int = 20) -> list[dict]:
     """
     if not settings.instagram_collection_id:
         raise ValueError("INSTAGRAM_COLLECTION_ID nicht konfiguriert")
-
-    import instaloader
 
     L = _get_loader()
 
