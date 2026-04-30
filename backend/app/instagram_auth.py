@@ -186,11 +186,29 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
             )
             await asyncio.sleep(random.uniform(1, 3))
 
+            logger.info(f"Playwright: aktuelle URL nach goto: {page.url}")
+            logger.info(f"Playwright: Seitentitel: {await page.title()}")
+
+            # Cookie-Banner wegklicken (verschiedene Sprachen/Varianten)
+            for cookie_text in ["Alle Cookies akzeptieren", "Allow all cookies", "Accept all", "Akzeptieren"]:
+                try:
+                    await page.click(f"text={cookie_text}", timeout=2000)
+                    await asyncio.sleep(random.uniform(0.5, 1.0))
+                    break
+                except Exception:
+                    pass
+
+            # Warten bis Login-Formular sichtbar ist
             try:
-                await page.click("text=Alle Cookies akzeptieren", timeout=3000)
-                await asyncio.sleep(random.uniform(0.5, 1.5))
+                await page.wait_for_selector('input[name="username"]', timeout=10000)
             except Exception:
-                pass
+                current_url = page.url
+                page_content = await page.content()
+                logger.error(
+                    f"Playwright: Login-Formular nicht gefunden. URL: {current_url}. "
+                    f"HTML-Ausschnitt: {page_content[:500]}"
+                )
+                raise
 
             username_field = page.locator('input[name="username"]')
             await username_field.click()
