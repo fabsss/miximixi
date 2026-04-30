@@ -290,7 +290,9 @@ async def notify(
         import html as html_module
         if success and recipe_title and recipe_id:
             slug = f"{_generate_slug(recipe_title)}-{recipe_id}"
-            recipe_url = f"{settings.frontend_url}/recipes/{slug}"
+            base_url = settings.frontend_url.rstrip("/")
+            logger.info(f"[notify] frontend_url={repr(base_url)} recipe_id={repr(recipe_id)}")
+            recipe_url = f"{base_url}/recipes/{slug}"
 
             # Use HTML parse mode — Markdown breaks on titles with parentheses/special chars
             safe_title = html_module.escape(recipe_title)
