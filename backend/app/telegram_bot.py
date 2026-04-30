@@ -22,6 +22,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 from app.config import settings
+from app.instagram_auth import get_auth_state, is_cookie_valid
 from app.source_identifier import extract_source_id, get_source_type_from_url
 
 logger = logging.getLogger(__name__)
@@ -314,6 +315,34 @@ async def notify(
         logger.info(f"Notification sent to {chat_id}: success={success}")
     except Exception as e:
         logger.warning(f"Failed to send notification to {chat_id}: {e}")
+
+
+# ── Instagram Auth Status Command (admin-only) ───────────────────────────────
+async def auth_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
+        await update.message.reply_text("Keine Berechtigung.")
+        return
+
+    state = get_auth_state()
+    cookie_ok = is_cookie_valid(threshold_days=settings.instagram_cookie_refresh_threshold_days)
+
+    def fmt_dt(dt):
+        return dt.strftime("%Y-%m-%d %H:%M UTC") if dt else "nie"
+
+    status_icon = "✅" if cookie_ok else "❌"
+    lines = [
+        f"{status_icon} *Instagram Auth Status*",
+        "",
+        f"Cookie gültig: {'ja' if cookie_ok else 'nein (abgelaufen oder fehlt)'}",
+        f"Letzter Check: {fmt_dt(state.get('last_checked_at'))}",
+        f"Letzter Refresh: {fmt_dt(state.get('last_refresh_at'))}",
+        f"Fehlgeschlagene Versuche: {state.get('refresh_fail_count', 0)}",
+    ]
+    if state.get("last_error"):
+        lines.append(f"Letzter Fehler: `{state['last_error']}`")
+
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
 
 # ── Instagram Sync Commands (admin-only) ─────────────────────────────────────
@@ -653,6 +682,7 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     app.add_handler(CommandHandler("sync_enable", sync_enable_handler))
     app.add_handler(CommandHandler("sync_disable", sync_disable_handler))
     app.add_handler(CommandHandler("sync_now", sync_now_handler))
+    app.add_handler(CommandHandler("auth_status", auth_status_handler))
     app.add_handler(CallbackQueryHandler(collection_select_callback, pattern="^select_collection_"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
