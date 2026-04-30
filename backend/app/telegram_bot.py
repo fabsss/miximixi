@@ -307,6 +307,7 @@ async def notify(
                 f"Wenn das Problem weiterhin besteht, kontaktiere den Admin."
             )
 
+        logger.info(f"Sending notification text: {repr(text)}")
         await app.bot.send_message(
             chat_id=int(chat_id),
             text=text,
