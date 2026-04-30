@@ -2,8 +2,10 @@
 Instagram Auth Manager
 Verantwortlich für: Cookie-Validierung, Playwright-Login, Cookie-Export, Auth-State in DB.
 """
+import asyncio
 import logging
 import os
+import random
 from datetime import datetime, timezone
 from http.cookiejar import MozillaCookieJar
 from typing import Optional
@@ -141,3 +143,137 @@ def _export_cookies_to_file(cookies: list, filepath: str) -> None:
     with open(filepath, "w") as f:
         f.writelines(lines)
     logger.info(f"Cookies exportiert nach {filepath} ({len(cookies)} Einträge)")
+
+
+async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
+    from playwright.async_api import async_playwright
+
+    username = settings.instagram_username
+    password = settings.instagram_password
+
+    if not username or not password:
+        logger.error("INSTAGRAM_USERNAME oder INSTAGRAM_PASSWORD nicht konfiguriert")
+        update_auth_state(account_id=account_id, last_error="Credentials fehlen")
+        return False
+
+    browser_state_path = os.path.join(settings.instagram_browser_state_dir, account_id)
+    os.makedirs(browser_state_path, exist_ok=True)
+    storage_state_file = os.path.join(browser_state_path, "storage_state.json")
+
+    logger.info(f"Starte Playwright Cookie-Refresh für Account '{account_id}'")
+
+    async with async_playwright() as p:
+        context_options = {
+            "user_agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "viewport": {"width": 1280, "height": 800},
+            "locale": "de-DE",
+        }
+        if os.path.exists(storage_state_file):
+            context_options["storage_state"] = storage_state_file
+
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(**context_options)
+        page = await context.new_page()
+
+        try:
+            await asyncio.sleep(random.uniform(2, 5))
+            await page.goto(
+                "https://www.instagram.com/accounts/login/", wait_until="networkidle"
+            )
+            await asyncio.sleep(random.uniform(1, 3))
+
+            try:
+                await page.click("text=Alle Cookies akzeptieren", timeout=3000)
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+            except Exception:
+                pass
+
+            username_field = page.locator('input[name="username"]')
+            await username_field.click()
+            for char in username:
+                await username_field.type(char, delay=random.randint(80, 200))
+            await asyncio.sleep(random.uniform(0.3, 0.8))
+
+            password_field = page.locator('input[name="password"]')
+            await password_field.click()
+            for char in password:
+                await password_field.type(char, delay=random.randint(80, 200))
+            await asyncio.sleep(random.uniform(0.5, 1.2))
+
+            await page.click('button[type="submit"]')
+            await page.wait_for_load_state("networkidle", timeout=15000)
+            await asyncio.sleep(random.uniform(2, 4))
+
+            current_url = page.url
+            if "/challenge/" in current_url or "/checkpoint/" in current_url:
+                logger.warning(f"Instagram Checkpoint erkannt: {current_url}")
+                update_auth_state(
+                    account_id=account_id,
+                    last_checked_at=datetime.now(timezone.utc),
+                    refresh_fail_count=_increment_fail_count(account_id),
+                    last_error=f"Checkpoint: {current_url}",
+                )
+                return False
+
+            if "login" in current_url:
+                logger.error("Login fehlgeschlagen — möglicherweise falsche Credentials")
+                update_auth_state(
+                    account_id=account_id,
+                    last_checked_at=datetime.now(timezone.utc),
+                    refresh_fail_count=_increment_fail_count(account_id),
+                    last_error="Login fehlgeschlagen (falsche Credentials?)",
+                )
+                return False
+
+            await context.storage_state(path=storage_state_file)
+            cookies = await context.cookies()
+            _export_cookies_to_file(cookies, settings.instagram_cookies_file)
+
+            update_auth_state(
+                account_id=account_id,
+                last_checked_at=datetime.now(timezone.utc),
+                last_refresh_at=datetime.now(timezone.utc),
+                refresh_fail_count=0,
+                last_error=None,
+            )
+            logger.info("Cookie-Refresh erfolgreich")
+            return True
+
+        except Exception as e:
+            logger.exception(f"Playwright-Fehler beim Cookie-Refresh: {e}")
+            update_auth_state(
+                account_id=account_id,
+                last_checked_at=datetime.now(timezone.utc),
+                last_error=str(e),
+            )
+            return False
+        finally:
+            await context.close()
+            await browser.close()
+
+
+async def ensure_valid_cookies(account_id: str = "default") -> bool:
+    threshold = settings.instagram_cookie_refresh_threshold_days
+    if is_cookie_valid(threshold_days=threshold, account_id=account_id):
+        return True
+    logger.info("Cookies ungültig oder bald ablaufend — starte Refresh")
+    return await _refresh_with_retry(account_id=account_id)
+
+
+async def _refresh_with_retry(account_id: str = "default") -> bool:
+    max_retries = settings.instagram_cookie_max_refresh_retries
+    retry_interval = settings.instagram_cookie_retry_interval
+    for attempt in range(1, max_retries + 1):
+        logger.info(f"Cookie-Refresh Versuch {attempt}/{max_retries}")
+        success = await refresh_cookies_via_playwright(account_id=account_id)
+        if success:
+            return True
+        if attempt < max_retries:
+            logger.info(f"Refresh fehlgeschlagen, nächster Versuch in {retry_interval}s")
+            await asyncio.sleep(retry_interval)
+    logger.error(f"Cookie-Refresh nach {max_retries} Versuchen fehlgeschlagen")
+    return False

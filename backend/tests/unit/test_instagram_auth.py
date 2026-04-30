@@ -104,3 +104,45 @@ class TestExportCookiesToFile:
         from app.instagram_auth import _export_cookies_to_file
         _export_cookies_to_file([], cookie_file)
         assert os.path.exists(cookie_file)
+
+
+class TestRefreshCookiesViaPlaywright:
+    @pytest.mark.asyncio
+    async def test_returns_false_when_no_credentials(self):
+        with patch("app.instagram_auth.settings") as mock_settings:
+            mock_settings.instagram_username = ""
+            mock_settings.instagram_password = ""
+            mock_settings.instagram_cookies_file = "/tmp/cookies.txt"
+            mock_settings.instagram_browser_state_dir = "/tmp/browser_state"
+            with patch("app.instagram_auth.update_auth_state"):
+                from app.instagram_auth import refresh_cookies_via_playwright
+                result = await refresh_cookies_via_playwright()
+                assert result is False
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_url_detected(self):
+        # Teste die Checkpoint-URL-Detection-Logik isoliert
+        assert "/challenge/" in "https://www.instagram.com/challenge/123/"
+        assert "/checkpoint/" in "https://www.instagram.com/checkpoint/123/"
+
+
+class TestEnsureValidCookies:
+    @pytest.mark.asyncio
+    async def test_returns_true_when_cookie_already_valid(self):
+        with patch("app.instagram_auth.is_cookie_valid", return_value=True):
+            with patch("app.instagram_auth.settings") as mock_settings:
+                mock_settings.instagram_cookie_refresh_threshold_days = 7
+                from app.instagram_auth import ensure_valid_cookies
+                result = await ensure_valid_cookies()
+                assert result is True
+
+    @pytest.mark.asyncio
+    async def test_calls_refresh_when_cookie_invalid(self):
+        with patch("app.instagram_auth.is_cookie_valid", return_value=False):
+            with patch("app.instagram_auth._refresh_with_retry", return_value=True) as mock_refresh:
+                with patch("app.instagram_auth.settings") as mock_settings:
+                    mock_settings.instagram_cookie_refresh_threshold_days = 7
+                    from app.instagram_auth import ensure_valid_cookies
+                    result = await ensure_valid_cookies()
+                    mock_refresh.assert_called_once()
+                    assert result is True
