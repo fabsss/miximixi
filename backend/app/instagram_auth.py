@@ -252,7 +252,7 @@ async def refresh_cookies_via_playwright(account_id: str = "default") -> bool:
                 await password_field.type(char, delay=random.randint(80, 200))
             await asyncio.sleep(random.uniform(0.5, 1.2))
 
-            await page.get_by_role("button", name="Anmelden").click()
+            await page.get_by_role("button", name="Anmelden").first.click()
             await page.wait_for_load_state("networkidle", timeout=15000)
             await asyncio.sleep(random.uniform(2, 4))
 
