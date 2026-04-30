@@ -160,7 +160,22 @@ async def get_available_collections() -> List[Dict]:
 
             resp = L.context._session.get(url, params=params, headers=headers)
 
-            if resp.status_code in (401, 403):
+            if resp.status_code in (400, 401, 403):
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = {"raw": resp.text[:200]}
+                message = body.get("message", "") if isinstance(body, dict) else ""
+                if message == "challenge_required":
+                    challenge_url = (body.get("challenge") or {}).get("url", "")
+                    raise RateLimitError(
+                        f"Instagram Challenge erforderlich — manuelle Lösung nötig.\n"
+                        f"Challenge-URL: {challenge_url}"
+                    )
+                if message == "feedback_required" or body.get("is_spam"):
+                    raise RateLimitError(
+                        "Instagram Rate-Limit aktiv (Try Again Later)."
+                    )
                 raise ValueError(
                     f"Instagram authentication failed (HTTP {resp.status_code}). "
                     "Your cookies may have expired. "
@@ -187,7 +202,7 @@ async def get_available_collections() -> List[Dict]:
         logger.info(f"Found {len(collections)} Instagram collections")
         return collections
 
-    except ValueError:
+    except (ValueError, RateLimitError):
         raise
     except Exception as e:
         error_msg = str(e)
@@ -271,7 +286,14 @@ async def fetch_collection_posts(collection_id: str) -> List[Dict]:
                     message = body.get("message", "") if isinstance(body, dict) else ""
                     if message == "feedback_required" or body.get("is_spam"):
                         raise RateLimitError(
-                            f"Instagram Rate-Limit aktiv (Try Again Later). "
+                            "Instagram Rate-Limit aktiv (Try Again Later). "
+                            "Sync pausiert für 30 Minuten."
+                        )
+                    if message == "challenge_required":
+                        challenge_url = (body.get("challenge") or {}).get("url", "")
+                        raise RateLimitError(
+                            f"Instagram Challenge erforderlich — manuelle Lösung nötig.\n"
+                            f"Challenge-URL: {challenge_url}\n"
                             "Sync pausiert für 30 Minuten."
                         )
                     raise ValueError(

@@ -467,22 +467,28 @@ async def sync_setup_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(msg, reply_markup=reply_markup)
         logger.info(f"Admin {user_id} opened /sync_setup with {len(collections)} collections")
     
-    except ValueError as auth_error:
-        # Instagram auth failed
-        await update.message.reply_text(
-            f"❌ Instagram-Authentifizierung fehlgeschlagen:\n\n"
-            f"{str(auth_error)}\n\n"
-            f"Lösung:\n"
-            f"1. Gehe zu instagram.com und melde dich an\n"
-            f"2. Exportiere neue cookies.txt via 'Get cookies.txt LOCALLY'\n"
-            f"3. Ersetze backend/instagram_cookies.txt\n"
-            f"4. Starte den Server neu und versuche /sync_setup erneut"
-        )
-        logger.warning(f"Instagram auth failed for /sync_setup: {auth_error}", exc_info=False)
-    
-    except Exception as e:
-        logger.exception(f"Error in /sync_setup: {e}")
-        await update.message.reply_text(f"❌ Fehler: {str(e)[:100]}\n\nBitte die Logs überprüfen")
+    except Exception as auth_error:
+        from app.instagram_sync_worker import RateLimitError
+        if isinstance(auth_error, RateLimitError):
+            await update.message.reply_text(
+                f"⏳ Instagram nicht erreichbar:\n\n{str(auth_error)}\n\n"
+                "Bitte etwas warten und es erneut versuchen."
+            )
+            logger.warning(f"Instagram challenge/rate-limit for /sync_setup: {auth_error}", exc_info=False)
+        elif isinstance(auth_error, ValueError):
+            await update.message.reply_text(
+                f"❌ Instagram-Authentifizierung fehlgeschlagen:\n\n"
+                f"{str(auth_error)}\n\n"
+                f"Lösung:\n"
+                f"1. Gehe zu instagram.com und melde dich an\n"
+                f"2. Exportiere neue cookies.txt via 'Get cookies.txt LOCALLY'\n"
+                f"3. Ersetze backend/instagram_cookies.txt\n"
+                f"4. Starte den Server neu und versuche /sync_setup erneut"
+            )
+            logger.warning(f"Instagram auth failed for /sync_setup: {auth_error}", exc_info=False)
+        else:
+            logger.exception(f"Error in /sync_setup: {auth_error}")
+            await update.message.reply_text(f"❌ Fehler: {str(auth_error)[:100]}\n\nBitte die Logs überprüfen")
 
 
 async def collection_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
