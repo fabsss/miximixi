@@ -258,7 +258,9 @@ async def _login_via_playwright_get_sessionid(
         try:
             await asyncio.sleep(random.uniform(2, 5))
             await page.goto(
-                "https://www.instagram.com/accounts/login/", wait_until="networkidle"
+                "https://www.instagram.com/accounts/login/",
+                wait_until="networkidle",
+                timeout=30000,
             )
             await asyncio.sleep(random.uniform(1, 3))
 
