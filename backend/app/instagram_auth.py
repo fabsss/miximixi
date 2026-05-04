@@ -87,6 +87,7 @@ def update_auth_state(
     last_refresh_at: Optional[datetime] = None,
     refresh_fail_count: Optional[int] = None,
     last_error: Optional[str] = None,
+    clear_error: bool = False,
 ) -> None:
     try:
         conn = get_db_connection()
@@ -106,6 +107,8 @@ def update_auth_state(
                 if last_error is not None:
                     fields.append("last_error = %s")
                     values.append(last_error)
+                elif clear_error:
+                    fields.append("last_error = NULL")
                 values.append(account_id)
                 cur.execute(
                     f"UPDATE instagram_auth_state SET {', '.join(fields)} "
@@ -200,7 +203,7 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
                     last_checked_at=datetime.now(timezone.utc),
                     last_refresh_at=datetime.now(timezone.utc),
                     refresh_fail_count=0,
-                    last_error=None,
+                    clear_error=True,
                 )
                 return True
             logger.info("instaloader: Session abgelaufen, starte Playwright-Login")
