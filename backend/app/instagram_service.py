@@ -20,14 +20,29 @@ def _get_session_file(account_id: str = "default") -> str:
 def _get_loader(account_id: str = "default") -> instaloader.Instaloader:
     """
     Erstellt einen authentifizierten instaloader-Client via gespeicherter Session-Datei.
-    Wirft ValueError wenn keine Session-Datei vorhanden ist.
+    Cookies werden direkt mit Domain in die requests.Session gesetzt (nicht via cookiejar_from_dict)
+    damit Mobile-API Calls korrekt authentifiziert werden.
     """
+    import pickle
+    import requests
+
     session_file = _get_session_file(account_id)
 
     if not os.path.exists(session_file):
         raise ValueError(
             f"Keine instaloader Session gefunden für Account '{account_id}'. "
             "Bitte /refresh_cookies ausführen um die Session zu erneuern."
+        )
+
+    try:
+        with open(session_file, "rb") as f:
+            cookie_dict = pickle.load(f)
+        if not isinstance(cookie_dict, dict) or "sessionid" not in cookie_dict:
+            raise ValueError(f"Ungültiges Session-Format: {type(cookie_dict)}")
+    except Exception as e:
+        raise ValueError(
+            f"instaloader Session-Datei ungültig für Account '{account_id}': {e}. "
+            "Bitte /refresh_cookies ausführen."
         )
 
     L = instaloader.Instaloader(
@@ -40,15 +55,18 @@ def _get_loader(account_id: str = "default") -> instaloader.Instaloader:
         quiet=True,
     )
 
-    try:
-        L.load_session_from_file(settings.instagram_username, session_file)
-        logger.debug(f"instaloader Session geladen für Account '{account_id}'")
-    except Exception as e:
-        raise ValueError(
-            f"instaloader Session-Datei ungültig für Account '{account_id}': {e}. "
-            "Bitte /refresh_cookies ausführen."
-        )
+    # Cookies direkt mit Domain setzen — cookiejar_from_dict bindet keine Domain,
+    # was zu Redirect-Loops bei Mobile-API Calls führt
+    session = requests.Session()
+    for name, value in cookie_dict.items():
+        session.cookies.set(name, value, domain=".instagram.com")
+    session.headers.update(L.context._session.headers)
+    if "csrftoken" in cookie_dict:
+        session.headers.update({"X-CSRFToken": cookie_dict["csrftoken"]})
+    L.context._session = session
+    L.context.username = settings.instagram_username
 
+    logger.debug(f"instaloader Session geladen für Account '{account_id}' ({len(cookie_dict)} Cookies)")
     return L
 
 
