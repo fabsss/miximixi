@@ -46,12 +46,16 @@ Wichtig:
   SYNTAX-PFLICHT: Ein {}-Tag enthält IMMER genau eine einzige Zahl. {1,2,3} ist VERBOTEN – das ist ein kritischer Fehler.
   Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
   Bei mehreren Zutaten in einem Schritt: jede Zutat einzeln mit eigenem Tag nennen.
-  Wenn ein Teilprodukt aus mehreren Zutaten in einem Schritt entstanden ist, dürfen die Zutaten bei allen weiteren Schritten nicht noch einmal mit angegeben werden.
+  Wenn ein Teilprodukt aus mehreren Zutaten in einem Schritt entstanden ist, dürfen diese Zutaten bei allen weiteren Schritten NICHT mehr referenziert werden – weder einzeln noch als Gruppe.
+  Teilprodukte werden im Text einfach beim Namen genannt, OHNE []-Klammern und OHNE {}-Tag.
   NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
   NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
   NICHT: "Alle [Zutaten]{1,2,3,4,5} vermengen." – SONDERN: "Den [Käse]{1}, die [Tomaten]{2}, das [Basilikum]{3}, das [Öl]{4} und das [Salz]{5} vermengen."
   NICHT: "Für den Mürbteig alle [Zutaten]{1,2,3} verkneten." – SONDERN: "Für den Mürbteig [Mehl]{1}, [Butter]{2} und [Zucker]{3} rasch zu einem glatten Teig verkneten."
   NICHT: "Schritt 1: Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung ([Rhabarber]{1}, [Pudding]{2}) in die Form geben." – SONDERN: "Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung in die Form geben."
+  TEILPRODUKT-REGEL (kritisch): Wurde z.B. in Schritt 1 aus [Pita]{3} und [Öl]{4} "angebratene Pita-Hälften" hergestellt, so werden diese in Schritt 3 einfach als "angebratene Pita-Hälften" erwähnt – OHNE []-Klammern, OHNE {}-Tag, auch nicht als [angebratene Pita-Hälften]{*} oder [angebratene Pita-Hälften]{3,4}.
+  NICHT: "Die [angebratenen Pita-Hälften]{*} auf den Teller legen." – SONDERN: "Die angebratenen Pita-Hälften auf den Teller legen."
+  NICHT: "Mit [seared pita halves]{*} servieren." – SONDERN: "Mit seared pita halves servieren."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "01:35:08" = 1 Min, 35 Sek, Frame 8).
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
@@ -109,11 +113,16 @@ Wichtig:
   SYNTAX-PFLICHT: Ein {}-Tag enthält IMMER genau eine einzige Zahl. {1,2,3} ist VERBOTEN – das ist ein kritischer Fehler.
   Der Text in [] soll genau die Wörter sein, die im Satz die Zutat bezeichnen (korrekt dekliniert).
   Bei mehreren Zutaten in einem Schritt: jede Zutat einzeln mit eigenem Tag nennen.
+  Wenn ein Teilprodukt aus mehreren Zutaten in einem Schritt entstanden ist, dürfen diese Zutaten bei allen weiteren Schritten NICHT mehr referenziert werden – weder einzeln noch als Gruppe.
+  Teilprodukte werden im Text einfach beim Namen genannt, OHNE []-Klammern und OHNE {}-Tag.
   NICHT: "Den {1} kochen." – SONDERN: "Den [grünen Spargel]{1} kochen."
   NICHT: "Die {2} würfeln." – SONDERN: "Die [Karotten]{2} in Würfel schneiden."
   NICHT: "Alle [Zutaten]{1,2,3,4,5} vermengen." – SONDERN: "Den [Käse]{1}, die [Tomaten]{2}, das [Basilikum]{3}, das [Öl]{4} und das [Salz]{5} vermengen."
   NICHT: "Für den Mürbteig alle [Zutaten]{1,2,3} verkneten." – SONDERN: "Für den Mürbteig [Mehl]{1}, [Butter]{2} und [Zucker]{3} rasch zu einem glatten Teig verkneten."
   NICHT: "Schritt 1: Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung ([Rhabarber]{1}, [Pudding]{2}) in die Form geben." – SONDERN: "Für den Füllung alle Zutaten ([Rhabarber]{1}, [Pudding]{2}) vermengen. Schritt 2: Die Füllung in die Form geben."
+  TEILPRODUKT-REGEL (kritisch): Wurde z.B. in Schritt 1 aus [Pita]{3} und [Öl]{4} "angebratene Pita-Hälften" hergestellt, so werden diese in Schritt 3 einfach als "angebratene Pita-Hälften" erwähnt – OHNE []-Klammern, OHNE {}-Tag, auch nicht als [angebratene Pita-Hälften]{*} oder [angebratene Pita-Hälften]{3,4}.
+  NICHT: "Die [angebratenen Pita-Hälften]{*} auf den Teller legen." – SONDERN: "Die angebratenen Pita-Hälften auf den Teller legen."
+  NICHT: "Mit [seared pita halves]{*} servieren." – SONDERN: "Mit seared pita halves servieren."
 - "time_minutes" nur setzen wenn eine Zeitangabe im Schritt vorkommt
 - "step_timestamp" = Timestamp im Format "MM:SS:FF" (Minute:Sekunde:Frame, z.B. "00:45:12").
   STANDARD IST NULL – vergib einen Timestamp nur wenn du dir absolut sicher bist.
