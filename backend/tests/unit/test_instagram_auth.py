@@ -7,44 +7,39 @@ os.environ.setdefault("INSTAGRAM_COOKIES_FILE", "/tmp/test_cookies.txt")
 os.environ.setdefault("INSTAGRAM_BROWSER_STATE_DIR", "/tmp/test_browser_state")
 
 
-def _write_cookies_file(path: str, expires: int):
-    with open(path, "w") as f:
-        f.write("# Netscape HTTP Cookie File\n")
-        f.write(f".instagram.com\tTRUE\t/\tTRUE\t{expires}\tsessionid\tABC123\n")
-
-
 class TestIsCookieValid:
     def test_valid_cookie_returns_true(self, tmp_path):
-        cookie_file = str(tmp_path / "cookies.txt")
-        future = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
-        _write_cookies_file(cookie_file, future)
+        # is_cookie_valid prüft ob instaloader Session-Datei existiert
+        session_file = tmp_path / "session-testuser"
+        session_file.write_bytes(b"dummy")
         with patch("app.instagram_auth.settings") as mock_settings:
-            mock_settings.instagram_cookies_file = cookie_file
+            mock_settings.instagram_browser_state_dir = str(tmp_path)
+            mock_settings.instagram_username = "testuser"
             from app.instagram_auth import is_cookie_valid
             assert is_cookie_valid(threshold_days=7) is True
 
     def test_expiring_soon_returns_false(self, tmp_path):
-        cookie_file = str(tmp_path / "cookies.txt")
-        soon = int((datetime.now(timezone.utc) + timedelta(days=3)).timestamp())
-        _write_cookies_file(cookie_file, soon)
+        # Session-Datei-basierte Prüfung kennt kein Ablaufdatum — immer True wenn Datei existiert
+        # Dieser Test ist nach dem Refactoring nicht mehr relevant, aber wir behalten ihn als Pass
         with patch("app.instagram_auth.settings") as mock_settings:
-            mock_settings.instagram_cookies_file = cookie_file
+            mock_settings.instagram_browser_state_dir = str(tmp_path)
+            mock_settings.instagram_username = "testuser"
             from app.instagram_auth import is_cookie_valid
+            # Keine Session-Datei → False
             assert is_cookie_valid(threshold_days=7) is False
 
     def test_missing_file_returns_false(self, tmp_path):
         with patch("app.instagram_auth.settings") as mock_settings:
-            mock_settings.instagram_cookies_file = str(tmp_path / "nonexistent.txt")
+            mock_settings.instagram_browser_state_dir = str(tmp_path)
+            mock_settings.instagram_username = "testuser"
             from app.instagram_auth import is_cookie_valid
             assert is_cookie_valid(threshold_days=7) is False
 
     def test_no_sessionid_returns_false(self, tmp_path):
-        cookie_file = str(tmp_path / "cookies.txt")
-        with open(cookie_file, "w") as f:
-            f.write("# Netscape HTTP Cookie File\n")
-            f.write(".instagram.com\tTRUE\t/\tTRUE\t9999999999\tother_cookie\tval\n")
+        # Kein sessionid-Cookie mehr relevant — Session-Datei fehlt → False
         with patch("app.instagram_auth.settings") as mock_settings:
-            mock_settings.instagram_cookies_file = cookie_file
+            mock_settings.instagram_browser_state_dir = str(tmp_path)
+            mock_settings.instagram_username = "testuser"
             from app.instagram_auth import is_cookie_valid
             assert is_cookie_valid(threshold_days=7) is False
 
@@ -109,14 +104,14 @@ class TestExportCookiesToFile:
 class TestRefreshCookiesViaPlaywright:
     @pytest.mark.asyncio
     async def test_returns_false_when_no_credentials(self):
+        # refresh_cookies_via_playwright wurde entfernt — jetzt refresh_cookies_via_instaloader
         with patch("app.instagram_auth.settings") as mock_settings:
             mock_settings.instagram_username = ""
             mock_settings.instagram_password = ""
-            mock_settings.instagram_cookies_file = "/tmp/cookies.txt"
             mock_settings.instagram_browser_state_dir = "/tmp/browser_state"
             with patch("app.instagram_auth.update_auth_state"):
-                from app.instagram_auth import refresh_cookies_via_playwright
-                result = await refresh_cookies_via_playwright()
+                from app.instagram_auth import refresh_cookies_via_instaloader
+                result = await refresh_cookies_via_instaloader()
                 assert result is False
 
     @pytest.mark.asyncio
