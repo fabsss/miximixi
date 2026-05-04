@@ -54,3 +54,5 @@ graphify-out/**
 
 # rtk
 .rtk/
+
+test_playwright_login.py
