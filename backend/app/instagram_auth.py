@@ -132,34 +132,29 @@ def _export_cookies_to_file(cookies: list, filepath: str) -> None:
     logger.info(f"Cookies exportiert nach {filepath} ({len(cookies)} Einträge)")
 
 
-def _build_instaloader_session_from_cookies(session_id: str, username: str) -> None:
+def _build_instaloader_session_from_cookies(
+    session_id: str, csrf_token: str, username: str
+) -> None:
     """
-    Erstellt eine instaloader Session-Datei aus einer sessionid (z.B. von Playwright).
-    Umgeht L.login() komplett — Instagram blockiert programmatische API-Logins.
+    Erstellt eine instaloader Session-Datei aus sessionid + csrftoken (von Playwright).
+    Format: pickle eines dicts — exakt was instaloader.save_session() / load_session() erwartet.
     """
     import pickle
-    import requests
-    import instaloader
 
     session_file = os.path.join(
         settings.instagram_browser_state_dir, f"session-{username}"
     )
     os.makedirs(settings.instagram_browser_state_dir, exist_ok=True)
 
-    # Requests-Session mit der sessionid aufbauen — exakt wie instaloader es erwartet
-    session = requests.Session()
-    session.cookies.set("sessionid", session_id, domain=".instagram.com")
-    session.headers.update({
-        "User-Agent": (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-            "Mobile/15E148 Instagram 105.0.0.11.118"
-        )
-    })
+    # instaloader.load_session() erwartet dict_from_cookiejar-Format (plain dict)
+    # und setzt zwingend X-CSRFToken aus cookies['csrftoken']
+    cookie_dict = {
+        "sessionid": session_id,
+        "csrftoken": csrf_token,
+    }
 
-    # Als instaloader Session-Datei speichern (pickle-Format das instaloader erwartet)
     with open(session_file, "wb") as f:
-        pickle.dump(session.cookies, f)
+        pickle.dump(cookie_dict, f)
 
     logger.info(f"instaloader Session-Datei aus Playwright-Cookies erstellt: {session_file}")
 
@@ -205,13 +200,14 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
 
     # Playwright-Login: Browser-Login umgeht Instagram's API-Blocking
     logger.info(f"Starte Playwright-Login für Account '{username}'")
-    session_id = await _login_via_playwright_get_sessionid(username, password, account_id)
-    if not session_id:
+    result = await _login_via_playwright_get_sessionid(username, password, account_id)
+    if not result:
         return False
+    session_id, csrf_token = result
 
-    # sessionid → instaloader Session-Datei
+    # sessionid + csrftoken → instaloader Session-Datei
     try:
-        _build_instaloader_session_from_cookies(session_id, username)
+        _build_instaloader_session_from_cookies(session_id, csrf_token, username)
     except Exception as e:
         logger.exception(f"Fehler beim Erstellen der instaloader Session-Datei: {e}")
         update_auth_state(account_id=account_id, last_error=str(e)[:200])
@@ -230,8 +226,8 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
 
 async def _login_via_playwright_get_sessionid(
     username: str, password: str, account_id: str
-) -> str | None:
-    """Führt Playwright-Login durch und gibt die sessionid zurück, oder None bei Fehler."""
+) -> tuple[str, str] | None:
+    """Führt Playwright-Login durch und gibt (sessionid, csrftoken) zurück, oder None bei Fehler."""
     from playwright.async_api import async_playwright
 
     browser_state_path = os.path.join(settings.instagram_browser_state_dir, account_id)
@@ -260,7 +256,7 @@ async def _login_via_playwright_get_sessionid(
             await page.goto(
                 "https://www.instagram.com/accounts/login/",
                 wait_until="networkidle",
-                timeout=30000,
+                timeout=60000,
             )
             await asyncio.sleep(random.uniform(1, 3))
 
@@ -282,6 +278,17 @@ async def _login_via_playwright_get_sessionid(
                         break
                     except Exception:
                         pass
+            except Exception:
+                pass
+
+            # Account-Auswahl-Dialog: "Weiter" klicken falls vorhanden
+            try:
+                btn = page.get_by_role("button", name="Weiter")
+                await btn.wait_for(state="visible", timeout=3000)
+                await btn.click()
+                logger.info("Playwright: Account-Auswahl 'Weiter' geklickt")
+                await page.wait_for_load_state("networkidle", timeout=15000)
+                await asyncio.sleep(2)
             except Exception:
                 pass
 
@@ -331,10 +338,13 @@ async def _login_via_playwright_get_sessionid(
                 )
                 return None
 
-            # sessionid aus Cookies extrahieren
+            # sessionid + csrftoken aus Cookies extrahieren
             cookies = await context.cookies()
             session_id = next(
                 (c["value"] for c in cookies if c["name"] == "sessionid"), None
+            )
+            csrf_token = next(
+                (c["value"] for c in cookies if c["name"] == "csrftoken"), ""
             )
             if not session_id:
                 logger.error("Playwright: Kein sessionid-Cookie nach Login")
@@ -346,8 +356,8 @@ async def _login_via_playwright_get_sessionid(
 
             # storage_state für nächsten Login speichern
             await context.storage_state(path=storage_state_file)
-            logger.info("Playwright-Login erfolgreich, sessionid extrahiert")
-            return session_id
+            logger.info("Playwright-Login erfolgreich, sessionid + csrftoken extrahiert")
+            return session_id, csrf_token
 
         except Exception as e:
             logger.exception(f"Playwright-Fehler beim Login: {e}")
