@@ -9,9 +9,9 @@ os.environ.setdefault("INSTAGRAM_BROWSER_STATE_DIR", "/tmp/test_browser_state")
 
 class TestIsCookieValid:
     def test_valid_cookie_returns_true(self, tmp_path):
-        # is_cookie_valid prüft ob instaloader Session-Datei existiert
+        import pickle
         session_file = tmp_path / "session-testuser"
-        session_file.write_bytes(b"dummy")
+        session_file.write_bytes(pickle.dumps({"sessionid": "abc123", "csrftoken": "xyz"}))
         with patch("app.instagram_auth.settings") as mock_settings:
             mock_settings.instagram_browser_state_dir = str(tmp_path)
             mock_settings.instagram_username = "testuser"

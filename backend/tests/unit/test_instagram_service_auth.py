@@ -5,12 +5,13 @@ from unittest.mock import patch, MagicMock
 os.environ.setdefault("INSTAGRAM_COOKIES_FILE", "/tmp/test_cookies.txt")
 os.environ.setdefault("INSTAGRAM_BROWSER_STATE_DIR", "/tmp/test_browser_state")
 
+from app.instagram_service import _get_loader
+
 
 def test_get_loader_raises_when_session_file_missing(tmp_path):
     with patch("app.instagram_service.settings") as mock_settings:
         mock_settings.instagram_browser_state_dir = str(tmp_path)
         mock_settings.instagram_username = "testuser"
-        from app.instagram_service import _get_loader
         try:
             _get_loader()
             assert False, "Should have raised ValueError"
@@ -24,7 +25,6 @@ def test_get_loader_raises_when_session_file_invalid(tmp_path):
     with patch("app.instagram_service.settings") as mock_settings:
         mock_settings.instagram_browser_state_dir = str(tmp_path)
         mock_settings.instagram_username = "testuser"
-        from app.instagram_service import _get_loader
         try:
             _get_loader()
             assert False, "Should have raised ValueError"

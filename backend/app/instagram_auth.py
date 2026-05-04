@@ -182,16 +182,22 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
         settings.instagram_browser_state_dir, f"session-{username}"
     )
 
-    # Zuerst: existierende Session testen ob sie noch gültig ist
+    # Zuerst: existierende Session via Mobile Collections API testen (nicht test_login —
+    # test_login prüft einen anderen Endpoint und ist kein verlässlicher Indikator für Mobile API)
     if os.path.exists(session_file):
-        import instaloader
         try:
-            L = instaloader.Instaloader(quiet=True)
-            L.load_session_from_file(username, session_file)
-            # Kurzer Test-Call um Session-Gültigkeit zu prüfen
-            test_username = L.test_login()
-            if test_username:
-                logger.info(f"instaloader: existierende Session noch gültig für '{test_username}'")
+            from app.instagram_service import _get_loader
+            L = _get_loader(account_id)
+            url = "https://www.instagram.com/api/v1/collections/list/"
+            params = {"collection_types": '["ALL_MEDIA_AUTO_COLLECTION","MEDIA"]', "query": "", "include_public_only": "0"}
+            headers = {
+                "User-Agent": "Instagram 276.0.0.19.101 Android (33/13; 420dpi; 1080x2340; Google/google; Pixel 6; oriole; oriole; en_US; 458229258)",
+                "X-IG-App-ID": "936619743392459",
+                "Accept": "application/json",
+            }
+            resp = L.context._session.get(url, params=params, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                logger.info(f"instaloader: existierende Session noch gültig für '{username}' (Mobile API OK)")
                 update_auth_state(
                     account_id=account_id,
                     last_checked_at=datetime.now(timezone.utc),
@@ -200,7 +206,7 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
                     clear_error=True,
                 )
                 return True
-            logger.info("instaloader: Session abgelaufen, starte Playwright-Login")
+            logger.info(f"instaloader: Mobile API returned {resp.status_code}, starte Playwright-Login")
         except Exception as e:
             logger.info(f"instaloader: Session ungültig ({e}), starte Playwright-Login")
 
