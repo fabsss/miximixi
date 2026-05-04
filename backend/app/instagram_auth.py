@@ -225,14 +225,31 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
         update_auth_state(account_id=account_id, last_error=str(e)[:200])
         return False
 
+    # Session-Datei verifizieren via test_login()
+    import instaloader as _il
+    session_file = os.path.join(settings.instagram_browser_state_dir, f"session-{username}")
+    try:
+        L = _il.Instaloader(quiet=True)
+        L.load_session_from_file(username, session_file)
+        test_user = await asyncio.get_event_loop().run_in_executor(None, L.test_login)
+        if not test_user:
+            logger.error("instaloader test_login fehlgeschlagen nach Playwright-Refresh — Session ungültig")
+            update_auth_state(account_id=account_id, last_error="Session nach Refresh ungültig (test_login fehlgeschlagen)")
+            return False
+        logger.info(f"instaloader test_login erfolgreich: '{test_user}'")
+    except Exception as e:
+        logger.error(f"instaloader test_login Fehler: {e}")
+        update_auth_state(account_id=account_id, last_error=f"test_login Fehler: {str(e)[:150]}")
+        return False
+
     update_auth_state(
         account_id=account_id,
         last_checked_at=datetime.now(timezone.utc),
         last_refresh_at=datetime.now(timezone.utc),
         refresh_fail_count=0,
-        last_error=None,
+        clear_error=True,
     )
-    logger.info("Cookie-Refresh via Playwright erfolgreich, instaloader Session erstellt")
+    logger.info("Cookie-Refresh via Playwright erfolgreich, instaloader Session verifiziert")
     return True
 
 
