@@ -27,15 +27,24 @@ def get_db_connection():
 
 
 def is_cookie_valid(threshold_days: int = 7, account_id: str = "default") -> bool:
-    """Prüft ob eine gültige instaloader Session-Datei vorhanden ist."""
+    """Prüft ob eine gültige instaloader Session-Datei vorhanden ist (korrektes pickle-Format)."""
+    import pickle
     username = settings.instagram_username or account_id
     session_file = os.path.join(settings.instagram_browser_state_dir, f"session-{username}")
     if not os.path.exists(session_file):
         logger.warning(f"Keine instaloader Session-Datei gefunden: {session_file}")
         return False
-    # Session-Datei existiert — als gültig betrachten
-    # instaloader prüft die Gültigkeit beim tatsächlichen API-Call
-    return True
+    try:
+        with open(session_file, "rb") as f:
+            data = pickle.load(f)
+        # Muss ein dict mit sessionid sein (unser Format) oder ein CookieJar (altes Format → ungültig)
+        if not isinstance(data, dict) or "sessionid" not in data:
+            logger.warning(f"Session-Datei hat falsches Format (kein dict mit sessionid): {type(data)}")
+            return False
+        return True
+    except Exception as e:
+        logger.warning(f"Session-Datei nicht lesbar: {e}")
+        return False
 
 
 def get_auth_state(account_id: str = "default") -> dict:
@@ -259,6 +268,18 @@ async def _login_via_playwright_get_sessionid(
                 timeout=60000,
             )
             await asyncio.sleep(random.uniform(1, 3))
+            logger.info(f"Playwright: URL nach goto: {page.url}")
+
+            # Wenn schon eingeloggt (Feed-Redirect) — Cookies direkt extrahieren
+            if "login" not in page.url and "accounts" not in page.url:
+                logger.info("Playwright: bereits eingeloggt (Feed-Redirect), extrahiere Cookies direkt")
+                cookies = await context.cookies()
+                session_id = next((c["value"] for c in cookies if c["name"] == "sessionid"), None)
+                csrf_token = next((c["value"] for c in cookies if c["name"] == "csrftoken"), "")
+                if session_id:
+                    await context.storage_state(path=storage_state_file)
+                    return session_id, csrf_token
+                logger.warning("Playwright: Feed-Redirect aber kein sessionid Cookie — fahre mit Login fort")
 
             # Cookie-Banner wegklicken
             try:
