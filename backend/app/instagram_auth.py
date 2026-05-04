@@ -145,11 +145,12 @@ def _export_cookies_to_file(cookies: list, filepath: str) -> None:
 
 
 def _build_instaloader_session_from_cookies(
-    session_id: str, csrf_token: str, username: str
+    all_cookies: dict, username: str
 ) -> None:
     """
-    Erstellt eine instaloader Session-Datei aus sessionid + csrftoken (von Playwright).
+    Erstellt eine instaloader Session-Datei aus allen Playwright-Cookies.
     Format: pickle eines dicts — exakt was instaloader.save_session() / load_session() erwartet.
+    Alle Cookies werden gespeichert (nicht nur sessionid) damit Mobile-API Calls funktionieren.
     """
     import pickle
 
@@ -158,17 +159,10 @@ def _build_instaloader_session_from_cookies(
     )
     os.makedirs(settings.instagram_browser_state_dir, exist_ok=True)
 
-    # instaloader.load_session() erwartet dict_from_cookiejar-Format (plain dict)
-    # und setzt zwingend X-CSRFToken aus cookies['csrftoken']
-    cookie_dict = {
-        "sessionid": session_id,
-        "csrftoken": csrf_token,
-    }
-
     with open(session_file, "wb") as f:
-        pickle.dump(cookie_dict, f)
+        pickle.dump(all_cookies, f)
 
-    logger.info(f"instaloader Session-Datei aus Playwright-Cookies erstellt: {session_file}")
+    logger.info(f"instaloader Session-Datei aus {len(all_cookies)} Playwright-Cookies erstellt: {session_file}")
 
 
 async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
@@ -212,14 +206,13 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
 
     # Playwright-Login: Browser-Login umgeht Instagram's API-Blocking
     logger.info(f"Starte Playwright-Login für Account '{username}'")
-    result = await _login_via_playwright_get_sessionid(username, password, account_id)
-    if not result:
+    ig_cookies = await _login_via_playwright_get_sessionid(username, password, account_id)
+    if not ig_cookies:
         return False
-    session_id, csrf_token = result
 
-    # sessionid + csrftoken → instaloader Session-Datei
+    # Alle Cookies → instaloader Session-Datei
     try:
-        _build_instaloader_session_from_cookies(session_id, csrf_token, username)
+        _build_instaloader_session_from_cookies(ig_cookies, username)
     except Exception as e:
         logger.exception(f"Fehler beim Erstellen der instaloader Session-Datei: {e}")
         update_auth_state(account_id=account_id, last_error=str(e)[:200])
@@ -255,8 +248,8 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
 
 async def _login_via_playwright_get_sessionid(
     username: str, password: str, account_id: str
-) -> tuple[str, str] | None:
-    """Führt Playwright-Login durch und gibt (sessionid, csrftoken) zurück, oder None bei Fehler."""
+) -> dict | None:
+    """Führt Playwright-Login durch und gibt alle Instagram-Cookies als dict zurück, oder None bei Fehler."""
     from playwright.async_api import async_playwright
 
     browser_state_path = os.path.join(settings.instagram_browser_state_dir, account_id)
@@ -293,12 +286,16 @@ async def _login_via_playwright_get_sessionid(
             # Wenn schon eingeloggt (Feed-Redirect) — Cookies direkt extrahieren
             if "login" not in page.url and "accounts" not in page.url:
                 logger.info("Playwright: bereits eingeloggt (Feed-Redirect), extrahiere Cookies direkt")
-                cookies = await context.cookies()
-                session_id = next((c["value"] for c in cookies if c["name"] == "sessionid"), None)
-                csrf_token = next((c["value"] for c in cookies if c["name"] == "csrftoken"), "")
-                if session_id:
+                raw_cookies = await context.cookies()
+                ig_cookies = {
+                    c["name"]: c["value"]
+                    for c in raw_cookies
+                    if "instagram.com" in c.get("domain", "")
+                }
+                if "sessionid" in ig_cookies:
                     await context.storage_state(path=storage_state_file)
-                    return session_id, csrf_token
+                    logger.info(f"Playwright: {len(ig_cookies)} Cookies direkt extrahiert")
+                    return ig_cookies
                 logger.warning("Playwright: Feed-Redirect aber kein sessionid Cookie — fahre mit Login fort")
 
             # Cookie-Banner wegklicken
@@ -406,15 +403,14 @@ async def _login_via_playwright_get_sessionid(
                 )
                 return None
 
-            # sessionid + csrftoken aus Cookies extrahieren
-            cookies = await context.cookies()
-            session_id = next(
-                (c["value"] for c in cookies if c["name"] == "sessionid"), None
-            )
-            csrf_token = next(
-                (c["value"] for c in cookies if c["name"] == "csrftoken"), ""
-            )
-            if not session_id:
+            # Alle Instagram-Cookies als dict extrahieren
+            raw_cookies = await context.cookies()
+            ig_cookies = {
+                c["name"]: c["value"]
+                for c in raw_cookies
+                if "instagram.com" in c.get("domain", "")
+            }
+            if "sessionid" not in ig_cookies:
                 logger.error("Playwright: Kein sessionid-Cookie nach Login")
                 update_auth_state(
                     account_id=account_id,
@@ -424,8 +420,8 @@ async def _login_via_playwright_get_sessionid(
 
             # storage_state für nächsten Login speichern
             await context.storage_state(path=storage_state_file)
-            logger.info("Playwright-Login erfolgreich, sessionid + csrftoken extrahiert")
-            return session_id, csrf_token
+            logger.info(f"Playwright-Login erfolgreich, {len(ig_cookies)} Cookies extrahiert")
+            return ig_cookies
 
         except Exception as e:
             logger.exception(f"Playwright-Fehler beim Login: {e}")
