@@ -255,7 +255,7 @@ async def _login_via_playwright_get_sessionid(
             await asyncio.sleep(random.uniform(2, 5))
             await page.goto(
                 "https://www.instagram.com/accounts/login/",
-                wait_until="networkidle",
+                wait_until="load",
                 timeout=60000,
             )
             await asyncio.sleep(random.uniform(1, 3))
@@ -287,7 +287,7 @@ async def _login_via_playwright_get_sessionid(
                 await btn.wait_for(state="visible", timeout=3000)
                 await btn.click()
                 logger.info("Playwright: Account-Auswahl 'Weiter' geklickt")
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await page.wait_for_load_state("load", timeout=15000)
                 await asyncio.sleep(2)
             except Exception:
                 pass
@@ -314,7 +314,7 @@ async def _login_via_playwright_get_sessionid(
             await asyncio.sleep(random.uniform(0.5, 1.2))
 
             await page.get_by_role("button", name="Anmelden").first.click()
-            await page.wait_for_load_state("networkidle", timeout=15000)
+            await page.wait_for_load_state("load", timeout=15000)
             await asyncio.sleep(random.uniform(2, 4))
 
             current_url = page.url
