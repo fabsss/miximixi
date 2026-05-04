@@ -281,16 +281,18 @@ async def _login_via_playwright_get_sessionid(
             except Exception:
                 pass
 
-            # Account-Auswahl-Dialog: "Weiter" klicken falls vorhanden
-            try:
-                btn = page.get_by_role("button", name="Weiter")
-                await btn.wait_for(state="visible", timeout=3000)
-                await btn.click()
-                logger.info("Playwright: Account-Auswahl 'Weiter' geklickt")
-                await page.wait_for_load_state("load", timeout=15000)
-                await asyncio.sleep(2)
-            except Exception:
-                pass
+            # Account-Auswahl-Dialog: "Weiter" / "Continue" klicken falls vorhanden
+            for weiter_text in ["Weiter", "Continue"]:
+                try:
+                    btn = page.get_by_text(weiter_text, exact=True)
+                    await btn.wait_for(state="visible", timeout=3000)
+                    await btn.click()
+                    logger.info(f"Playwright: Account-Auswahl '{weiter_text}' geklickt")
+                    await page.wait_for_load_state("load", timeout=15000)
+                    await asyncio.sleep(2)
+                    break
+                except Exception:
+                    pass
 
             # Auf Login-Formular warten
             try:
@@ -299,21 +301,46 @@ async def _login_via_playwright_get_sessionid(
                 logger.error(f"Playwright: Login-Formular nicht gefunden. URL: {page.url}")
                 return None
 
-            inputs = page.locator("input")
-            username_field = inputs.nth(0)
-            password_field = inputs.nth(1)
+            # Passwortfeld immer via type=password — sprachunabhängig
+            password_inputs = page.locator("input[type='password']")
+            pw_count = await password_inputs.count()
+            visible_inputs = page.locator("input:not([type='submit']):not([type='hidden'])")
+            input_count = await visible_inputs.count()
+            logger.info(f"Playwright: {input_count} sichtbare Inputs, {pw_count} Passwort-Inputs")
 
-            await username_field.click()
-            for char in username:
-                await username_field.type(char, delay=random.randint(80, 200))
-            await asyncio.sleep(random.uniform(0.3, 0.8))
+            password_field = password_inputs.first
+            await password_field.wait_for(state="visible", timeout=5000)
+
+            if input_count >= 2:
+                # Normales Login-Formular: Username + Passwort
+                username_field = visible_inputs.nth(0)
+                await username_field.click()
+                await username_field.fill("")
+                for char in username:
+                    await username_field.type(char, delay=random.randint(80, 200))
+                await asyncio.sleep(random.uniform(0.3, 0.8))
 
             await password_field.click()
+            await password_field.fill("")
             for char in password:
                 await password_field.type(char, delay=random.randint(80, 200))
             await asyncio.sleep(random.uniform(0.5, 1.2))
 
-            await page.get_by_role("button", name="Anmelden").first.click()
+            # Submit-Button: DE "Anmelden" oder EN "Log in" / "Log In"
+            submitted = False
+            for btn_text in ["Anmelden", "Log in", "Log In"]:
+                try:
+                    btn = page.get_by_role("button", name=btn_text)
+                    await btn.first.wait_for(state="visible", timeout=2000)
+                    await btn.first.click()
+                    submitted = True
+                    logger.info(f"Playwright: Submit-Button '{btn_text}' geklickt")
+                    break
+                except Exception:
+                    pass
+            if not submitted:
+                logger.error("Playwright: Kein Submit-Button gefunden")
+                return None
             await page.wait_for_load_state("load", timeout=15000)
             await asyncio.sleep(random.uniform(2, 4))
 
