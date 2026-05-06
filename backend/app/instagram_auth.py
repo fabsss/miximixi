@@ -294,6 +294,17 @@ async def _login_via_playwright_get_sessionid(
             await asyncio.sleep(random.uniform(1, 3))
             logger.info(f"Playwright: URL nach goto: {page.url}")
 
+            # Challenge/Checkpoint erkennen — kann nicht automatisch gelöst werden
+            if "/challenge/" in page.url or "/checkpoint/" in page.url:
+                logger.warning(f"Instagram Challenge/Checkpoint aktiv: {page.url}")
+                update_auth_state(
+                    account_id=account_id,
+                    last_checked_at=datetime.now(timezone.utc),
+                    refresh_fail_count=_increment_fail_count(account_id),
+                    last_error=f"Challenge aktiv: {page.url}",
+                )
+                return None
+
             # Wenn schon eingeloggt (Feed-Redirect) — Cookies direkt extrahieren
             if "login" not in page.url and "accounts" not in page.url:
                 logger.info("Playwright: bereits eingeloggt (Feed-Redirect), extrahiere Cookies direkt")
