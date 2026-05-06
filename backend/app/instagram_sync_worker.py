@@ -14,7 +14,7 @@ from contextlib import contextmanager
 
 from app.config import settings
 from app.instagram_service import _get_loader
-from app.instagram_auth import ensure_valid_cookies, get_auth_state, update_auth_state
+from app.instagram_auth import ensure_valid_cookies, get_auth_state, update_auth_state, refresh_cookies_via_instaloader
 
 logger = logging.getLogger(__name__)
 
@@ -596,8 +596,19 @@ async def run_instagram_sync(
             error_msg = str(auth_error)
             logger.error(f"Instagram auth failed during sync: {error_msg}")
 
+            # Admin sofort benachrichtigen dass Auth fehlgeschlagen ist
+            if notify_admin:
+                try:
+                    await notify_admin(
+                        "⚠️ Instagram Auth fehlgeschlagen\n\n"
+                        f"Fehler: {error_msg}\n\n"
+                        "Starte automatischen Cookie-Refresh..."
+                    )
+                except Exception:
+                    pass
+
             logger.info("Starte reaktiven Cookie-Refresh nach Auth-Fehler")
-            refresh_ok = await ensure_valid_cookies()
+            refresh_ok = await refresh_cookies_via_instaloader()
 
             if refresh_ok:
                 logger.info("Reaktiver Cookie-Refresh erfolgreich — Sync wird fortgesetzt")
@@ -615,13 +626,9 @@ async def run_instagram_sync(
             if notify_admin:
                 try:
                     await notify_admin(
-                        "⚠️ Instagram Sync Auth Error\n\n"
-                        "Automatischer Cookie-Refresh fehlgeschlagen!\n\n"
+                        "❌ Instagram Cookie-Refresh fehlgeschlagen!\n\n"
                         f"Fehler: {error_msg}\n\n"
-                        "Bitte Cookies manuell erneuern:\n"
-                        "1. instagram.com im Browser öffnen und einloggen\n"
-                        "2. Cookies via 'Get cookies.txt LOCALLY' exportieren\n"
-                        f"3. Datei nach {settings.instagram_cookies_file} kopieren"
+                        "Bitte /refresh_cookies manuell ausführen."
                     )
                 except Exception as notify_error:
                     logger.warning(f"Failed to notify admin: {notify_error}")

@@ -224,21 +224,26 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
         update_auth_state(account_id=account_id, last_error=str(e)[:200])
         return False
 
-    # Session-Datei verifizieren via test_login()
-    import instaloader as _il
-    session_file = os.path.join(settings.instagram_browser_state_dir, f"session-{username}")
+    # Session via echtem Mobile API Call verifizieren (test_login prüft anderen Endpoint)
     try:
-        L = _il.Instaloader(quiet=True)
-        L.load_session_from_file(username, session_file)
-        test_user = await asyncio.get_event_loop().run_in_executor(None, L.test_login)
-        if not test_user:
-            logger.error("instaloader test_login fehlgeschlagen nach Playwright-Refresh — Session ungültig")
-            update_auth_state(account_id=account_id, last_error="Session nach Refresh ungültig (test_login fehlgeschlagen)")
+        from app.instagram_service import _get_loader
+        L = _get_loader(account_id)
+        url = "https://www.instagram.com/api/v1/collections/list/"
+        params = {"collection_types": '["ALL_MEDIA_AUTO_COLLECTION","MEDIA"]', "query": "", "include_public_only": "0"}
+        headers = {
+            "User-Agent": "Instagram 276.0.0.19.101 Android (33/13; 420dpi; 1080x2340; Google/google; Pixel 6; oriole; oriole; en_US; 458229258)",
+            "X-IG-App-ID": "936619743392459",
+            "Accept": "application/json",
+        }
+        resp = L.context._session.get(url, params=params, headers=headers, timeout=15)
+        if resp.status_code != 200:
+            logger.error(f"Session-Verifikation nach Playwright-Refresh fehlgeschlagen: HTTP {resp.status_code}")
+            update_auth_state(account_id=account_id, last_error=f"Session nach Refresh ungültig (Mobile API: {resp.status_code})")
             return False
-        logger.info(f"instaloader test_login erfolgreich: '{test_user}'")
+        logger.info("Session nach Playwright-Refresh verifiziert (Mobile API OK)")
     except Exception as e:
-        logger.error(f"instaloader test_login Fehler: {e}")
-        update_auth_state(account_id=account_id, last_error=f"test_login Fehler: {str(e)[:150]}")
+        logger.error(f"Session-Verifikation Fehler: {e}")
+        update_auth_state(account_id=account_id, last_error=f"Session-Verifikation Fehler: {str(e)[:150]}")
         return False
 
     update_auth_state(
@@ -444,10 +449,28 @@ async def _login_via_playwright_get_sessionid(
 
 
 async def ensure_valid_cookies(account_id: str = "default") -> bool:
-    threshold = settings.instagram_cookie_refresh_threshold_days
-    if is_cookie_valid(threshold_days=threshold, account_id=account_id):
-        return True
-    logger.info("Cookies ungültig oder bald ablaufend — starte Refresh")
+    """Prüft Session via echtem Mobile API Call — nicht nur Dateiformat."""
+    username = settings.instagram_username or account_id
+    session_file = os.path.join(settings.instagram_browser_state_dir, f"session-{username}")
+    if os.path.exists(session_file) and is_cookie_valid(account_id=account_id):
+        try:
+            from app.instagram_service import _get_loader
+            L = _get_loader(account_id)
+            url = "https://www.instagram.com/api/v1/collections/list/"
+            params = {"collection_types": '["ALL_MEDIA_AUTO_COLLECTION","MEDIA"]', "query": "", "include_public_only": "0"}
+            headers = {
+                "User-Agent": "Instagram 276.0.0.19.101 Android (33/13; 420dpi; 1080x2340; Google/google; Pixel 6; oriole; oriole; en_US; 458229258)",
+                "X-IG-App-ID": "936619743392459",
+                "Accept": "application/json",
+            }
+            resp = L.context._session.get(url, params=params, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                return True
+            logger.info(f"ensure_valid_cookies: Mobile API returned {resp.status_code} — Refresh nötig")
+        except Exception as e:
+            logger.info(f"ensure_valid_cookies: Session-Check fehlgeschlagen ({e}) — Refresh nötig")
+    else:
+        logger.info("ensure_valid_cookies: Keine Session-Datei oder Format ungültig — Refresh nötig")
     return await _refresh_with_retry(account_id=account_id)
 
 
