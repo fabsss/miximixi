@@ -73,6 +73,69 @@ def is_admin(user_id: int) -> bool:
     return is_admin_user
 
 
+# ── DB-Backed User Lookup ────────────────────────────────────────────────────
+def get_user_id_for_telegram(telegram_user_id: int) -> str | None:
+    """Returns miximixi user_id (UUID str) for a linked Telegram user, or None."""
+    import psycopg2
+    from app.config import settings
+    try:
+        conn = psycopg2.connect(
+            host=settings.db_host, port=settings.db_port,
+            user=settings.db_user, password=settings.db_password,
+            dbname=settings.db_name,
+        )
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id FROM user_telegram_links WHERE telegram_user_id = %s",
+                (telegram_user_id,)
+            )
+            row = cur.fetchone()
+        conn.close()
+        return str(row[0]) if row else None
+    except Exception as e:
+        logger.error(f"DB lookup for telegram_user_id {telegram_user_id}: {e}")
+        return None
+
+
+def consume_link_code(code: str, telegram_user_id: int, telegram_username: str | None) -> bool:
+    """Validates and consumes a link code, creates the user_telegram_links row. Returns True on success."""
+    import psycopg2
+    from app.config import settings
+    try:
+        conn = psycopg2.connect(
+            host=settings.db_host, port=settings.db_port,
+            user=settings.db_user, password=settings.db_password,
+            dbname=settings.db_name,
+        )
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT user_id FROM telegram_link_codes
+                   WHERE code = %s AND expires_at > now() AND used_at IS NULL""",
+                (code,)
+            )
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                return False
+            user_id = row[0]
+            cur.execute(
+                """INSERT INTO user_telegram_links (user_id, telegram_user_id, telegram_username)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (telegram_user_id) DO UPDATE SET user_id = EXCLUDED.user_id, telegram_username = EXCLUDED.telegram_username""",
+                (user_id, telegram_user_id, telegram_username)
+            )
+            cur.execute(
+                "UPDATE telegram_link_codes SET used_at = now() WHERE code = %s",
+                (code,)
+            )
+            conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"consume_link_code error: {e}")
+        return False
+
+
 # ── Error Humanization ───────────────────────────────────────────────────────
 def humanize_error(error: str) -> str:
     """
@@ -102,31 +165,30 @@ def humanize_error(error: str) -> str:
 
 # ── Telegram Handlers ────────────────────────────────────────────────────────
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /start command."""
-    user_id = update.effective_user.id
+    """Handles /start command, including deep-link account linking via MIX- codes."""
+    user = update.message.from_user
+    args = context.args or []
 
-    # Access control
-    if not is_allowed(user_id):
-        await update.message.reply_text(
-            "❌ Du hast keinen Zugriff auf diesen Bot.\n"
-            "Bitte den Admin kontaktieren."
-        )
-        logger.warning(f"Unauthorized user {user_id} tried /start")
+    if args and args[0].startswith("MIX-"):
+        code = args[0]
+        success = consume_link_code(code, user.id, user.username)
+        if success:
+            await update.message.reply_text(
+                "✅ Dein Telegram-Gerät wurde erfolgreich mit deinem Miximixi-Account verknüpft!\n\n"
+                "Du kannst jetzt Instagram- und Rezept-Links direkt in diesen Chat schicken."
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Ungültiger oder abgelaufener Code.\n"
+                "Bitte einen neuen Code im Miximixi-Frontend generieren."
+            )
         return
 
-    welcome_msg = (
-        "👋 Hallo! Ich bin der Miximixi Recipe Bot.\n\n"
-        "🍳 *So funktioniert es:*\n"
-        "1. Sende mir einen Link zu einem Instagram-Post, YouTube-Video oder einer Website mit einem Rezept\n"
-        "2. Ich extrahiere automatisch das Rezept\n"
-        "3. Du erhältst eine Bestätigung wenn alles klappt\n\n"
-        "📝 *Unterstützte Quellen:*\n"
-        "• Instagram (Posts & Reels)\n"
-        "• YouTube Videos\n"
-        "• Website-Links\n\n"
-        "Los geht's! 🚀"
+    await update.message.reply_text(
+        "👋 Willkommen bei Miximixi!\n\n"
+        "Um dieses Gerät zu verknüpfen, öffne Miximixi im Browser, "
+        "gehe zu deinem Profil und scanne den QR-Code."
     )
-    await update.message.reply_text(welcome_msg, parse_mode="Markdown")
 
 
 async def getchatid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -374,10 +436,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = update.effective_user.id
     text = update.message.text
     
-    # Access control
-    if not is_allowed(user_id):
-        await update.message.reply_text("❌ Du hast keinen Zugriff auf diesen Bot.")
-        logger.warning(f"Unauthorized user {user_id} sent message")
+    # Access control — DB-backed lookup
+    user_id_str = get_user_id_for_telegram(user_id)
+    if user_id_str is None:
+        await update.message.reply_text(
+            "❌ Kein Miximixi-Account verknüpft.\n\n"
+            "Öffne Miximixi im Browser, gehe zu deinem Profil und scanne den QR-Code."
+        )
         return
     
     # URL extraction
