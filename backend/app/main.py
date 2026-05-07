@@ -1,8 +1,10 @@
 import asyncio
+import bcrypt
 import json
 import logging
 import os
 import re
+import secrets
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,11 +12,13 @@ from pathlib import Path
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import shutil
-from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
+from fastapi import Depends, FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
+from app.auth import create_access_token, get_current_user
 from app.config import settings
 from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CategoryCountsResponse, CATEGORIES
 from app.queue_worker import run_worker
@@ -245,7 +249,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In Produktion: nur Frontend-Domain
+    allow_origins=[settings.frontend_url] if settings.frontend_url else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -262,6 +266,31 @@ def get_db():
     )
 
 
+_admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
+
+
+def require_admin_key(key: str | None = Depends(_admin_key_header)):
+    if not settings.admin_key or key != settings.admin_key:
+        raise HTTPException(status_code=403, detail="Admin key required")
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    display_name: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TelegramLinkResponse(BaseModel):
+    code: str
+    deep_link: str
+    expires_in: int
+
+
 # ── Healthcheck ──────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
@@ -274,6 +303,119 @@ async def health():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail="Database not available")
+
+
+# ── Auth ─────────────────────────────────────────────────────────────
+
+@app.post("/auth/register", dependencies=[Depends(require_admin_key)])
+async def register(req: RegisterRequest):
+    hashed = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    try:
+        db = get_db()
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """INSERT INTO users (email, password_hash, display_name)
+                   VALUES (%s, %s, %s) RETURNING id, email, display_name""",
+                (req.email.lower().strip(), hashed, req.display_name or req.email.split("@")[0]),
+            )
+            user = dict(cur.fetchone())
+            db.commit()
+        return user
+    except psycopg2.errors.UniqueViolation:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    except Exception as e:
+        logger.error(f"Register error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        db.close()
+
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    db = get_db()
+    try:
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email, password_hash, display_name, is_active FROM users WHERE email = %s",
+                (req.email.lower().strip(),),
+            )
+            user = cur.fetchone()
+        if not user or not user["password_hash"]:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not user["is_active"]:
+            raise HTTPException(status_code=403, detail="Account disabled")
+        if not bcrypt.checkpw(req.password.encode(), user["password_hash"].encode()):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = create_access_token(str(user["id"]))
+        return {"access_token": token, "token_type": "bearer", "user": {"id": str(user["id"]), "email": user["email"], "display_name": user["display_name"]}}
+    finally:
+        db.close()
+
+
+@app.get("/auth/me")
+async def get_me(user_id: str = Depends(get_current_user)):
+    db = get_db()
+    try:
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email, display_name, created_at FROM users WHERE id = %s AND is_active = true",
+                (user_id,),
+            )
+            user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return dict(user)
+    finally:
+        db.close()
+
+
+@app.post("/auth/telegram-link-code")
+async def create_telegram_link_code(user_id: str = Depends(get_current_user)):
+    code = "MIX-" + secrets.token_hex(3).upper()
+    deep_link = f"https://t.me/{settings.telegram_bot_username}?start={code}"
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                """INSERT INTO telegram_link_codes (code, user_id, expires_at)
+                   VALUES (%s, %s, now() + interval '5 minutes')""",
+                (code, user_id),
+            )
+            db.commit()
+        return TelegramLinkResponse(code=code, deep_link=deep_link, expires_in=300)
+    finally:
+        db.close()
+
+
+@app.get("/auth/telegram-links")
+async def list_telegram_links(user_id: str = Depends(get_current_user)):
+    db = get_db()
+    try:
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT telegram_user_id, telegram_username, linked_at FROM user_telegram_links WHERE user_id = %s ORDER BY linked_at DESC",
+                (user_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        db.close()
+
+
+@app.delete("/auth/telegram-links/{telegram_user_id}")
+async def unlink_telegram(telegram_user_id: int, user_id: str = Depends(get_current_user)):
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                "DELETE FROM user_telegram_links WHERE user_id = %s AND telegram_user_id = %s",
+                (user_id, telegram_user_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Link not found")
+            db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
 
 
 @app.get("/ingredient-densities")
