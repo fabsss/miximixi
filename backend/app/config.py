@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
 
+    # Auth
+    secret_key: str = ""          # JWT signing secret — must be set in production
+    admin_key: str = ""           # X-Admin-Key for POST /auth/register
+    encryption_key: str = ""      # Fernet key for Instagram passwords (base64)
+
+    # Telegram
+    telegram_bot_username: str = "miximixi_bot"
+
     # Worker
     worker_max_concurrent: int = 3
     # 1 = seriell (für lokale LLMs: Ollama, Gemma3n — nur ein Modell)
