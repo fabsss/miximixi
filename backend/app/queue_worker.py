@@ -9,6 +9,15 @@ Verarbeitungs-Pfade:
 Fallback-Kaskade:
   LLM-Fehler → raw_source_text bleibt erhalten → extraction_status = 'needs_review'
   Kein Foto  → image_filename = NULL            → extraction_status = 'partial'
+
+Stale Job Recovery (Timeout-Handling):
+  Jobs mit Status 'processing' sind normalerweise aktiv. Falls der Worker ausfällt
+  oder ein Job hängt fest, bleiben diese Jobs für immer "processing" und werden
+  als "wird gerade schon verarbeitet" in der Telegram-Nutzererfahrung angezeigt.
+
+  _reset_stale_jobs() wird in jeden Poll-Zyklus aufgerufen und findet Jobs, die
+  länger als job_timeout_seconds in 'processing' sind. Diese werden zurück zu
+  'pending' gesetzt, damit der Worker sie später erneut versuchen kann.
 """
 import asyncio
 import logging
@@ -484,6 +493,42 @@ async def _notify_needs_review(source_url: str, error: str) -> None:
         logger.warning(f"Telegram-Benachrichtigung fehlgeschlagen: {e}")
 
 
+def _reset_stale_jobs(timeout_seconds: int = 3600) -> int:
+    """
+    Resets jobs stuck in 'processing' status back to 'pending' if they've been
+    processing for longer than timeout_seconds (default 1 hour).
+
+    Returns the number of jobs reset.
+    """
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        error_msg = f"Timeout: Job stuck in processing for {timeout_seconds}s, retrying"
+        cursor.execute(
+            f"""
+            UPDATE import_queue
+            SET status = %s, error_msg = %s
+            WHERE status = %s
+            AND updated_at < now() - interval '{timeout_seconds} seconds'
+            """,
+            ("pending", error_msg, "processing"),
+        )
+        count = cursor.rowcount
+        db.commit()
+
+        if count > 0:
+            logger.warning(f"Reset {count} stale jobs from 'processing' back to 'pending'")
+
+        return count
+    except Exception as e:
+        logger.warning(f"Error resetting stale jobs: {e}")
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
 def _claim_next_pending_job() -> Optional[dict]:
     """
     Claims the next pending job atomically using FOR UPDATE SKIP LOCKED.
@@ -492,7 +537,7 @@ def _claim_next_pending_job() -> Optional[dict]:
     """
     db = get_db_connection()
     cursor = db.cursor(cursor_factory=RealDictCursor)
-    
+
     try:
         # Atomically claim the next job
         cursor.execute(
@@ -524,20 +569,25 @@ def _claim_next_pending_job() -> Optional[dict]:
 async def run_worker(
     poll_interval: int = 5,
     notify_callback=None,
+    job_timeout_seconds: int = 3600,
 ) -> None:
     """
     Starts the Background-Worker-Loop with parallel job processing.
-    
+
+    Periodically checks for jobs stuck in 'processing' status and resets them
+    to 'pending' if they exceed job_timeout_seconds.
+
     Args:
         poll_interval: How often to check for new jobs (seconds)
         notify_callback: Optional async function to notify users
+        job_timeout_seconds: Max time a job can be in 'processing' before timeout (default 1 hour)
     """
     max_concurrent = settings.worker_max_concurrent
     semaphore = asyncio.Semaphore(max_concurrent)
-    
+
     logger.info(
         f"Queue-Worker gestartet (provider={settings.llm_provider}, "
-        f"max_concurrent={max_concurrent}, poll={poll_interval}s)"
+        f"max_concurrent={max_concurrent}, poll={poll_interval}s, timeout={job_timeout_seconds}s)"
     )
 
     async def _process_with_semaphore(job: dict) -> None:
@@ -547,6 +597,9 @@ async def run_worker(
 
     while True:
         try:
+            # Reset stale jobs (runs in thread pool to avoid blocking)
+            await asyncio.to_thread(_reset_stale_jobs, job_timeout_seconds)
+
             # Claim up to max_concurrent jobs
             jobs = []
             for _ in range(max_concurrent):
@@ -555,7 +608,7 @@ async def run_worker(
                     jobs.append(job)
                 else:
                     break
-            
+
             if jobs:
                 # Process all jobs concurrently (semaphore limits to max_concurrent)
                 tasks = [_process_with_semaphore(job) for job in jobs]

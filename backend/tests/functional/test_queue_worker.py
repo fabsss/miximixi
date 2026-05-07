@@ -651,3 +651,48 @@ async def test_extraction_status_transitions():
 
     # All statuses should be saved successfully
     assert mock_cursor.execute.called
+
+
+@pytest.mark.asyncio
+async def test_reset_stale_jobs_resets_processing_jobs():
+    """Test that _reset_stale_jobs resets jobs stuck in 'processing' status"""
+    from app.queue_worker import _reset_stale_jobs
+
+    mock_db = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 2  # Simulate 2 jobs reset
+    mock_db.cursor.return_value = mock_cursor
+
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db):
+        result = _reset_stale_jobs(timeout_seconds=3600)
+
+        # Verify SQL UPDATE was called
+        assert mock_cursor.execute.called
+        call_args = mock_cursor.execute.call_args
+        # Check that parameters include 'processing' and 'pending'
+        assert call_args[0][1] == ("pending", call_args[0][1][1], "processing")
+        # "pending" should be first parameter, "processing" should be last
+        assert call_args[0][1][0] == "pending"
+        assert call_args[0][1][2] == "processing"
+
+        # Verify 2 jobs were reset
+        assert result == 2
+        assert mock_db.commit.called
+
+
+@pytest.mark.asyncio
+async def test_reset_stale_jobs_returns_zero_on_error():
+    """Test that _reset_stale_jobs returns 0 on database error"""
+    from app.queue_worker import _reset_stale_jobs
+
+    mock_db = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.execute.side_effect = Exception("DB Error")
+    mock_db.cursor.return_value = mock_cursor
+
+    with patch.object(app.queue_worker, "get_db_connection", return_value=mock_db):
+        result = _reset_stale_jobs(timeout_seconds=3600)
+
+        # Should return 0 and rollback on error
+        assert result == 0
+        assert mock_db.rollback.called
