@@ -235,6 +235,24 @@ DOMAIN_NAME=rezepte.example.com
 # Then proxy rules are:
 # rezepte.example.com       → frontend:80
 # api.rezepte.example.com   → backend:8000
+
+# ============================================
+# Authentication (REQUIRED for login to work)
+# ============================================
+# JWT signing secret — generate with:
+# python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=
+
+# Admin key for creating user accounts via POST /auth/register
+# python -c "import secrets; print(secrets.token_hex(16))"
+ADMIN_KEY=
+
+# Fernet key for encrypting Instagram passwords
+# python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY=
+
+# Telegram bot username (without @)
+TELEGRAM_BOT_USERNAME=miximixi_bot
 ```
 
 **Generate secure random values:**
@@ -247,6 +265,15 @@ openssl rand -base64 16
 
 # N8N_ENCRYPTION_KEY
 openssl rand -base64 32
+
+# SECRET_KEY
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# ADMIN_KEY
+python -c "import secrets; print(secrets.token_hex(16))"
+
+# ENCRYPTION_KEY
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 ### LLM Provider Quick Decision Guide
@@ -339,6 +366,28 @@ docker compose down
 docker compose up -d
 ```
 
+### Step 5b: Create First User Account
+
+The app requires a Miximixi user account to log in. Create one using the admin API:
+
+```bash
+# Create your first user (requires ADMIN_KEY from .env)
+curl -X POST https://api.rezepte.example.com/auth/register \
+  -H "X-Admin-Key: <your ADMIN_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"your@email.com","password":"your-secure-password","display_name":"Dein Name"}'
+# Expected: {"id": "<uuid>", "email": "...", "display_name": "..."}
+```
+
+Then open the app in your browser — you'll be redirected to the login page.
+
+**To link your Telegram account:**
+1. Log in at `https://rezepte.example.com`
+2. Navigate to `/profile`
+3. Click "QR-Code generieren"
+4. Scan the QR code with your phone's camera → opens Telegram
+5. Confirm in the Telegram bot
+
 ### Step 6: Verify Database Migrations
 
 Migrations are automatically applied on first start. Verify they ran:
@@ -350,13 +399,16 @@ docker compose ps db
 # Connect to database and verify tables
 docker exec -it miximixi-db psql -U postgres -d miximixi -c "SELECT tablename FROM pg_tables WHERE schemaname='public';"
 
-# Expected output:
+# Expected output includes (among others):
 # recipes
 # ingredients
 # steps
 # import_queue
 # translations
 # users
+# user_telegram_links
+# telegram_link_codes
+# user_instagram_accounts
 ```
 
 ### Step 7: Configure Reverse Proxy (Zoraxy)
@@ -1037,36 +1089,14 @@ docker compose stop ollama
 
 ### Scale to Multiple Users (Multi-Tenant)
 
-**Add user authentication and isolation:**
+**User authentication is now implemented.** The system supports:
+- Email/password login with JWT (30-day sessions)
+- Multiple Telegram devices per account (QR code linking)
+- Secure credential storage (bcrypt passwords, Fernet-encrypted Instagram passwords)
 
-1. Add JWT token validation in backend (FastAPI middleware)
-2. Add `created_by` foreign key to recipes table:
-   ```sql
-   ALTER TABLE recipes ADD COLUMN created_by UUID REFERENCES users(id);
-   ```
-
-3. Update backend endpoints to enforce user isolation:
-   ```python
-   # In each endpoint, check:
-   # SELECT * FROM recipes WHERE id = %s AND created_by = current_user_id
-   ```
-
-4. Add user registration/login endpoints to backend
-
-5. Deploy multi-instance backend with load balancer:
-   ```yaml
-   backend:
-     deploy:
-       replicas: 3  # Run 3 backend instances
-   ```
-
-6. Add Redis for session caching (optional):
-   ```yaml
-   redis:
-     image: redis:7-alpine
-     ports:
-       - "6379:6379"
-   ```
+**What's still needed for full multi-tenancy:**
+- Per-user recipe isolation (`recipes.created_by` FK not yet enforced in queries)
+- Per-user Instagram sync (architecture prepared, not yet activated)
 
 ---
 
@@ -1274,6 +1304,6 @@ If using cloud LLM (Gemini/Claude): **$40-100/month** (plus API costs for extrac
 
 ---
 
-**Last updated:** 2026-04-14  
+**Last updated:** 2026-05-07  
 **Migration note:** This guide has been updated to use plain PostgreSQL instead of Supabase. Key changes: direct psycopg2 connections instead of REST API, local filesystem image storage instead of Supabase Storage, and application-level permission checking instead of row-level security.  
 **Related docs:** [`docs/deployment-local.md`](deployment-local.md) | [`docs/architecture.md`](architecture.md) | [`docs/QUICK-START.md`](QUICK-START.md)
