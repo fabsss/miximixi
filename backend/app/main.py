@@ -340,10 +340,8 @@ async def login(req: LoginRequest):
                 (req.email.lower().strip(),),
             )
             user = cur.fetchone()
-        if not user or not user["password_hash"]:
+        if not user or not user["password_hash"] or not user["is_active"]:
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        if not user["is_active"]:
-            raise HTTPException(status_code=403, detail="Account disabled")
         if not bcrypt.checkpw(req.password.encode(), user["password_hash"].encode()):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         token = create_access_token(str(user["id"]))
