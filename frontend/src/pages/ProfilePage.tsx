@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import QRCode from 'qrcode'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -16,6 +16,12 @@ export function ProfilePage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [codeExpiry, setCodeExpiry] = useState<number>(0)
   const [generating, setGenerating] = useState(false)
+  const [, setTick] = useState(0)
+  const unmountedRef = useRef(false)
+
+  useEffect(() => {
+    return () => { unmountedRef.current = true }
+  }, [])
 
   const loadLinks = useCallback(async () => {
     try {
@@ -36,32 +42,37 @@ export function ProfilePage() {
     return () => clearInterval(interval)
   }, [linkCode, loadLinks])
 
-  // Countdown timer
+  // Countdown timer — keyed on linkCode so it restarts when a new code is generated
   useEffect(() => {
-    if (codeExpiry <= 0) return
+    if (!linkCode) return
     const interval = setInterval(() => {
       const remaining = Math.max(0, codeExpiry - Date.now())
       if (remaining === 0) {
         setLinkCode(null)
         setQrDataUrl(null)
+        setCodeExpiry(0)
+      } else {
+        setTick(t => t + 1)
       }
-      setCodeExpiry(e => e)
     }, 1000)
     return () => clearInterval(interval)
-  }, [codeExpiry])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkCode])
 
   async function generateCode() {
     setGenerating(true)
     try {
       const response = await createTelegramLinkCode()
+      if (unmountedRef.current) return
       setLinkCode(response)
       setCodeExpiry(Date.now() + response.expires_in * 1000)
       const dataUrl = await QRCode.toDataURL(response.deep_link, { width: 240, margin: 2 })
+      if (unmountedRef.current) return
       setQrDataUrl(dataUrl)
     } catch (err) {
       console.error(err)
     } finally {
-      setGenerating(false)
+      if (!unmountedRef.current) setGenerating(false)
     }
   }
 
