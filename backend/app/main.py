@@ -147,6 +147,9 @@ async def lifespan(app: FastAPI):
     logger.info("Starten der Datenbank-Migrations...")
     run_migrations()
 
+    if not settings.secret_key:
+        logger.warning("SECRET_KEY is not set — JWTs will be signed with an empty key. Set SECRET_KEY in .env for production.")
+
     # Temp-Verzeichnis anlegen
     os.makedirs(settings.tmp_dir, exist_ok=True)
     os.makedirs(settings.images_dir, exist_ok=True)
