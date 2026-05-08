@@ -385,6 +385,20 @@ async def _restart_job(update: Update, user_id: str, job_id: str) -> None:
             db.close()
             return
 
+        # Check if URL already has an active entry that would violate the partial unique index
+        cursor.execute(
+            "SELECT id FROM import_queue WHERE source_url = %s AND status IN ('pending', 'processing', 'done') AND id != %s LIMIT 1",
+            (job["source_url"], job["id"])
+        )
+        conflict = cursor.fetchone()
+        if conflict:
+            db.close()
+            await update.message.reply_text(
+                f"⚠️ Kann nicht neu starten — URL bereits als aktiver Job vorhanden\n\nID: `{conflict[0]}`",
+                parse_mode="Markdown"
+            )
+            return
+
         cursor.execute(
             "UPDATE import_queue SET status = 'pending', error_msg = NULL, updated_at = now() WHERE id = %s",
             (job["id"],)
@@ -417,9 +431,18 @@ async def _restart_all_jobs(update: Update, user_id: str) -> None:
             database=settings.db_name,
         )
         cursor = db.cursor()
+        # Skip jobs whose URL already has an active (pending/processing/done) entry —
+        # the partial unique index on source_url would reject those.
         cursor.execute(
-            "UPDATE import_queue SET status = 'pending', error_msg = NULL, updated_at = now() "
-            "WHERE status IN ('needs_review', 'error')"
+            """
+            UPDATE import_queue
+            SET status = 'pending', error_msg = NULL, updated_at = now()
+            WHERE status IN ('needs_review', 'error')
+              AND source_url NOT IN (
+                  SELECT source_url FROM import_queue
+                  WHERE status IN ('pending', 'processing', 'done')
+              )
+            """
         )
         updated = cursor.rowcount
         db.commit()
