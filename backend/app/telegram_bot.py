@@ -104,7 +104,7 @@ def humanize_error(error: str) -> str:
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles /start command."""
     user_id = update.effective_user.id
-    
+
     # Access control
     if not is_allowed(user_id):
         await update.message.reply_text(
@@ -113,7 +113,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
         logger.warning(f"Unauthorized user {user_id} tried /start")
         return
-    
+
     welcome_msg = (
         "👋 Hallo! Ich bin der Miximixi Recipe Bot.\n\n"
         "🍳 *So funktioniert es:*\n"
@@ -127,6 +127,24 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "Los geht's! 🚀"
     )
     await update.message.reply_text(welcome_msg, parse_mode="Markdown")
+
+
+async def getchatid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles /getchatid command — returns the current chat ID."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+
+    # Access control
+    if not is_allowed(user_id):
+        await update.message.reply_text("❌ Du hast keinen Zugriff auf diesen Bot.")
+        logger.warning(f"Unauthorized user {user_id} tried /getchatid")
+        return
+
+    await update.message.reply_text(
+        f"🔍 *Deine Chat-ID:*\n\n`{chat_id}`\n\n"
+        f"Kopiere diese ID und setze sie als `TELEGRAM_NOTIFY_CHAT_ID` im .env"
+    )
+    logger.info(f"User {user_id} requested chat ID: {chat_id}")
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -722,6 +740,7 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     
     # Add handlers
     app.add_handler(CommandHandler("start", start_handler))
+    app.add_handler(CommandHandler("getchatid", getchatid_handler))
     app.add_handler(CommandHandler("sync_setup", sync_setup_handler))
     app.add_handler(CommandHandler("sync_status", sync_status_handler))
     app.add_handler(CommandHandler("sync_enable", sync_enable_handler))
