@@ -117,15 +117,20 @@ class Settings(BaseSettings):
         super().__init__(**data)
 
         # Try to fetch secrets from Vaultwarden if configured
+        logger.warning(f"DEBUG: vaultwarden_client_id={self.vaultwarden_client_id[:20] if self.vaultwarden_client_id else 'EMPTY'}")
+        logger.warning(f"DEBUG: vaultwarden_client_secret={'SET' if self.vaultwarden_client_secret else 'EMPTY'}")
+
         if self.vaultwarden_client_id and self.vaultwarden_client_secret:
-            logger.info(f"🔐 Vaultwarden configured. Attempting to fetch secrets...")
+            logger.warning(f"🔐 Vaultwarden configured. Attempting to fetch secrets...")
             try:
                 self._fetch_secrets_from_vaultwarden()
             except Exception as e:
                 logger.warning(f"⚠️ Vaultwarden fetch failed ({e}). Falling back to env variables.")
+                import traceback
+                logger.warning(f"Traceback: {traceback.format_exc()}")
                 # Secrets from .env will be used if not set by Vaultwarden
         else:
-            logger.info("⚠️ Vaultwarden not configured (VAULTWARDEN_CLIENT_ID or VAULTWARDEN_CLIENT_SECRET empty). Using env variables for secrets.")
+            logger.warning("⚠️ Vaultwarden not configured (VAULTWARDEN_CLIENT_ID or VAULTWARDEN_CLIENT_SECRET empty). Using env variables for secrets.")
 
     def _fetch_secrets_from_vaultwarden(self):
         """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden using OAuth2."""
