@@ -148,12 +148,14 @@ class Settings(BaseSettings):
                 )
 
                 if response.status_code == 200:
-                    secret_value = response.text.strip()
+                    # API returns JSON: {"name":"SECRET_KEY","value":"..."}
+                    data = response.json()
+                    secret_value = data.get("value", "").strip()
                     if secret_value:
                         secrets_map[secret_name.lower()] = secret_value
                         logger.warning(f"✅ Fetched {secret_name}")
                     else:
-                        logger.warning(f"⚠️ {secret_name} is empty")
+                        logger.warning(f"⚠️ {secret_name} value is empty")
                 elif response.status_code == 404:
                     logger.warning(f"⚠️ {secret_name} not found in Vaultwarden")
                 else:
