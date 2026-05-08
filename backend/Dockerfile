@@ -21,8 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install yt-dlp via pip (more reliable than GitHub download)
-# Pin to latest version (Instagram changes frequently, yt-dlp releases daily)
-RUN pip install --no-cache-dir yt-dlp==2026.3.17
+# Use >=2026.0 to get automatic patch/minor updates (yt-dlp releases daily for Instagram fixes)
+# Major version bumps need explicit Dockerfile change
+RUN pip install --no-cache-dir "yt-dlp>=2026.0"
 
 # Install Poetry
 RUN pip install --no-cache-dir poetry==1.8.3
