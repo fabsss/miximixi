@@ -33,7 +33,7 @@ services:
   # ── Vaultwarden API Server ────────────────────────────────────
   # Proxy for Vaultwarden API — fetches secrets and provides REST endpoints
   vaultwarden-api:
-    image: turbootzz/vaultwarden-api:latest
+    image: ghcr.io/turbootzz/vaultwarden-api:latest
     container_name: vaultwarden-api
     restart: unless-stopped
     environment:
