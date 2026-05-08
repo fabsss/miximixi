@@ -85,10 +85,9 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_username: str = "miximixi_bot"
 
-    # Vaultwarden Secrets Manager
-    vaultwarden_url: str = "http://vaultwarden:80/api"
-    vaultwarden_client_id: str = ""
-    vaultwarden_client_secret: str = ""
+    # Vaultwarden API Proxy (retrieves secrets at startup)
+    vaultwarden_api_url: str = "http://vaultwarden-api:8080"
+    vaultwarden_api_key: str = ""
 
     # Worker
     worker_max_concurrent: int = 3
@@ -116,148 +115,73 @@ class Settings(BaseSettings):
     def __init__(self, **data):
         super().__init__(**data)
 
-        # Try to fetch secrets from Vaultwarden if configured
-        logger.warning(f"DEBUG: vaultwarden_client_id={self.vaultwarden_client_id[:20] if self.vaultwarden_client_id else 'EMPTY'}")
-        logger.warning(f"DEBUG: vaultwarden_client_secret={'SET' if self.vaultwarden_client_secret else 'EMPTY'}")
-
-        if self.vaultwarden_client_id and self.vaultwarden_client_secret:
-            logger.warning(f"🔐 Vaultwarden configured. Attempting to fetch secrets...")
+        # Try to fetch secrets from Vaultwarden API if configured
+        if self.vaultwarden_api_key:
+            logger.warning(f"🔐 Vaultwarden API configured. Attempting to fetch secrets...")
             try:
-                self._fetch_secrets_from_vaultwarden()
+                self._fetch_secrets_from_vaultwarden_api()
             except Exception as e:
-                logger.warning(f"⚠️ Vaultwarden fetch failed ({e}). Falling back to env variables.")
+                logger.warning(f"⚠️ Vaultwarden API fetch failed ({e}). Falling back to env variables.")
                 import traceback
                 logger.warning(f"Traceback: {traceback.format_exc()}")
-                # Secrets from .env will be used if not set by Vaultwarden
         else:
-            logger.warning("⚠️ Vaultwarden not configured (VAULTWARDEN_CLIENT_ID or VAULTWARDEN_CLIENT_SECRET empty). Using env variables for secrets.")
+            logger.warning("⚠️ Vaultwarden API not configured (VAULTWARDEN_API_KEY empty). Using env variables for secrets.")
 
-    def _fetch_secrets_from_vaultwarden(self):
-        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden using OAuth2."""
+    def _fetch_secrets_from_vaultwarden_api(self):
+        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden API Server."""
         try:
-            # Normalize base URL
-            base_url = self.vaultwarden_url.rstrip('/')
-            if base_url.endswith('/api'):
-                base_url = base_url[:-4]
-
-            logger.info(f"🔐 Vaultwarden: url={base_url}, client_id={self.vaultwarden_client_id}")
-
-            # Use client_id directly as Personal API Token (it's a user.* token, not OAuth2)
-            logger.info("🔑 Using Personal API Token authentication")
-            logger.info(f"Token: {self.vaultwarden_client_id[:20]}...")
-
+            base_url = self.vaultwarden_api_url.rstrip('/')
             headers = {
-                "Authorization": f"Bearer {self.vaultwarden_client_id}",
-                "Content-Type": "application/json"
+                "Authorization": f"Bearer {self.vaultwarden_api_key}",
             }
-            logger.info(f"Request headers: Authorization=Bearer {self.vaultwarden_client_id[:20]}...")
 
-            # Step 1: Verify token is valid by getting current user profile
-            logger.info(f"🔐 Verifying token at {base_url}/api/accounts/profile...")
-            profile_response = httpx.get(
-                f"{base_url}/api/accounts/profile",
-                headers=headers,
-                timeout=10.0
-            )
-            logger.info(f"Response status: {profile_response.status_code}")
+            logger.warning(f"🔐 Fetching secrets from Vaultwarden API Server: {base_url}")
 
-            if profile_response.status_code != 200:
-                logger.error(f"❌ Token verification failed: {profile_response.status_code}")
-                logger.error(f"Response: {profile_response.text}")
-                profile_response.raise_for_status()
-
-            profile = profile_response.json()
-            logger.info(f"✅ Token valid for user: {profile.get('Name', 'unknown')}")
-
-            # Step 2: Get organization ID
-            logger.info("📦 Fetching organizations...")
-            orgs_response = httpx.get(
-                f"{base_url}/api/organizations",
-                headers=headers,
-                timeout=10.0
-            )
-
-            if orgs_response.status_code != 200:
-                logger.error(f"❌ /api/organizations returned {orgs_response.status_code}")
-                logger.error(f"Response body: {orgs_response.text}")
-                orgs_response.raise_for_status()
-
-            organizations = orgs_response.json()
-            if not organizations:
-                raise RuntimeError("No organizations found for this user")
-
-            org_id = organizations[0]["Id"]
-            logger.info(f"✅ Organization ID: {org_id[:12]}...")
-
-            # Step 3: Get items (ciphers) in organization
-            logger.info("🔍 Fetching items from Vaultwarden...")
-            items_response = httpx.get(
-                f"{base_url}/api/ciphers?organizationId={org_id}",
-                headers=headers,
-                timeout=10.0
-            )
-
-            if items_response.status_code != 200:
-                logger.error(f"❌ /api/ciphers returned {items_response.status_code}")
-                logger.error(f"Response body: {items_response.text}")
-                items_response.raise_for_status()
-
-            ciphers_data = items_response.json()
-            items = ciphers_data.get("Data", []) if isinstance(ciphers_data, dict) else ciphers_data
-            logger.info(f"✅ Found {len(items)} items")
-
-            # Step 4: Extract secrets from ciphers
+            # Fetch each secret individually from the API
             secrets_map = {}
-            for item in items:
-                # Vaultwarden cipher structure: Name, Notes, Fields
-                item_name = item.get("Name", "").strip().upper()
+            for secret_name in ("SECRET_KEY", "ADMIN_KEY", "ENCRYPTION_KEY"):
+                logger.warning(f"🔍 Fetching {secret_name}...")
+                response = httpx.get(
+                    f"{base_url}/secret/{secret_name}",
+                    headers=headers,
+                    timeout=10.0
+                )
 
-                if item_name in ("SECRET_KEY", "ADMIN_KEY", "ENCRYPTION_KEY"):
-                    # Try to get value from Notes field first
-                    secret_value = item.get("Notes", "").strip()
-
-                    if not secret_value:
-                        # Try to extract from Fields array
-                        fields = item.get("Fields", [])
-                        if fields and isinstance(fields, list) and len(fields) > 0:
-                            secret_value = fields[0].get("Data", "").strip()
-
+                if response.status_code == 200:
+                    secret_value = response.text.strip()
                     if secret_value:
-                        secrets_map[item_name.lower()] = secret_value
-                        logger.info(f"✅ Found {item_name}")
+                        secrets_map[secret_name.lower()] = secret_value
+                        logger.warning(f"✅ Fetched {secret_name}")
                     else:
-                        logger.warning(f"⚠️ Item '{item_name}' found but value is empty")
+                        logger.warning(f"⚠️ {secret_name} is empty")
+                elif response.status_code == 404:
+                    logger.warning(f"⚠️ {secret_name} not found in Vaultwarden")
+                else:
+                    logger.error(f"❌ Failed to fetch {secret_name}: {response.status_code}")
+                    response.raise_for_status()
 
-            # Step 5: Apply secrets to settings
+            # Apply secrets to settings
             if "secret_key" in secrets_map:
                 self.secret_key = secrets_map["secret_key"]
-                logger.info("✅ SECRET_KEY loaded from Vaultwarden")
-            else:
-                logger.warning("⚠️ SECRET_KEY not found in Vaultwarden")
-
+                logger.warning("✅ SECRET_KEY loaded")
             if "admin_key" in secrets_map:
                 self.admin_key = secrets_map["admin_key"]
-                logger.info("✅ ADMIN_KEY loaded from Vaultwarden")
-            else:
-                logger.warning("⚠️ ADMIN_KEY not found in Vaultwarden")
-
+                logger.warning("✅ ADMIN_KEY loaded")
             if "encryption_key" in secrets_map:
                 self.encryption_key = secrets_map["encryption_key"]
-                logger.info("✅ ENCRYPTION_KEY loaded from Vaultwarden")
-            else:
-                logger.warning("⚠️ ENCRYPTION_KEY not found in Vaultwarden")
+                logger.warning("✅ ENCRYPTION_KEY loaded")
 
-            logger.info("✅ All secrets loaded from Vaultwarden successfully")
+            if secrets_map:
+                logger.warning(f"✅ Loaded {len(secrets_map)}/3 secrets from Vaultwarden API")
+            else:
+                logger.warning("⚠️ No secrets found in Vaultwarden API")
 
         except httpx.HTTPError as e:
             logger.error(f"❌ Vaultwarden API error: {e}")
-            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden: {e}") from e
-        except KeyError as e:
-            logger.error(f"❌ Unexpected Vaultwarden response format: {e}")
-            raise RuntimeError(f"Cannot parse Vaultwarden response: {e}") from e
+            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden API: {e}") from e
         except Exception as e:
             logger.error(f"❌ Error fetching secrets: {e}")
-            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden: {e}") from e
+            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden API: {e}") from e
 
 
 settings = Settings()
