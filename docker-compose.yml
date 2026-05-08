@@ -56,9 +56,9 @@ services:
       - TELEGRAM_ALLOWED_USER_IDS=${TELEGRAM_ALLOWED_USER_IDS}
       - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-miximixi_bot}
       - FRONTEND_URL=${FRONTEND_URL}
-      - SECRET_KEY=${SECRET_KEY}
-      - ADMIN_KEY=${ADMIN_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - VAULTWARDEN_URL=${VAULTWARDEN_URL:-http://vaultwarden:80/api}
+      - VAULTWARDEN_CLIENT_ID=${VAULTWARDEN_CLIENT_ID}
+      - VAULTWARDEN_CLIENT_SECRET=${VAULTWARDEN_CLIENT_SECRET}
     volumes:
       - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
       - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images

@@ -2,6 +2,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 import logging
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -77,12 +78,17 @@ class Settings(BaseSettings):
     frontend_url: str = "https://miximixi.example.com"
 
     # Auth
-    secret_key: str = ""          # JWT signing secret — must be set in production
-    admin_key: str = ""           # X-Admin-Key for POST /auth/register
-    encryption_key: str = ""      # Fernet key for Instagram passwords (base64)
+    secret_key: str = ""          # JWT signing secret — fetched from Vaultwarden
+    admin_key: str = ""           # X-Admin-Key for POST /auth/register — fetched from Vaultwarden
+    encryption_key: str = ""      # Fernet key for Instagram passwords — fetched from Vaultwarden
 
     # Telegram
     telegram_bot_username: str = "miximixi_bot"
+
+    # Vaultwarden Secrets Manager
+    vaultwarden_url: str = "http://vaultwarden:80/api"
+    vaultwarden_client_id: str = ""
+    vaultwarden_client_secret: str = ""
 
     # Worker
     worker_max_concurrent: int = 3
@@ -106,6 +112,109 @@ class Settings(BaseSettings):
 
     # Temp storage for media downloads
     tmp_dir: str = "/tmp/miximixi"
+
+    def __init__(self, **data):
+        super().__init__(**data)
+
+        # Fetch secrets from Vaultwarden if configured
+        if self.vaultwarden_client_id and self.vaultwarden_client_secret:
+            self._fetch_secrets_from_vaultwarden()
+        else:
+            logger.warning("⚠️ Vaultwarden not configured. SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY must be set via environment variables.")
+
+    def _fetch_secrets_from_vaultwarden(self):
+        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden."""
+        try:
+            # Step 1: Get access token using client credentials
+            logger.info("🔑 Fetching access token from Vaultwarden...")
+            auth_response = httpx.post(
+                f"{self.vaultwarden_url}/identity/connect/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": self.vaultwarden_client_id,
+                    "client_secret": self.vaultwarden_client_secret,
+                    "scope": "api",
+                },
+                timeout=10.0
+            )
+            auth_response.raise_for_status()
+            access_token = auth_response.json()["access_token"]
+            logger.info("✅ Access token obtained")
+
+            # Step 2: Get organization ID
+            headers = {"Authorization": f"Bearer {access_token}"}
+            logger.info("📦 Fetching organization...")
+            org_response = httpx.get(
+                f"{self.vaultwarden_url}/organizations/self",
+                headers=headers,
+                timeout=10.0
+            )
+            org_response.raise_for_status()
+            org_id = org_response.json()["id"]
+            logger.info(f"✅ Organization ID: {org_id[:12]}...")
+
+            # Step 3: Get items in organization
+            logger.info("🔍 Fetching items from Vaultwarden...")
+            items_response = httpx.get(
+                f"{self.vaultwarden_url}/organizations/{org_id}/items",
+                headers=headers,
+                timeout=10.0
+            )
+            items_response.raise_for_status()
+            items = items_response.json()
+            logger.info(f"✅ Found {len(items)} items")
+
+            # Step 4: Extract secrets from items
+            secrets_map = {}
+            for item in items:
+                item_name = item.get("name", "").strip().upper()
+
+                if item_name in ("SECRET_KEY", "ADMIN_KEY", "ENCRYPTION_KEY"):
+                    # Try to get value from notes field first, then from custom fields
+                    secret_value = item.get("notes", "").strip()
+
+                    if not secret_value:
+                        # Try to extract from fields array
+                        fields = item.get("fields", [])
+                        if fields and isinstance(fields, list):
+                            secret_value = fields[0].get("data", "").strip()
+
+                    if secret_value:
+                        secrets_map[item_name.lower()] = secret_value
+                        logger.info(f"✅ Found {item_name}")
+                    else:
+                        logger.warning(f"⚠️ Item '{item_name}' found but value is empty")
+
+            # Step 5: Apply secrets to settings
+            if "secret_key" in secrets_map:
+                self.secret_key = secrets_map["secret_key"]
+                logger.info("✅ SECRET_KEY loaded from Vaultwarden")
+            else:
+                logger.warning("⚠️ SECRET_KEY not found in Vaultwarden")
+
+            if "admin_key" in secrets_map:
+                self.admin_key = secrets_map["admin_key"]
+                logger.info("✅ ADMIN_KEY loaded from Vaultwarden")
+            else:
+                logger.warning("⚠️ ADMIN_KEY not found in Vaultwarden")
+
+            if "encryption_key" in secrets_map:
+                self.encryption_key = secrets_map["encryption_key"]
+                logger.info("✅ ENCRYPTION_KEY loaded from Vaultwarden")
+            else:
+                logger.warning("⚠️ ENCRYPTION_KEY not found in Vaultwarden")
+
+            logger.info("✅ All secrets loaded from Vaultwarden successfully")
+
+        except httpx.HTTPError as e:
+            logger.error(f"❌ Vaultwarden API error: {e}")
+            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden: {e}") from e
+        except KeyError as e:
+            logger.error(f"❌ Unexpected Vaultwarden response format: {e}")
+            raise RuntimeError(f"Cannot parse Vaultwarden response: {e}") from e
+        except Exception as e:
+            logger.error(f"❌ Error fetching secrets: {e}")
+            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden: {e}") from e
 
 
 settings = Settings()
