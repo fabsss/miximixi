@@ -59,6 +59,10 @@ services:
       - VAULTWARDEN_URL=${VAULTWARDEN_URL:-http://vaultwarden:80}
       - VAULTWARDEN_CLIENT_ID=${VAULTWARDEN_CLIENT_ID}
       - VAULTWARDEN_CLIENT_SECRET=${VAULTWARDEN_CLIENT_SECRET}
+      # Fallback secrets if Vaultwarden fails (should be in .env for production)
+      - SECRET_KEY=${SECRET_KEY}
+      - ADMIN_KEY=${ADMIN_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     volumes:
       - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
       - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images
