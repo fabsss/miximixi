@@ -421,7 +421,7 @@ async def unlink_telegram(telegram_user_id: int, user_id: str = Depends(get_curr
         db.close()
 
 
-@app.get("/ingredient-densities")
+@app.get("/ingredient-densities", dependencies=[Depends(get_current_user)])
 async def get_ingredient_densities():
     """Liefert alle Zutatendichte-Typen mit Keywords für Cup-zu-Gramm-Konvertierung."""
     db = get_db()
@@ -446,13 +446,13 @@ async def get_ingredient_densities():
 
 
 # ── Configuration Endpoints ──────────────────────────────────────────
-@app.get("/categories")
+@app.get("/categories", dependencies=[Depends(get_current_user)])
 async def get_categories():
     """Gibt alle erlaubten Rezept-Kategorien zurück."""
     return {"categories": CATEGORIES}
 
 
-@app.get("/categories/counts", response_model=CategoryCountsResponse)
+@app.get("/categories/counts", response_model=CategoryCountsResponse, dependencies=[Depends(get_current_user)])
 async def get_category_counts():
     """Returns total recipe count per category and overall total."""
     def _fetch_counts():
@@ -482,7 +482,7 @@ async def get_category_counts():
         raise HTTPException(status_code=500, detail="Failed to fetch category counts")
 
 
-@app.get("/tags")
+@app.get("/tags", dependencies=[Depends(get_current_user)])
 async def get_tags(category: str = ""):
     """Returns all unique tags across recipes, case-insensitively deduplicated.
 
@@ -524,7 +524,7 @@ async def get_tags(category: str = ""):
         raise HTTPException(status_code=500, detail="Failed to fetch tags")
 
 
-@app.get("/tags/counts")
+@app.get("/tags/counts", dependencies=[Depends(get_current_user)])
 async def get_tags_with_counts():
     """Returns all unique tags with recipe counts, sorted by count descending."""
     def _fetch_tags_counts():
@@ -557,7 +557,7 @@ class TagMergeRequest(BaseModel):
     target_tag: str
 
 
-@app.post("/tags/merge")
+@app.post("/tags/merge", dependencies=[Depends(get_current_user)])
 async def merge_tags(req: TagMergeRequest):
     """Merge multiple source tags into a single target tag (case-insensitive).
 
@@ -601,7 +601,7 @@ async def merge_tags(req: TagMergeRequest):
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────
-@app.post("/import", response_model=ImportResponse)
+@app.post("/import", response_model=ImportResponse, dependencies=[Depends(get_current_user)])
 async def create_import(req: ImportRequest):
     """URL in die Import-Queue legen."""
     db = get_db()
@@ -663,7 +663,7 @@ async def create_import(req: ImportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/import/{queue_id}")
+@app.get("/import/{queue_id}", dependencies=[Depends(get_current_user)])
 async def get_import_status(queue_id: str):
     """Status eines Import-Jobs abfragen."""
     db = get_db()
@@ -694,7 +694,7 @@ async def get_import_status(queue_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/import")
+@app.get("/import", dependencies=[Depends(get_current_user)])
 async def list_imports(limit: int = 20):
     """Letzte Import-Jobs auflisten."""
     db = get_db()
@@ -720,7 +720,7 @@ async def list_imports(limit: int = 20):
 _instagram_challenge_client = None
 
 
-@app.post("/instagram/login")
+@app.post("/instagram/login", dependencies=[Depends(get_current_user)])
 async def instagram_login():
     """Instagram-Session initialisieren."""
     global _instagram_challenge_client
@@ -768,7 +768,7 @@ async def instagram_login():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/instagram/challenge")
+@app.post("/instagram/challenge", dependencies=[Depends(get_current_user)])
 async def instagram_challenge(body: dict):
     """Verification Code einreichen."""
     global _instagram_challenge_client
@@ -793,7 +793,7 @@ async def instagram_challenge(body: dict):
         raise HTTPException(status_code=400, detail=f"Challenge fehlgeschlagen: {e}")
 
 
-@app.post("/instagram/sync")
+@app.post("/instagram/sync", dependencies=[Depends(get_current_user)])
 async def instagram_sync():
     """Instagram Collection-Sync."""
     from app.instagram_service import get_collection_media_urls
@@ -891,7 +891,7 @@ async def get_og_recipe(recipe_slug: str):
 
 
 # ── Recipes Endpoints ───────────────────────────────────────────────
-@app.get("/recipes")
+@app.get("/recipes", dependencies=[Depends(get_current_user)])
 async def list_recipes(
     limit: int = 20,
     offset: int = 0,
@@ -968,7 +968,7 @@ async def list_recipes(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/recipes/{recipe_slug}")
+@app.get("/recipes/{recipe_slug}", dependencies=[Depends(get_current_user)])
 async def get_recipe(recipe_slug: str):
     """Rezept mit Zutaten und Schritten abrufen. Slug-Format: 'rezept-name-{uuid}'."""
     db = get_db()
@@ -1018,7 +1018,7 @@ async def get_recipe(recipe_slug: str):
 
 
 # ── Recipe Update Endpoint ──────────────────────────────────────────
-@app.patch("/recipes/{recipe_id}")
+@app.patch("/recipes/{recipe_id}", dependencies=[Depends(get_current_user)])
 async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
     """Update recipe metadata (title, servings, notes, rating, category, tags, prep_time, cook_time)."""
     db = get_db()
@@ -1137,7 +1137,7 @@ async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
 
 
 # ── Recipe Translation Endpoint ─────────────────────────────────────
-@app.post("/recipes/{recipe_id}/translate", response_model=TranslationResponse)
+@app.post("/recipes/{recipe_id}/translate", response_model=TranslationResponse, dependencies=[Depends(get_current_user)])
 async def translate_recipe(recipe_id: str, lang: str):
     """
     Fetch or generate translations for a recipe in target language.
@@ -1257,7 +1257,7 @@ async def translate_recipe(recipe_id: str, lang: str):
 
 
 # ── Delete Recipe ───────────────────────────────────────────────────
-@app.delete("/recipes/{recipe_id}")
+@app.delete("/recipes/{recipe_id}", dependencies=[Depends(get_current_user)])
 async def delete_recipe(recipe_id: str):
     """Delete a recipe (ingredients and steps cascade automatically)."""
     logger.info(f"Attempting to delete recipe: {recipe_id}")
@@ -1307,7 +1307,7 @@ async def delete_recipe(recipe_id: str):
 
 
 # ── Image Upload ─────────────────────────────────────────────────────
-@app.post("/recipes/{recipe_id}/image")
+@app.post("/recipes/{recipe_id}/image", dependencies=[Depends(get_current_user)])
 async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
     """Upload or replace the cover image for a recipe."""
     db = get_db()
@@ -1331,7 +1331,7 @@ async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/recipes/{recipe_id}/steps/{step_id}/image")
+@app.post("/recipes/{recipe_id}/steps/{step_id}/image", dependencies=[Depends(get_current_user)])
 async def upload_step_image(recipe_id: str, step_id: str, file: UploadFile = File(...)):
     """Upload or replace a step image."""
     db = get_db()
@@ -1371,7 +1371,7 @@ async def upload_step_image(recipe_id: str, step_id: str, file: UploadFile = Fil
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/recipes/{recipe_id}/steps/{step_id}/image")
+@app.delete("/recipes/{recipe_id}/steps/{step_id}/image", dependencies=[Depends(get_current_user)])
 async def delete_step_image(recipe_id: str, step_id: str):
     """Delete a step image."""
     db = get_db()
@@ -1411,7 +1411,7 @@ async def delete_step_image(recipe_id: str, step_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/recipes/{recipe_id}/debug-step-images")
+@app.get("/recipes/{recipe_id}/debug-step-images", dependencies=[Depends(get_current_user)])
 async def debug_recipe_step_images(recipe_id: str):
     """
     Debug endpoint: Show what step image files exist on disk and in database.
@@ -1471,7 +1471,7 @@ async def debug_recipe_step_images(recipe_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/recipes/{recipe_id}/sync-step-images")
+@app.post("/recipes/{recipe_id}/sync-step-images", dependencies=[Depends(get_current_user)])
 async def sync_recipe_step_images(recipe_id: str):
     """
     Sync existing step image files from disk to database for a specific recipe.
