@@ -458,10 +458,17 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         failed_job = cursor.fetchone()
         if failed_job:
-            await update.message.reply_text(
-                "⚠️ Diesen Link habe ich schon versucht zu verarbeiten, aber es ist fehlgeschlagen.\n\n"
-                "Bitte probier es später erneut oder kontaktiere den Admin, wenn das Problem anhält."
+            error_msg = failed_job[1] or "Unbekannter Fehler"
+
+            # Humanize error message for users
+            humanized = humanize_error(error_msg)
+
+            msg = (
+                "⚠️ *Diesen Link habe ich schon versucht zu verarbeiten*\n\n"
+                f"{humanized}\n\n"
+                "Bitte versuche einen anderen Link oder kontaktiere den Admin."
             )
+            await update.message.reply_text(msg, parse_mode="Markdown")
             db.close()
             return
         
