@@ -139,18 +139,22 @@ class Settings(BaseSettings):
 
             # Use client_id directly as Personal API Token (it's a user.* token, not OAuth2)
             logger.info("🔑 Using Personal API Token authentication")
+            logger.info(f"Token: {self.vaultwarden_client_id[:20]}...")
+
             headers = {
                 "Authorization": f"Bearer {self.vaultwarden_client_id}",
                 "Content-Type": "application/json"
             }
+            logger.info(f"Request headers: Authorization=Bearer {self.vaultwarden_client_id[:20]}...")
 
             # Step 1: Verify token is valid by getting current user profile
-            logger.info("🔐 Verifying token...")
+            logger.info(f"🔐 Verifying token at {base_url}/api/accounts/profile...")
             profile_response = httpx.get(
                 f"{base_url}/api/accounts/profile",
                 headers=headers,
                 timeout=10.0
             )
+            logger.info(f"Response status: {profile_response.status_code}")
 
             if profile_response.status_code != 200:
                 logger.error(f"❌ Token verification failed: {profile_response.status_code}")
