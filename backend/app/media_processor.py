@@ -59,6 +59,18 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     - Andere Fehler → Generischer Download-Fehler
     """
     import asyncio
+    from urllib.parse import urlparse, urlunparse, parse_qs
+
+    # Clean Instagram URLs: remove ?igsh=... tracking parameter that breaks yt-dlp
+    parsed = urlparse(url)
+    if 'instagram.com' in parsed.netloc:
+        params = parse_qs(parsed.query)
+        # Keep all params except 'igsh' (Instagram tracking)
+        params_filtered = {k: v for k, v in params.items() if k != 'igsh'}
+        new_query = '&'.join(f"{k}={v[0]}" for k, v in params_filtered.items())
+        url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
+        if url != url:  # Log if we cleaned something
+            logger.info(f"Instagram URL cleaned: removed tracking parameters")
 
     os.makedirs(output_dir, exist_ok=True)
     output_template = os.path.join(output_dir, "%(id)s.%(ext)s")
