@@ -204,8 +204,9 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             msg_lines.append(f"❌ *{len(failed_jobs)} Failed Jobs (needs_review):*\n")
             for job in failed_jobs[:3]:  # Show first 3
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
-                error_short = job["error_msg"][:80] + "…" if len(job["error_msg"]) > 80 else job["error_msg"]
-                msg_lines.append(f"• `{job['id'][:8]}…`")
+                error_short = job["error_msg"][:60] + "…" if len(job["error_msg"]) > 60 else job["error_msg"]
+                job_id = str(job['id'])[:12]  # First 12 chars of UUID
+                msg_lines.append(f"• `{job_id}`")
                 msg_lines.append(f"  🔗 {url_short}")
                 msg_lines.append(f"  ❌ {error_short}\n")
             if len(failed_jobs) > 3:
@@ -237,19 +238,35 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /job <id> command — shows details of a specific job."""
+    """Handles /job <id> command — shows details of a specific job, or /job delete <id>."""
     user_id = str(update.effective_user.id)
 
     if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
         await update.message.reply_text("❌ Nur Admin-Benutzer können /job nutzen")
         return
 
-    if not context.args:
-        await update.message.reply_text("❌ Nutze: `/job <job-id>`", parse_mode="Markdown")
+    if not context.args or len(context.args) < 1:
+        await update.message.reply_text(
+            "❌ Nutze:\n"
+            "`/job <id>` - Zeige Details\n"
+            "`/job delete <id>` - Lösche Job",
+            parse_mode="Markdown"
+        )
         return
 
-    job_id = context.args[0]
+    # Check for delete subcommand
+    if context.args[0].lower() == "delete" and len(context.args) >= 2:
+        job_id = context.args[1].strip()
+        await _delete_job(update, user_id, job_id)
+        return
 
+    # Otherwise: show job details
+    job_id = context.args[0].strip()
+    await _show_job_details(update, user_id, job_id)
+
+
+async def _show_job_details(update: Update, user_id: str, job_id: str) -> None:
+    """Shows details of a specific job by ID or partial ID."""
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
@@ -263,12 +280,14 @@ async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         cursor = db.cursor(cursor_factory=RealDictCursor)
 
+        # Try exact UUID match first, then prefix match by casting to text
         cursor.execute(
             """
             SELECT id, status, source_url, source_type, error_msg,
                    created_at, updated_at, recipe_id
             FROM import_queue
-            WHERE id LIKE %s
+            WHERE id::text LIKE %s
+            ORDER BY created_at DESC
             LIMIT 1
             """,
             (f"{job_id}%",)
@@ -290,17 +309,65 @@ async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         msg += f"Updated: {job['updated_at']}\n"
 
         if job['error_msg']:
-            msg += f"\n❌ *Error:*\n`{job['error_msg']}`\n"
+            msg += f"\n❌ *Error:*\n```\n{job['error_msg']}\n```\n"
         if job['recipe_id']:
             msg += f"\n✅ Recipe ID: `{job['recipe_id']}`\n"
+
+        msg += f"\n💡 Lösche mit: `/job delete {str(job['id'])[:12]}`"
 
         await update.message.reply_text(msg, parse_mode="Markdown")
         db.close()
         logger.info(f"Admin {user_id} requested job details: {job_id}")
 
     except Exception as e:
-        logger.exception(f"Error in /job command: {e}")
+        logger.exception(f"Error in /job details command: {e}")
         await update.message.reply_text(f"❌ Fehler: {e}")
+
+
+async def _delete_job(update: Update, user_id: str, job_id: str) -> None:
+    """Deletes a job from the queue."""
+    try:
+        import psycopg2
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+
+        # Find the job first
+        cursor.execute(
+            "SELECT id, source_url FROM import_queue WHERE id::text LIKE %s LIMIT 1",
+            (f"{job_id}%",)
+        )
+        job = cursor.fetchone()
+
+        if not job:
+            await update.message.reply_text("❌ Job nicht gefunden")
+            db.close()
+            return
+
+        full_job_id = job[0]
+
+        # Delete the job
+        cursor.execute("DELETE FROM import_queue WHERE id = %s", (full_job_id,))
+        db.commit()
+        db.close()
+
+        msg = f"✅ Job gelöscht:\n\n"
+        msg += f"ID: `{full_job_id}`\n"
+        msg += f"URL: {job[1]}\n\n"
+        msg += f"Der Job wurde aus der Queue entfernt."
+
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        logger.info(f"Admin {user_id} deleted job: {full_job_id}")
+
+    except Exception as e:
+        logger.exception(f"Error deleting job: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Löschen: {e}")
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
