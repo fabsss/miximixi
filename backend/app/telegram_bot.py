@@ -431,13 +431,21 @@ async def _restart_all_jobs(update: Update, user_id: str) -> None:
             database=settings.db_name,
         )
         cursor = db.cursor()
-        # Skip jobs whose URL already has an active (pending/processing/done) entry —
-        # the partial unique index on source_url would reject those.
+        # Use a CTE to pick only the single newest failed job per URL,
+        # then exclude URLs that already have an active entry.
+        # This avoids constraint violations when multiple failed jobs share
+        # the same URL (both would otherwise pass the NOT IN check simultaneously).
         cursor.execute(
             """
+            WITH candidates AS (
+                SELECT DISTINCT ON (source_url) id
+                FROM import_queue
+                WHERE status IN ('needs_review', 'error')
+                ORDER BY source_url, updated_at DESC
+            )
             UPDATE import_queue
             SET status = 'pending', error_msg = NULL, updated_at = now()
-            WHERE status IN ('needs_review', 'error')
+            WHERE id IN (SELECT id FROM candidates)
               AND source_url NOT IN (
                   SELECT source_url FROM import_queue
                   WHERE status IN ('pending', 'processing', 'done')
