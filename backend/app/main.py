@@ -601,7 +601,7 @@ async def merge_tags(req: TagMergeRequest):
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────
-@app.post("/import", response_model=ImportResponse)
+@app.post("/import", response_model=ImportResponse, dependencies=[Depends(require_token)])
 async def create_import(req: ImportRequest):
     """URL in die Import-Queue legen."""
     db = get_db()
@@ -891,7 +891,7 @@ async def get_og_recipe(recipe_slug: str):
 
 
 # ── Recipes Endpoints ───────────────────────────────────────────────
-@app.get("/recipes")
+@app.get("/recipes", dependencies=[Depends(require_token)])
 async def list_recipes(
     limit: int = 20,
     offset: int = 0,
@@ -968,7 +968,7 @@ async def list_recipes(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/recipes/{recipe_slug}")
+@app.get("/recipes/{recipe_slug}", dependencies=[Depends(require_token)])
 async def get_recipe(recipe_slug: str):
     """Rezept mit Zutaten und Schritten abrufen. Slug-Format: 'rezept-name-{uuid}'."""
     db = get_db()
