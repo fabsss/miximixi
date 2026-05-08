@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 
 @pytest.fixture
-def mock_client_fixture(client, monkeypatch):
+def mock_client_fixture(auth_client, monkeypatch):
     """Fixture-based mocking using monkeypatch, compatible with conftest client."""
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
@@ -21,17 +21,17 @@ def mock_client_fixture(client, monkeypatch):
         return mock_conn
 
     monkeypatch.setattr("app.main.get_db", mock_get_db)
-    return client
+    return auth_client
 
 
 @pytest.fixture
-def mock_client_with_error_fixture(client, monkeypatch):
+def mock_client_with_error_fixture(auth_client, monkeypatch):
     """Fixture with database connection that fails on first call."""
     def mock_get_db_error():
         raise Exception("DB connection failed")
 
     monkeypatch.setattr("app.main.get_db", mock_get_db_error)
-    return client
+    return auth_client
 
 
 # Keep old fixture names for backward compatibility with test methods

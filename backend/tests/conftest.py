@@ -28,6 +28,7 @@ os.environ["TMP_DIR"] = _tmp_dir
 # contains the real bot token, and TestClient runs the full lifespan.
 os.environ["TELEGRAM_BOT_TOKEN"] = ""
 os.environ["INSTAGRAM_SYNC_ENABLED"] = "false"
+os.environ["SECRET_KEY"] = "test-secret-key-for-ci"
 
 # Force reload of app modules to pick up environment variables
 if "app.config" in sys.modules:
@@ -57,6 +58,17 @@ def client(app):
     """Create TestClient with proper directory setup"""
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def auth_client(client):
+    """TestClient pre-configured with a valid JWT for protected endpoints."""
+    from app.auth import create_access_token
+    token = create_access_token("00000000-0000-0000-0000-000000000001")
+    client.headers = {**client.headers, "Authorization": f"Bearer {token}"}
+    yield client
+    # Remove auth header so other session-scoped tests are unaffected
+    client.headers = {k: v for k, v in client.headers.items() if k != "Authorization"}
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 
 @pytest.fixture
-def mock_density_client(client, monkeypatch):
+def mock_density_client(auth_client, monkeypatch):
     """Mock database client for ingredient densities tests."""
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
@@ -13,7 +13,7 @@ def mock_density_client(client, monkeypatch):
         return mock_conn
 
     monkeypatch.setattr("app.main.get_db", mock_get_db)
-    return client, mock_cursor
+    return auth_client, mock_cursor
 
 
 class TestIngredientDensitiesEndpoint:

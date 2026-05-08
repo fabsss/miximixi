@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import {
   getMe,
@@ -24,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = getStoredToken()
     if (!token) {
-      setIsLoading(false)
+      setIsLoading(false) // eslint-disable-line react-hooks/set-state-in-effect
       return
     }
     getMe()
