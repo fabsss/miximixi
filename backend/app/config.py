@@ -125,10 +125,15 @@ class Settings(BaseSettings):
     def _fetch_secrets_from_vaultwarden(self):
         """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden."""
         try:
+            # Normalize base URL (remove trailing /api if present)
+            base_url = self.vaultwarden_url.rstrip('/')
+            if base_url.endswith('/api'):
+                base_url = base_url[:-4]
+
             # Step 1: Get access token using client credentials
             logger.info("🔑 Fetching access token from Vaultwarden...")
             auth_response = httpx.post(
-                f"{self.vaultwarden_url}/identity/connect/token",
+                f"{base_url}/identity/connect/token",
                 data={
                     "grant_type": "client_credentials",
                     "client_id": self.vaultwarden_client_id,
@@ -145,7 +150,7 @@ class Settings(BaseSettings):
             headers = {"Authorization": f"Bearer {access_token}"}
             logger.info("📦 Fetching organization...")
             org_response = httpx.get(
-                f"{self.vaultwarden_url}/organizations/self",
+                f"{base_url}/api/organizations/self",
                 headers=headers,
                 timeout=10.0
             )
@@ -156,7 +161,7 @@ class Settings(BaseSettings):
             # Step 3: Get items in organization
             logger.info("🔍 Fetching items from Vaultwarden...")
             items_response = httpx.get(
-                f"{self.vaultwarden_url}/organizations/{org_id}/items",
+                f"{base_url}/api/organizations/{org_id}/items",
                 headers=headers,
                 timeout=10.0
             )
