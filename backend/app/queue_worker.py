@@ -498,6 +498,8 @@ def _reset_stale_jobs(timeout_seconds: int = 3600) -> int:
     Resets jobs stuck in 'processing' status back to 'pending' if they've been
     processing for longer than timeout_seconds (default 1 hour).
 
+    Handles both NULL and old timestamps.
+
     Returns the number of jobs reset.
     """
     db = get_db_connection()
@@ -505,12 +507,14 @@ def _reset_stale_jobs(timeout_seconds: int = 3600) -> int:
 
     try:
         error_msg = f"Timeout: Job stuck in processing for {timeout_seconds}s, retrying"
+        interval_str = f"{timeout_seconds} seconds"
+
         cursor.execute(
             f"""
             UPDATE import_queue
-            SET status = %s, error_msg = %s
+            SET status = %s, error_msg = %s, updated_at = now()
             WHERE status = %s
-            AND updated_at < now() - interval '{timeout_seconds} seconds'
+            AND (updated_at IS NULL OR updated_at < now() - interval '{interval_str}')
             """,
             ("pending", error_msg, "processing"),
         )

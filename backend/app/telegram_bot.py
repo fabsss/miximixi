@@ -197,15 +197,30 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 db.close()
                 return
 
-        # Check if already in queue
+        # Check if already processing (pending or processing status)
         cursor.execute(
-            "SELECT id FROM import_queue WHERE source_url = %s AND status != %s LIMIT 1",
-            (url, "done")
+            "SELECT id, status FROM import_queue WHERE source_url = %s AND status IN (%s, %s) LIMIT 1",
+            (url, "pending", "processing")
         )
-        if cursor.fetchone():
+        job_in_progress = cursor.fetchone()
+        if job_in_progress:
             await update.message.reply_text(
                 "⏳ Dieser Link wird gerade schon verarbeitet.\n"
                 "Du erhältst bald eine Bestätigung!"
+            )
+            db.close()
+            return
+
+        # Check if job failed before (needs_review status)
+        cursor.execute(
+            "SELECT id, error_msg FROM import_queue WHERE source_url = %s AND status = %s LIMIT 1",
+            (url, "needs_review")
+        )
+        failed_job = cursor.fetchone()
+        if failed_job:
+            await update.message.reply_text(
+                "⚠️ Diesen Link habe ich schon versucht zu verarbeiten, aber es ist fehlgeschlagen.\n\n"
+                "Bitte probier es später erneut oder kontaktiere den Admin, wenn das Problem anhält."
             )
             db.close()
             return
