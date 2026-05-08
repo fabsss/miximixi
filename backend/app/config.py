@@ -130,7 +130,9 @@ class Settings(BaseSettings):
     def _fetch_secrets_from_vaultwarden(self):
         """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden.
 
-        Uses direct API authentication with client_id + client_secret (no OAuth2 token exchange).
+        Supports two auth methods:
+        1. Personal API Token (client_id is the token, client_secret is ignored)
+        2. Basic Auth (client_id:client_secret encoded as base64)
         """
         try:
             # Normalize base URL
@@ -140,18 +142,27 @@ class Settings(BaseSettings):
 
             logger.info(f"🔐 Vaultwarden: url={base_url}, client_id={self.vaultwarden_client_id}")
 
-            # Direct API auth headers (Vaultwarden uses client_id:client_secret in Authorization header)
-            import base64
-            credentials = base64.b64encode(
-                f"{self.vaultwarden_client_id}:{self.vaultwarden_client_secret}".encode()
-            ).decode()
+            # Determine auth method based on client_id format
+            # If client_id looks like a Personal API Token (contains "user." or "org."), use Bearer token
+            # Otherwise, use Basic Auth with client_id:client_secret
+            if self.vaultwarden_client_id.startswith(("user.", "org.")):
+                logger.info("🔑 Using Personal API Token authentication")
+                headers = {
+                    "Authorization": f"Bearer {self.vaultwarden_client_id}",
+                    "Content-Type": "application/json"
+                }
+            else:
+                logger.info("🔑 Using Basic Auth (client_id:client_secret)")
+                import base64
+                credentials = base64.b64encode(
+                    f"{self.vaultwarden_client_id}:{self.vaultwarden_client_secret}".encode()
+                ).decode()
+                headers = {
+                    "Authorization": f"Basic {credentials}",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
 
-            headers = {
-                "Authorization": f"Basic {credentials}",
-                "Content-Type": "application/x-www-form-urlencoded"
-            }
-
-            # Step 1: Get organization ID (using direct API, no token exchange needed)
+            # Step 1: Get organization ID
             logger.info("📦 Fetching organization...")
             org_response = httpx.get(
                 f"{base_url}/api/organizations/self",
