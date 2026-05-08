@@ -192,37 +192,66 @@ def _normalize_category(category: str | None) -> str | None:
 
     # Mapping von häufigen LLM-Outputs auf erlaubte Kategorien
     mapping = {
+        # Desserts
         "dessert": "Desserts",
         "desserts": "Desserts",
         "nachtisch": "Desserts",
         "süßspeisen": "Desserts",
         "nachspeisen": "Desserts",
+        "süßes": "Desserts",
+        # Brunch
         "frühstück": "Brunch",
         "breakfast": "Brunch",
         "brunch": "Brunch",
+        # Snacks
         "snack": "Snacks",
         "snacks": "Snacks",
+        "beilage": "Snacks",
+        "beilagen": "Snacks",
+        "side dish": "Snacks",
+        "side": "Snacks",
+        # Vorspeisen
         "appetizer": "Vorspeisen",
         "appetizers": "Vorspeisen",
+        "vorspeise": "Vorspeisen",
+        "starter": "Vorspeisen",
+        "starters": "Vorspeisen",
+        "suppe": "Vorspeisen",
+        "suppen": "Vorspeisen",
+        "soup": "Vorspeisen",
+        "salat": "Vorspeisen",
+        "salate": "Vorspeisen",
+        "salad": "Vorspeisen",
+        # Drinks
         "getränk": "Drinks",
         "getränke": "Drinks",
         "drinks": "Drinks",
         "drink": "Drinks",
         "beverage": "Drinks",
-        "suppe": "Vorspeisen",
-        "salat": "Vorspeisen",
+        "cocktail": "Drinks",
+        "smoothie": "Drinks",
+        # Hauptspeisen
+        "hauptspeise": "Hauptspeisen",
+        "hauptspeisen": "Hauptspeisen",
         "pasta": "Hauptspeisen",
         "fleisch": "Hauptspeisen",
         "fisch": "Hauptspeisen",
         "main course": "Hauptspeisen",
+        "main dish": "Hauptspeisen",
         "main": "Hauptspeisen",
+        "dinner": "Hauptspeisen",
+        "lunch": "Hauptspeisen",
+        "pizza": "Hauptspeisen",
+        "burger": "Hauptspeisen",
     }
 
     normalized = category.lower().strip()
 
-    # Exakte Treffer in erlaubten Kategorien
-    if normalized in ["vorspeisen", "hauptspeisen", "desserts", "brunch", "snacks", "drinks"]:
-        return category  # Original-Capitalization behalten
+    # Exakte Treffer in erlaubten Kategorien (case-insensitive)
+    canonical = {"vorspeisen": "Vorspeisen", "hauptspeisen": "Hauptspeisen", "desserts": "Desserts",
+                 "brunch": "Brunch", "snacks": "Snacks", "drinks": "Drinks"}
+    if normalized in canonical:
+        return canonical[normalized]
 
     # Versuche Mapping
     if normalized in mapping:
@@ -250,7 +279,8 @@ def _parse_llm_response(text: str, is_gemini: bool = False) -> ExtractionResult:
 
     # Kategorie normalisieren, bevor Pydantic validiert
     if "category" in data:
-        data["category"] = _normalize_category(data["category"])
+        cat = data["category"]
+        data["category"] = _normalize_category(cat if isinstance(cat, str) else None)
 
     recipe = ExtractedRecipe(**data)
     return ExtractionResult(
