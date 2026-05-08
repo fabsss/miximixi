@@ -375,7 +375,7 @@ async def process_job(job: dict, notify_callback=None) -> None:
             except Exception as notify_err:
                 logger.warning(f"Error notification failed: {notify_err}")
         
-        await _notify_needs_review(source_url, str(e))
+        await _notify_needs_review(source_url, str(e), queue_id)
 
     finally:
         if db:
@@ -463,19 +463,33 @@ def _extract_source_label(url: str) -> str:
         return ""
 
 
-async def _notify_needs_review(source_url: str, error: str) -> None:
-    """Schickt eine Telegram-Benachrichtigung bei Fehler."""
+async def _notify_needs_review(source_url: str, error: str, queue_id: str = None) -> None:
+    """
+    Schickt eine Telegram-Benachrichtigung bei Fehler an Admin-Chat.
+
+    Args:
+        source_url: Die URL des fehlgeschlagenen Jobs
+        error: Die Fehlermeldung
+        queue_id: Optionale Job-ID für besseres Debugging
+    """
     if not settings.telegram_bot_token or not settings.telegram_notify_chat_id:
         return
 
-    short_url = source_url[:80] + "…" if len(source_url) > 80 else source_url
-    short_err = error[:200] + "…" if len(error) > 200 else error
-    text = (
-        f"⚠️ *Rezept konnte nicht extrahiert werden*\n\n"
-        f"🔗 {short_url}\n"
-        f"❌ `{short_err}`\n\n"
-        f"Bitte manuell in der App prüfen und ergänzen."
-    )
+    short_url = source_url[:60] + "…" if len(source_url) > 60 else source_url
+    short_err = error[:150] + "…" if len(error) > 150 else error
+
+    # Build message with optional queue_id
+    lines = [
+        "⚠️ *Rezept-Extraktion fehlgeschlagen*",
+        "",
+        f"🔗 {short_url}",
+        f"❌ {short_err}",
+    ]
+    if queue_id:
+        lines.append(f"Job ID: `{queue_id}`")
+    lines.extend(["", "Bitte in den Logs nachschauen."])
+
+    text = "\n".join(lines)
 
     try:
         async with httpx.AsyncClient() as client:
