@@ -155,7 +155,12 @@ class Settings(BaseSettings):
                 },
                 timeout=10.0
             )
-            token_response.raise_for_status()
+
+            if token_response.status_code != 200:
+                logger.error(f"❌ Token endpoint returned {token_response.status_code}")
+                logger.error(f"Response body: {token_response.text}")
+                token_response.raise_for_status()
+
             access_token = token_response.json()["access_token"]
             logger.info("✅ OAuth2 access token obtained")
 
@@ -172,7 +177,12 @@ class Settings(BaseSettings):
                 headers=headers,
                 timeout=10.0
             )
-            org_response.raise_for_status()
+
+            if org_response.status_code != 200:
+                logger.error(f"❌ /api/organizations/self returned {org_response.status_code}")
+                logger.error(f"Response body: {org_response.text}")
+                org_response.raise_for_status()
+
             org_id = org_response.json()["id"]
             logger.info(f"✅ Organization ID: {org_id[:12]}...")
 
@@ -183,7 +193,12 @@ class Settings(BaseSettings):
                 headers=headers,
                 timeout=10.0
             )
-            items_response.raise_for_status()
+
+            if items_response.status_code != 200:
+                logger.error(f"❌ /api/organizations/{{org_id}}/items returned {items_response.status_code}")
+                logger.error(f"Response body: {items_response.text}")
+                items_response.raise_for_status()
+
             items = items_response.json()
             logger.info(f"✅ Found {len(items)} items")
 
