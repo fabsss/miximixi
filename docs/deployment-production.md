@@ -237,19 +237,24 @@ DOMAIN_NAME=rezepte.example.com
 # api.rezepte.example.com   → backend:8000
 
 # ============================================
-# Authentication (REQUIRED for login to work)
+# Authentication — Via Vaultwarden (Recommended)
 # ============================================
-# JWT signing secret — generate with:
-# python -c "import secrets; print(secrets.token_hex(32))"
-SECRET_KEY=
+# Secrets are fetched from Vaultwarden at runtime, NOT stored in .env
+# Set up Vaultwarden first, then configure below.
 
-# Admin key for creating user accounts via POST /auth/register
-# python -c "import secrets; print(secrets.token_hex(16))"
-ADMIN_KEY=
+# Vaultwarden API access
+# 1. Create a service account in Vaultwarden (e.g., miximixi-bot@...)
+# 2. Create items: SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY in an Organization
+# 3. Generate Personal API Token for the service account
+# 4. Set the values below:
+VAULTWARDEN_URL=http://vaultwarden:80/api
+VAULTWARDEN_CLIENT_ID=miximixi_bot
+VAULTWARDEN_CLIENT_SECRET=<your-api-token-from-vaultwarden>
 
-# Fernet key for encrypting Instagram passwords
-# python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-ENCRYPTION_KEY=
+# (If Vaultwarden not configured, fall back to env vars below — NOT RECOMMENDED for production)
+# SECRET_KEY=
+# ADMIN_KEY=
+# ENCRYPTION_KEY=
 
 # Telegram bot username (without @)
 TELEGRAM_BOT_USERNAME=miximixi_bot
@@ -259,22 +264,11 @@ TELEGRAM_BOT_USERNAME=miximixi_bot
 ```bash
 # DB_PASSWORD
 openssl rand -base64 32
-
-# N8N_BASIC_AUTH_PASSWORD
-openssl rand -base64 16
-
-# N8N_ENCRYPTION_KEY
-openssl rand -base64 32
-
-# SECRET_KEY
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# ADMIN_KEY
-python -c "import secrets; print(secrets.token_hex(16))"
-
-# ENCRYPTION_KEY
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+**For authentication secrets (SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY):**
+- Generate them in Vaultwarden instead of here
+- See "Vaultwarden Setup" section below for instructions
 
 ### LLM Provider Quick Decision Guide
 
@@ -325,6 +319,105 @@ openssl req -x509 -newkey rsa:4096 \
   -keyout key.pem -out cert.pem -days 365 -nodes \
   -subj "/CN=rezepte.example.com"
 ```
+
+### Step 4b: Vaultwarden Setup (Secrets Management)
+
+**Why?** Auth keys (SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY) should never be stored in `.env` files on disk. Vaultwarden encrypts them securely.
+
+**Prerequisites:** You already have Vaultwarden running on the same server.
+
+#### Create Service Account in Vaultwarden
+
+1. **Log into Vaultwarden** (web UI)
+2. **Admin Panel** → **Users** → **Invite User**
+   - Email: `miximixi-bot@yourdomain.com`
+   - Password: Very strong (32+ chars)
+   - Name: "Miximixi Service Account"
+   - Click Invite
+
+3. **Organizations** → **Create New Organization**
+   - Name: "Miximixi"
+   - Click Create
+
+4. **Add service account to organization**
+   - Select the "Miximixi" org
+   - Members → Invite User → `miximixi-bot@yourdomain.com`
+   - Role: "Manager" (or "User" for minimal permissions)
+
+5. **Create collection for secrets**
+   - Select "Miximixi" organization
+   - Collections → Create New
+   - Name: "API Keys"
+   - Click Create
+
+#### Generate Secrets in Vaultwarden
+
+Still logged in as admin, switch to Vaultwarden's **Vault** view:
+
+1. **Create item: SECRET_KEY**
+   - Organization: Miximixi
+   - Collection: API Keys
+   - Name: `SECRET_KEY`
+   - Notes field: Paste the output of:
+     ```bash
+     python -c "import secrets; print(secrets.token_hex(32))"
+     ```
+   - Save
+
+2. **Create item: ADMIN_KEY**
+   - Organization: Miximixi
+   - Collection: API Keys
+   - Name: `ADMIN_KEY`
+   - Notes field: Paste the output of:
+     ```bash
+     python -c "import secrets; print(secrets.token_hex(16))"
+     ```
+   - Save
+
+3. **Create item: ENCRYPTION_KEY**
+   - Organization: Miximixi
+   - Collection: API Keys
+   - Name: `ENCRYPTION_KEY`
+   - Notes field: Paste the output of:
+     ```bash
+     python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+     ```
+   - Save
+
+#### Generate API Token for Service Account
+
+1. **Log out** as admin
+2. **Log in** as `miximixi-bot@yourdomain.com` (the service account)
+3. **Account Settings** → **Security** → **Create New API Key**
+4. You'll receive:
+   ```
+   client_id: miximixi_bot
+   client_secret: <random-token>
+   ```
+   - **Copy both values!**
+
+5. **Add to `.env` on your Proxmox server:**
+   ```bash
+   VAULTWARDEN_CLIENT_ID=miximixi_bot
+   VAULTWARDEN_CLIENT_SECRET=<paste-the-token-here>
+   ```
+
+**Verification:** When you start the backend, check logs:
+```bash
+docker logs miximixi-backend | grep -i vaultwarden
+```
+
+You should see:
+```
+✅ Fetching access token from Vaultwarden...
+✅ Access token obtained
+✅ Found SECRET_KEY
+✅ Found ADMIN_KEY
+✅ Found ENCRYPTION_KEY
+✅ All secrets loaded from Vaultwarden successfully
+```
+
+---
 
 ### Step 5: Start Docker Compose Stack
 

@@ -108,11 +108,14 @@ TELEGRAM_NOTIFY_CHAT_ID=<from getUpdates>
 # ============================================
 # Authentication
 # ============================================
-# For development, these can be simple values:
+# For development, use simple hardcoded values:
 SECRET_KEY=dev-secret-key-change-in-production
 ADMIN_KEY=dev-admin-key
-# ENCRYPTION_KEY= (only needed if using Instagram credential storage)
+ENCRYPTION_KEY=test-encryption-key-not-used-in-dev
 TELEGRAM_BOT_USERNAME=miximixi_bot
+
+# Note: Production uses Vaultwarden for secrets (see docs/deployment-production.md)
+# Development skips Vaultwarden since VAULTWARDEN_CLIENT_ID is empty
 ```
 
 ### Step 3: Start Docker Services
