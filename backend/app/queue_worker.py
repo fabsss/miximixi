@@ -89,6 +89,7 @@ def _is_retryable_error(error_msg: str) -> bool:
         "no recipe",
         "parsing error",
         "json error",
+        "abgelaufen",          # "Cookie könnte abgelaufen sein" → requires admin intervention
     ]
 
     # Check fatal first

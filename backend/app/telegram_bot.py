@@ -260,36 +260,38 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         db.close()
 
         # Build message
-        msg_lines = ["📊 *Job Queue Status*\n"]
+        msg_lines = ["📊 Job Queue Status\n"]
 
         if failed_jobs:
-            msg_lines.append(f"❌ *{len(failed_jobs)} Failed Jobs (needs_review):*\n")
+            msg_lines.append(f"❌ {len(failed_jobs)} Failed Jobs (needs_review):\n")
             for job in failed_jobs:  # Show ALL jobs
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
+                # Escape markdown special chars in error message
                 error_short = job["error_msg"][:60] + "…" if len(job["error_msg"]) > 60 else job["error_msg"]
+                error_safe = error_short.replace("[", "\\[").replace("]", "\\]").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
                 job_id = str(job['id'])[:12]  # First 12 chars of UUID
-                msg_lines.append(f"• `{job_id}`")
+                msg_lines.append(f"• {job_id}")
                 msg_lines.append(f"  🔗 {url_short}")
-                msg_lines.append(f"  ❌ {error_short}\n")
+                msg_lines.append(f"  ❌ {error_safe}\n")
         else:
             msg_lines.append("✅ Keine fehlgeschlagenen Jobs\n")
 
         if processing_jobs:
-            msg_lines.append(f"\n⏳ *{len(processing_jobs)} Processing Jobs:*\n")
+            msg_lines.append(f"\n⏳ {len(processing_jobs)} Processing Jobs:\n")
             for job in processing_jobs:
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
                 age_str = str(job["age"]).split(".")[0] if job["age"] else "?"
                 job_id = str(job['id'])[:12]
-                msg_lines.append(f"• `{job_id}` (age: {age_str})")
+                msg_lines.append(f"• {job_id} (age: {age_str})")
                 msg_lines.append(f"  🔗 {url_short}\n")
         else:
             msg_lines.append("\n✅ Keine aktiven Jobs\n")
 
-        msg_lines.append("\n💡 Nutze `/job <id>` für Details")
+        msg_lines.append("\n💡 Nutze /job <id> für Details")
 
         await update.message.reply_text(
             "\n".join(msg_lines),
-            parse_mode="Markdown"
+            parse_mode=None
         )
         logger.info(f"Admin {user_id} requested job status")
 
