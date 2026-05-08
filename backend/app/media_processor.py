@@ -48,9 +48,14 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     Lädt Medien via yt-dlp herunter (Instagram, YouTube, öffentliche Posts).
     Extrahiert zusätzlich die Beschreibung/Caption als raw_source_text.
 
+    Strategie:
+    1. Versuche zuerst ANONYM (ohne Cookies) — funktioniert für öffentliche Videos
+    2. Wenn Fehler "private/login required" → versuche mit Cookies
+    3. Wenn Fehler "404" oder andere → Fehler propagieren
+
     Fehlerbehandlung:
     - 404 / "not available" / "Seite nicht gefunden" → Link nicht gefunden
-    - Cookie / Auth / "login" / "unauthorized" → Authentication-Fehler
+    - "private" / "login required" → versuche mit Cookies
     - Andere Fehler → Generischer Download-Fehler
     """
     import asyncio
@@ -58,55 +63,108 @@ async def download_media(url: str, output_dir: str) -> DownloadResult:
     os.makedirs(output_dir, exist_ok=True)
     output_template = os.path.join(output_dir, "%(id)s.%(ext)s")
 
-    # Cookie-Auth: cookies.txt falls vorhanden, sonst kein Auth
-    cookie_args = []
-    if os.path.exists(settings.instagram_cookies_file):
-        cookie_args = ["--cookies", settings.instagram_cookies_file]
-        logger.info(f"yt-dlp: Verwende Cookies aus {settings.instagram_cookies_file}")
+    has_cookies = os.path.exists(settings.instagram_cookies_file)
 
-    # Schritt 1: Beschreibung via --print holen (kein separater Download)
-    description = ""
-    try:
-        def _get_description():
+    async def _try_download(use_cookies: bool = False) -> tuple[int, str, str]:
+        """Versucht Download mit oder ohne Cookies. Returns (returncode, stdout, stderr)"""
+        cookie_args = []
+        if use_cookies and has_cookies:
+            cookie_args = ["--cookies", settings.instagram_cookies_file]
+            logger.info(f"yt-dlp: Versuche mit Cookies aus {settings.instagram_cookies_file}")
+        else:
+            logger.info("yt-dlp: Versuche anonym (ohne Cookies)")
+
+        # Schritt 1: Beschreibung via --print holen
+        description = ""
+        try:
+            def _get_description():
+                return subprocess.run(
+                    ["yt-dlp", "--no-playlist", "--no-warnings"] + cookie_args +
+                    ["--print", "%(description)s", url],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+                )
+            desc_result = await asyncio.wait_for(asyncio.to_thread(_get_description), timeout=35)
+            description = desc_result.stdout.strip()
+        except Exception as e:
+            logger.warning(f"yt-dlp Beschreibung fehlgeschlagen: {e}")
+
+        # Schritt 2: Medien + Thumbnail herunterladen
+        def _download():
             return subprocess.run(
                 ["yt-dlp", "--no-playlist", "--no-warnings"] + cookie_args +
-                ["--print", "%(description)s", url],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+                ["--write-thumbnail", "--convert-thumbnails", "jpg",
+                 "-o", output_template, url],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
             )
-        desc_result = await asyncio.wait_for(asyncio.to_thread(_get_description), timeout=35)
-        description = desc_result.stdout.strip()
-    except Exception as e:
-        logger.warning(f"yt-dlp Beschreibung fehlgeschlagen: {e}")
+        try:
+            result = await asyncio.wait_for(asyncio.to_thread(_download), timeout=130)
+            return result.returncode, description, result.stderr
+        except Exception as e:
+            logger.error(f"yt-dlp Timeout ({url}): {e}")
+            return 1, description, str(e)
 
-    # Schritt 2: Medien + Thumbnail herunterladen
-    def _download():
-        return subprocess.run(
-            ["yt-dlp", "--no-playlist", "--no-warnings"] + cookie_args +
-            ["--write-thumbnail", "--convert-thumbnails", "jpg",
-             "-o", output_template, url],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+    # Zuerst: Anonym versuchen
+    returncode, description, stderr = await _try_download(use_cookies=False)
+
+    if returncode == 0:
+        # Anonym funktioniert → fertig
+        all_files = list(Path(output_dir).iterdir())
+        media_paths = [str(f) for f in all_files if f.suffix.lower() in VIDEO_EXTS | IMAGE_EXTS]
+
+        video_stems = {Path(p).stem for p in media_paths if Path(p).suffix.lower() in VIDEO_EXTS}
+        thumbnail_path = next(
+            (str(f) for f in all_files
+             if f.suffix.lower() in {".jpg", ".jpeg", ".webp", ".png"}
+             and f.stem in video_stems),
+            None,
         )
-    try:
-        result = await asyncio.wait_for(asyncio.to_thread(_download), timeout=130)
-    except Exception as e:
-        logger.error(f"yt-dlp Timeout ({url}): {e}")
-        return DownloadResult(description=description)
+        if thumbnail_path:
+            logger.info(f"yt-dlp: Thumbnail gefunden: {thumbnail_path}")
+            media_paths = [p for p in media_paths if p != thumbnail_path]
 
-    if result.returncode != 0:
-        stderr = result.stderr.lower()
+        logger.info(f"yt-dlp (anonym): {len(media_paths)} Datei(en) heruntergeladen")
+        return DownloadResult(media_paths=media_paths, description=description, thumbnail_path=thumbnail_path)
 
-        # Klassifiziere Fehler
-        if any(x in stderr for x in ["404", "not available", "not found", "does not exist", "removed"]):
-            logger.error(f"yt-dlp Fehler: Link nicht gefunden ({url})")
-            raise ValueError(f"Link nicht gefunden (404). URL existiert nicht oder wurde gelöscht: {url}")
+    # Anonym fehlgeschlagen → klassifiziere Fehler
+    stderr_lower = stderr.lower()
 
-        elif any(x in stderr for x in ["cookie", "unauthorized", "403", "access denied", "login required", "private", "authentication failed", "session expired"]):
+    if any(x in stderr_lower for x in ["404", "not available", "not found", "does not exist", "removed"]):
+        logger.error(f"yt-dlp Fehler: Link nicht gefunden ({url})")
+        raise ValueError(f"Link nicht gefunden (404). URL existiert nicht oder wurde gelöscht: {url}")
+
+    # Wenn "private" / "login required" → versuche mit Cookies
+    if any(x in stderr_lower for x in ["private", "login required", "unauthorized"]) and has_cookies:
+        logger.info("Video ist privat oder erfordert Login → Versuche mit Cookies")
+        returncode_cookies, description_cookies, stderr_cookies = await _try_download(use_cookies=True)
+
+        if returncode_cookies == 0:
+            # Mit Cookies erfolgreich
+            all_files = list(Path(output_dir).iterdir())
+            media_paths = [str(f) for f in all_files if f.suffix.lower() in VIDEO_EXTS | IMAGE_EXTS]
+
+            video_stems = {Path(p).stem for p in media_paths if Path(p).suffix.lower() in VIDEO_EXTS}
+            thumbnail_path = next(
+                (str(f) for f in all_files
+                 if f.suffix.lower() in {".jpg", ".jpeg", ".webp", ".png"}
+                 and f.stem in video_stems),
+                None,
+            )
+            if thumbnail_path:
+                logger.info(f"yt-dlp: Thumbnail gefunden: {thumbnail_path}")
+                media_paths = [p for p in media_paths if p != thumbnail_path]
+
+            logger.info(f"yt-dlp (mit Cookies): {len(media_paths)} Datei(en) heruntergeladen")
+            return DownloadResult(media_paths=media_paths, description=description_cookies, thumbnail_path=thumbnail_path)
+
+        # Auch mit Cookies fehlgeschlagen
+        stderr_lower = stderr_cookies.lower()
+        if any(x in stderr_lower for x in ["cookie", "unauthorized", "403", "access denied", "authentication failed", "session expired"]):
             logger.error(f"yt-dlp Fehler: Authentifizierung fehlgeschlagen ({url})")
             raise ValueError(f"Authentifizierung fehlgeschlagen. Cookie könnte abgelaufen sein. Bitte den Admin kontaktieren und neue Cookies exportieren.")
 
-        else:
-            logger.error(f"yt-dlp Fehler ({url}): {result.stderr[:500]}")
-            return DownloadResult(description=description)
+    # Andere Fehler → generisch
+    logger.error(f"yt-dlp Fehler ({url}): {stderr[:500]}")
+    return DownloadResult(description=description)
 
     all_files = list(Path(output_dir).iterdir())
     media_paths = [str(f) for f in all_files if f.suffix.lower() in VIDEO_EXTS | IMAGE_EXTS]
