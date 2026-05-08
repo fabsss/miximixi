@@ -313,13 +313,15 @@ async def health():
 @app.post("/auth/register", dependencies=[Depends(require_admin_key)])
 async def register(req: RegisterRequest):
     hashed = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    email = req.email.lower().strip()
+    username = req.display_name or email.split("@")[0]
     try:
         db = get_db()
         with db.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                """INSERT INTO users (email, password_hash, display_name)
-                   VALUES (%s, %s, %s) RETURNING id, email, display_name""",
-                (req.email.lower().strip(), hashed, req.display_name or req.email.split("@")[0]),
+                """INSERT INTO users (username, email, password_hash, display_name)
+                   VALUES (%s, %s, %s, %s) RETURNING id, email, display_name""",
+                (username, email, hashed, req.display_name or email.split("@")[0]),
             )
             user = dict(cur.fetchone())
             db.commit()
