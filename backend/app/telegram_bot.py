@@ -210,13 +210,52 @@ async def getchatid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /jobs command — shows all failed and processing jobs (admin-only)."""
+    """Handles /jobs command and subcommands (admin-only).
+
+    /jobs                  - list failed/processing jobs
+    /jobs <id>             - show job details
+    /jobs delete <id>      - delete a job
+    /jobs clear            - delete all needs_review + pending jobs
+    /jobs restart <id>     - reset a job to pending
+    /jobs restart all      - reset all failed/pending jobs to pending
+    """
     user_id = str(update.effective_user.id)
 
     if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
         await update.message.reply_text("❌ Nur Admin-Benutzer können /jobs nutzen")
         return
 
+    args = context.args or []
+
+    if not args:
+        await _jobs_list(update, user_id)
+        return
+
+    sub = args[0].lower()
+
+    if sub == "clear":
+        await _clear_jobs(update, user_id)
+    elif sub == "delete" and len(args) >= 2:
+        await _delete_job(update, user_id, args[1].strip())
+    elif sub == "restart":
+        if len(args) >= 2 and args[1].lower() == "all":
+            await _restart_all_jobs(update, user_id)
+        elif len(args) >= 2:
+            await _restart_job(update, user_id, args[1].strip())
+        else:
+            await update.message.reply_text(
+                "❌ Nutze:\n"
+                "`/jobs restart <id>` - Einzelnen Job neu starten\n"
+                "`/jobs restart all` - Alle fehlgeschlagenen Jobs neu starten",
+                parse_mode="Markdown"
+            )
+    else:
+        # Treat as job ID (details view)
+        await _show_job_details(update, user_id, args[0].strip())
+
+
+async def _jobs_list(update: Update, user_id: str) -> None:
+    """Shows all failed and processing jobs."""
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
@@ -230,7 +269,6 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         cursor = db.cursor(cursor_factory=RealDictCursor)
 
-        # Get needs_review jobs (failed)
         cursor.execute(
             """
             SELECT id, source_url, error_msg, created_at
@@ -243,7 +281,6 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         failed_jobs = cursor.fetchall()
 
-        # Get processing jobs (stuck or in-progress)
         cursor.execute(
             """
             SELECT id, source_url, created_at, updated_at,
@@ -259,17 +296,15 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         db.close()
 
-        # Build message
         msg_lines = ["📊 Job Queue Status\n"]
 
         if failed_jobs:
             msg_lines.append(f"❌ {len(failed_jobs)} Failed Jobs (needs_review):\n")
-            for job in failed_jobs:  # Show ALL jobs
+            for job in failed_jobs:
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
-                # Escape markdown special chars in error message
                 error_short = job["error_msg"][:60] + "…" if len(job["error_msg"]) > 60 else job["error_msg"]
                 error_safe = error_short.replace("[", "\\[").replace("]", "\\]").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
-                job_id = str(job['id'])[:12]  # First 12 chars of UUID
+                job_id = str(job['id'])[:12]
                 msg_lines.append(f"• {job_id}")
                 msg_lines.append(f"  🔗 {url_short}")
                 msg_lines.append(f"  ❌ {error_safe}\n")
@@ -287,12 +322,9 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         else:
             msg_lines.append("\n✅ Keine aktiven Jobs\n")
 
-        msg_lines.append("\n💡 Nutze /job <id> für Details")
+        msg_lines.append("\n💡 /jobs <id> · /jobs delete <id> · /jobs clear · /jobs restart <id|all>")
 
-        await update.message.reply_text(
-            "\n".join(msg_lines),
-            parse_mode=None
-        )
+        await update.message.reply_text("\n".join(msg_lines), parse_mode=None)
         logger.info(f"Admin {user_id} requested job status")
 
     except Exception as e:
@@ -300,8 +332,109 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(f"❌ Fehler: {e}")
 
 
+async def _clear_jobs(update: Update, user_id: str) -> None:
+    """Deletes all jobs with status needs_review or pending."""
+    try:
+        import psycopg2
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+        cursor.execute(
+            "DELETE FROM import_queue WHERE status IN ('needs_review', 'pending')"
+        )
+        deleted = cursor.rowcount
+        db.commit()
+        db.close()
+
+        await update.message.reply_text(f"🗑️ {deleted} Job(s) gelöscht (needs_review + pending)")
+        logger.info(f"Admin {user_id} cleared {deleted} jobs")
+
+    except Exception as e:
+        logger.exception(f"Error clearing jobs: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Löschen: {e}")
+
+
+async def _restart_job(update: Update, user_id: str, job_id: str) -> None:
+    """Resets a single job back to pending status."""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            "SELECT id, source_url, status FROM import_queue WHERE id::text LIKE %s LIMIT 1",
+            (f"{job_id}%",)
+        )
+        job = cursor.fetchone()
+
+        if not job:
+            await update.message.reply_text("❌ Job nicht gefunden")
+            db.close()
+            return
+
+        cursor.execute(
+            "UPDATE import_queue SET status = 'pending', error_msg = NULL, updated_at = now() WHERE id = %s",
+            (job["id"],)
+        )
+        db.commit()
+        db.close()
+
+        url_short = job["source_url"][:60] + "…" if len(job["source_url"]) > 60 else job["source_url"]
+        await update.message.reply_text(
+            f"🔄 Job neu gestartet\n\nID: `{job['id']}`\nURL: {url_short}",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Admin {user_id} restarted job {job['id']}")
+
+    except Exception as e:
+        logger.exception(f"Error restarting job: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Neustarten: {e}")
+
+
+async def _restart_all_jobs(update: Update, user_id: str) -> None:
+    """Resets all needs_review and error jobs back to pending."""
+    try:
+        import psycopg2
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+        cursor.execute(
+            "UPDATE import_queue SET status = 'pending', error_msg = NULL, updated_at = now() "
+            "WHERE status IN ('needs_review', 'error')"
+        )
+        updated = cursor.rowcount
+        db.commit()
+        db.close()
+
+        await update.message.reply_text(f"🔄 {updated} Job(s) zurück auf pending gesetzt")
+        logger.info(f"Admin {user_id} restarted all {updated} failed jobs")
+
+    except Exception as e:
+        logger.exception(f"Error restarting all jobs: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Neustarten: {e}")
+
+
 async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /job <id> command — shows details of a specific job, or /job delete <id>."""
+    """Handles /job <id> — alias for /jobs <id> (backwards compatibility)."""
     user_id = str(update.effective_user.id)
 
     if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
@@ -310,22 +443,17 @@ async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if not context.args or len(context.args) < 1:
         await update.message.reply_text(
-            "❌ Nutze:\n"
-            "`/job <id>` - Zeige Details\n"
-            "`/job delete <id>` - Lösche Job",
+            "💡 Nutze `/jobs` für die neue Kommando-Übersicht",
             parse_mode="Markdown"
         )
         return
 
-    # Check for delete subcommand
+    # Support legacy /job delete <id>
     if context.args[0].lower() == "delete" and len(context.args) >= 2:
-        job_id = context.args[1].strip()
-        await _delete_job(update, user_id, job_id)
+        await _delete_job(update, user_id, context.args[1].strip())
         return
 
-    # Otherwise: show job details
-    job_id = context.args[0].strip()
-    await _show_job_details(update, user_id, job_id)
+    await _show_job_details(update, user_id, context.args[0].strip())
 
 
 async def _show_job_details(update: Update, user_id: str, job_id: str) -> None:
@@ -376,7 +504,7 @@ async def _show_job_details(update: Update, user_id: str, job_id: str) -> None:
         if job['recipe_id']:
             msg += f"\n✅ Recipe ID: `{job['recipe_id']}`\n"
 
-        msg += f"\n💡 Lösche mit: `/job delete {str(job['id'])[:12]}`"
+        msg += f"\n💡 `/jobs delete {str(job['id'])[:12]}` · `/jobs restart {str(job['id'])[:12]}`"
 
         await update.message.reply_text(msg, parse_mode="Markdown")
         db.close()

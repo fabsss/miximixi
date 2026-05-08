@@ -341,6 +341,32 @@ class LLMProvider:
         parts.append(GEMINI_PROMPT)
 
         response = model.generate_content(parts)
+
+        if not response.candidates:
+            feedback = getattr(response, "prompt_feedback", None)
+            block_reason = getattr(feedback, "block_reason", None) if feedback else None
+            safety_ratings = getattr(feedback, "safety_ratings", None) if feedback else None
+            logger.error(
+                f"Gemini: No candidates returned. block_reason={block_reason}, "
+                f"safety_ratings={safety_ratings}, full_feedback={feedback}"
+            )
+            raise ValueError(
+                f"Gemini returned no candidates. block_reason={block_reason}"
+            )
+
+        candidate = response.candidates[0]
+        finish_reason = getattr(candidate, "finish_reason", None)
+        if finish_reason and finish_reason.name not in ("STOP", "MAX_TOKENS"):
+            safety_ratings = getattr(candidate, "safety_ratings", None)
+            logger.error(
+                f"Gemini: Unexpected finish_reason={finish_reason.name}, "
+                f"safety_ratings={safety_ratings}"
+            )
+            raise ValueError(
+                f"Gemini generation stopped unexpectedly: finish_reason={finish_reason.name}, "
+                f"safety_ratings={safety_ratings}"
+            )
+
         return _parse_llm_response(response.text, is_gemini=True)
 
     # ── Claude ────────────────────────────────────────────────────────────
