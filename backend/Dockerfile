@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install yt-dlp via pip (more reliable than GitHub download)
-RUN pip install --no-cache-dir yt-dlp
+# Use --upgrade to ensure latest version (Instagram changes frequently)
+RUN pip install --no-cache-dir --upgrade yt-dlp
 
 # Install Poetry
 RUN pip install --no-cache-dir poetry==1.8.3
