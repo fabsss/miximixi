@@ -202,15 +202,13 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         if failed_jobs:
             msg_lines.append(f"❌ *{len(failed_jobs)} Failed Jobs (needs_review):*\n")
-            for job in failed_jobs[:3]:  # Show first 3
+            for job in failed_jobs:  # Show ALL jobs
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
                 error_short = job["error_msg"][:60] + "…" if len(job["error_msg"]) > 60 else job["error_msg"]
                 job_id = str(job['id'])[:12]  # First 12 chars of UUID
                 msg_lines.append(f"• `{job_id}`")
                 msg_lines.append(f"  🔗 {url_short}")
                 msg_lines.append(f"  ❌ {error_short}\n")
-            if len(failed_jobs) > 3:
-                msg_lines.append(f"… und {len(failed_jobs) - 3} weitere\n")
         else:
             msg_lines.append("✅ Keine fehlgeschlagenen Jobs\n")
 
@@ -219,7 +217,8 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             for job in processing_jobs:
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
                 age_str = str(job["age"]).split(".")[0] if job["age"] else "?"
-                msg_lines.append(f"• `{job['id'][:8]}…` (age: {age_str})")
+                job_id = str(job['id'])[:12]
+                msg_lines.append(f"• `{job_id}` (age: {age_str})")
                 msg_lines.append(f"  🔗 {url_short}\n")
         else:
             msg_lines.append("\n✅ Keine aktiven Jobs\n")
