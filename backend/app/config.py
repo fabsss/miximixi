@@ -130,6 +130,9 @@ class Settings(BaseSettings):
             if base_url.endswith('/api'):
                 base_url = base_url[:-4]
 
+            # Log configuration for debugging
+            logger.info(f"🔐 Vaultwarden Config: url={base_url}, client_id={self.vaultwarden_client_id}")
+
             # Step 1: Get access token using client credentials
             logger.info("🔑 Fetching access token from Vaultwarden...")
             auth_response = httpx.post(
