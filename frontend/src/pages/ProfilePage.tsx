@@ -42,6 +42,20 @@ export function ProfilePage() {
     return () => clearInterval(interval)
   }, [linkCode, loadLinks])
 
+  // Clear QR code when a new link is added (device connected via QR scan)
+  useEffect(() => {
+    if (!linkCode) return
+    // Check if a new link was added after the QR code was generated
+    const linkedWithCode = links.some(link =>
+      new Date(link.linked_at).getTime() > (codeExpiry - linkCode.expires_in * 1000)
+    )
+    if (linkedWithCode) {
+      setLinkCode(null)
+      setQrDataUrl(null)
+      setCodeExpiry(0)
+    }
+  }, [links, linkCode, codeExpiry])
+
   // Countdown timer — keyed on linkCode so it restarts when a new code is generated
   useEffect(() => {
     if (!linkCode) return
