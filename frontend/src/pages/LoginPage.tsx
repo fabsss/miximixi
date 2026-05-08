@@ -5,8 +5,9 @@ import { useAuth } from '../context/AuthContext'
 export function LoginPage() {
   const { login, user, isLoading } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberEmail') || '')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('rememberEmail'))
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -19,6 +20,11 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       await login(email, password)
+      if (rememberMe) {
+        localStorage.setItem('rememberEmail', email)
+      } else {
+        localStorage.removeItem('rememberEmail')
+      }
       navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login fehlgeschlagen')
@@ -48,6 +54,15 @@ export function LoginPage() {
           required
           style={{ padding: '0.75rem', fontSize: '1rem', borderRadius: '8px', border: '1px solid #ccc' }}
         />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={e => setRememberMe(e.target.checked)}
+            style={{ cursor: 'pointer' }}
+          />
+          Anmeldedaten merken
+        </label>
         {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
         <button
           type="submit"
