@@ -116,41 +116,42 @@ class Settings(BaseSettings):
     def __init__(self, **data):
         super().__init__(**data)
 
-        # Fetch secrets from Vaultwarden if configured
+        # Try to fetch secrets from Vaultwarden if configured
         if self.vaultwarden_client_id and self.vaultwarden_client_secret:
-            self._fetch_secrets_from_vaultwarden()
+            logger.info(f"🔐 Vaultwarden configured. Attempting to fetch secrets...")
+            try:
+                self._fetch_secrets_from_vaultwarden()
+            except Exception as e:
+                logger.warning(f"⚠️ Vaultwarden fetch failed ({e}). Falling back to env variables.")
+                # Secrets from .env will be used if not set by Vaultwarden
         else:
-            logger.warning("⚠️ Vaultwarden not configured. SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY must be set via environment variables.")
+            logger.info("⚠️ Vaultwarden not configured (VAULTWARDEN_CLIENT_ID or VAULTWARDEN_CLIENT_SECRET empty). Using env variables for secrets.")
 
     def _fetch_secrets_from_vaultwarden(self):
-        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden."""
+        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden.
+
+        Uses direct API authentication with client_id + client_secret (no OAuth2 token exchange).
+        """
         try:
-            # Normalize base URL (remove trailing /api if present)
+            # Normalize base URL
             base_url = self.vaultwarden_url.rstrip('/')
             if base_url.endswith('/api'):
                 base_url = base_url[:-4]
 
-            # Log configuration for debugging
-            logger.info(f"🔐 Vaultwarden Config: url={base_url}, client_id={self.vaultwarden_client_id}")
+            logger.info(f"🔐 Vaultwarden: url={base_url}, client_id={self.vaultwarden_client_id}")
 
-            # Step 1: Get access token using client credentials
-            logger.info("🔑 Fetching access token from Vaultwarden...")
-            auth_response = httpx.post(
-                f"{base_url}/identity/connect/token",
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": self.vaultwarden_client_id,
-                    "client_secret": self.vaultwarden_client_secret,
-                    "scope": "api",
-                },
-                timeout=10.0
-            )
-            auth_response.raise_for_status()
-            access_token = auth_response.json()["access_token"]
-            logger.info("✅ Access token obtained")
+            # Direct API auth headers (Vaultwarden uses client_id:client_secret in Authorization header)
+            import base64
+            credentials = base64.b64encode(
+                f"{self.vaultwarden_client_id}:{self.vaultwarden_client_secret}".encode()
+            ).decode()
 
-            # Step 2: Get organization ID
-            headers = {"Authorization": f"Bearer {access_token}"}
+            headers = {
+                "Authorization": f"Basic {credentials}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+
+            # Step 1: Get organization ID (using direct API, no token exchange needed)
             logger.info("📦 Fetching organization...")
             org_response = httpx.get(
                 f"{base_url}/api/organizations/self",
@@ -161,7 +162,7 @@ class Settings(BaseSettings):
             org_id = org_response.json()["id"]
             logger.info(f"✅ Organization ID: {org_id[:12]}...")
 
-            # Step 3: Get items in organization
+            # Step 2: Get items in organization
             logger.info("🔍 Fetching items from Vaultwarden...")
             items_response = httpx.get(
                 f"{base_url}/api/organizations/{org_id}/items",
