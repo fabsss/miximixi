@@ -216,11 +216,27 @@ async def refresh_cookies_via_instaloader(account_id: str = "default") -> bool:
     if not ig_cookies:
         return False
 
-    # Alle Cookies → instaloader Session-Datei
+    # Alle Cookies → instaloader Session-Datei UND Netscape cookies.txt (für yt-dlp)
     try:
         _build_instaloader_session_from_cookies(ig_cookies, username)
+
+        # Konvertiere dict-Cookies zu Netscape-Format für yt-dlp
+        cookies_list = [
+            {
+                "domain": "instagram.com",
+                "httpOnly": True,
+                "path": "/",
+                "secure": True,
+                "expires": int((datetime.now(timezone.utc).timestamp() + 86400 * 365)),  # 1 Jahr gültig
+                "name": k,
+                "value": v,
+            }
+            for k, v in ig_cookies.items()
+        ]
+        _export_cookies_to_file(cookies_list, settings.instagram_cookies_file)
+        logger.info(f"Cookies als Netscape-Format exportiert nach {settings.instagram_cookies_file}")
     except Exception as e:
-        logger.exception(f"Fehler beim Erstellen der instaloader Session-Datei: {e}")
+        logger.exception(f"Fehler beim Erstellen der Session/Cookies-Datei: {e}")
         update_auth_state(account_id=account_id, last_error=str(e)[:200])
         return False
 

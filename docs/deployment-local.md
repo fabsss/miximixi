@@ -104,6 +104,18 @@ TELEGRAM_NOTIFY_CHAT_ID=<from getUpdates>
 # INSTAGRAM_USERNAME=
 # INSTAGRAM_PASSWORD=
 # INSTAGRAM_COLLECTION_ID=
+
+# ============================================
+# Authentication
+# ============================================
+# For development, use simple hardcoded values:
+SECRET_KEY=dev-secret-key-change-in-production
+ADMIN_KEY=dev-admin-key
+ENCRYPTION_KEY=test-encryption-key-not-used-in-dev
+TELEGRAM_BOT_USERNAME=miximixi_bot
+
+# Note: Production uses Vaultwarden for secrets (see docs/deployment-production.md)
+# Development skips Vaultwarden since VAULTWARDEN_CLIENT_ID is empty
 ```
 
 ### Step 3: Start Docker Services
@@ -144,7 +156,9 @@ You should see:
 - `steps`
 - `import_queue`
 - `translations` (if 002 migration ran)
-- `users` (for future multi-user support)
+- `users` — user accounts for login
+- `user_telegram_links` — linked Telegram devices
+- `telegram_link_codes` — one-time QR link codes (5 min TTL)
 
 **Migrations included:**
 - `001_initial.sql` – Core tables (recipes, ingredients, steps, import_queue, users)
@@ -192,6 +206,25 @@ curl http://localhost:8000/health
 # Returns: {"status":"ok","llm_provider":"gemini"}
 ```
 
+### Step 7: Create Your Dev User Account
+
+The app now requires login. Create a dev user:
+
+```bash
+curl -X POST http://localhost:8000/auth/register \
+  -H "X-Admin-Key: dev-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dev@example.com","password":"password123","display_name":"Dev User"}'
+```
+
+Then open `http://localhost:5173` — you'll be redirected to `/login`. Use the credentials above.
+
+**To link Telegram in dev:**
+1. Log in, navigate to `/profile`
+2. Click "QR-Code generieren"
+3. Use the displayed deep link URL: `https://t.me/miximixi_bot?start=MIX-XXXXXX`
+4. Send that URL to the bot manually if the bot is running locally
+
 ---
 
 ## Service Details
@@ -211,7 +244,9 @@ ingredients         -- Recipe ingredients with amounts + grouping
 steps               -- Cooking instructions + timing
 import_queue        -- Pending/processing/done imports from URLs
 translations        -- Translated content + stale tracking
-users               -- For future multi-user sharing
+users               -- User accounts for login
+user_telegram_links -- Linked Telegram devices
+telegram_link_codes -- One-time QR link codes (5 min TTL)
 ```
 
 **Access from backend:**
@@ -257,6 +292,15 @@ docker exec -it miximixi-db psql -U postgres -d miximixi
 
 **Key endpoints:**
 ```bash
+# Login
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dev@example.com","password":"password123"}'
+
+# Get current user (requires Bearer token)
+curl http://localhost:8000/auth/me \
+  -H "Authorization: Bearer <token>"
+
 # Health check
 curl http://localhost:8000/health
 
@@ -577,5 +621,5 @@ cd backend && poetry install
 
 ---
 
-**Last updated:** 2026-04-14  
+**Last updated:** 2026-05-07  
 **Related docs:** [`docs/architecture.md`](architecture.md) | [`docs/deployment-production.md`](deployment-production.md) | [`docs/QUICK-START.md`](QUICK-START.md)

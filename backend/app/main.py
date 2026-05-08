@@ -1,8 +1,10 @@
 import asyncio
+import bcrypt
 import json
 import logging
 import os
 import re
+import secrets
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,11 +12,13 @@ from pathlib import Path
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import shutil
-from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
+from fastapi import Depends, FastAPI, HTTPException, BackgroundTasks, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 
+from app.auth import create_access_token, get_current_user
 from app.config import settings
 from app.models import ImportRequest, ImportResponse, RecipeUpdateRequest, TranslationResponse, CategoryCountsResponse, CATEGORIES
 from app.queue_worker import run_worker
@@ -143,6 +147,9 @@ async def lifespan(app: FastAPI):
     logger.info("Starten der Datenbank-Migrations...")
     run_migrations()
 
+    if not settings.secret_key:
+        logger.warning("SECRET_KEY is not set — JWTs will be signed with an empty key. Set SECRET_KEY in .env for production.")
+
     # Temp-Verzeichnis anlegen
     os.makedirs(settings.tmp_dir, exist_ok=True)
     os.makedirs(settings.images_dir, exist_ok=True)
@@ -245,7 +252,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In Produktion: nur Frontend-Domain
+    allow_origins=[settings.frontend_url] if settings.frontend_url else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -262,6 +269,31 @@ def get_db():
     )
 
 
+_admin_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
+
+
+def require_admin_key(key: str | None = Depends(_admin_key_header)):
+    if not settings.admin_key or key != settings.admin_key:
+        raise HTTPException(status_code=403, detail="Admin key required")
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    display_name: str = ""
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TelegramLinkResponse(BaseModel):
+    code: str
+    deep_link: str
+    expires_in: int
+
+
 # ── Healthcheck ──────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
@@ -276,7 +308,120 @@ async def health():
         raise HTTPException(status_code=503, detail="Database not available")
 
 
-@app.get("/ingredient-densities")
+# ── Auth ─────────────────────────────────────────────────────────────
+
+@app.post("/auth/register", dependencies=[Depends(require_admin_key)])
+async def register(req: RegisterRequest):
+    hashed = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    email = req.email.lower().strip()
+    username = req.display_name or email.split("@")[0]
+    try:
+        db = get_db()
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """INSERT INTO users (username, email, password_hash, display_name)
+                   VALUES (%s, %s, %s, %s) RETURNING id, email, display_name""",
+                (username, email, hashed, req.display_name or email.split("@")[0]),
+            )
+            user = dict(cur.fetchone())
+            db.commit()
+        return user
+    except psycopg2.errors.UniqueViolation:
+        raise HTTPException(status_code=409, detail="Email already registered")
+    except Exception as e:
+        logger.error(f"Register error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        db.close()
+
+
+@app.post("/auth/login")
+async def login(req: LoginRequest):
+    db = get_db()
+    try:
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email, password_hash, display_name, is_active FROM users WHERE email = %s",
+                (req.email.lower().strip(),),
+            )
+            user = cur.fetchone()
+        if not user or not user["password_hash"] or not user["is_active"]:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not bcrypt.checkpw(req.password.encode(), user["password_hash"].encode()):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = create_access_token(str(user["id"]))
+        return {"access_token": token, "token_type": "bearer", "user": {"id": str(user["id"]), "email": user["email"], "display_name": user["display_name"]}}
+    finally:
+        db.close()
+
+
+@app.get("/auth/me")
+async def get_me(user_id: str = Depends(get_current_user)):
+    db = get_db()
+    try:
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, email, display_name, created_at FROM users WHERE id = %s AND is_active = true",
+                (user_id,),
+            )
+            user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return dict(user)
+    finally:
+        db.close()
+
+
+@app.post("/auth/telegram-link-code")
+async def create_telegram_link_code(user_id: str = Depends(get_current_user)):
+    code = "MIX-" + secrets.token_hex(3).upper()
+    deep_link = f"https://t.me/{settings.telegram_bot_username}?start={code}"
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                """INSERT INTO telegram_link_codes (code, user_id, expires_at)
+                   VALUES (%s, %s, now() + interval '5 minutes')""",
+                (code, user_id),
+            )
+            db.commit()
+        return TelegramLinkResponse(code=code, deep_link=deep_link, expires_in=300)
+    finally:
+        db.close()
+
+
+@app.get("/auth/telegram-links")
+async def list_telegram_links(user_id: str = Depends(get_current_user)):
+    db = get_db()
+    try:
+        with db.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT telegram_user_id, telegram_username, linked_at FROM user_telegram_links WHERE user_id = %s ORDER BY linked_at DESC",
+                (user_id,),
+            )
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        db.close()
+
+
+@app.delete("/auth/telegram-links/{telegram_user_id}")
+async def unlink_telegram(telegram_user_id: int, user_id: str = Depends(get_current_user)):
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                "DELETE FROM user_telegram_links WHERE user_id = %s AND telegram_user_id = %s",
+                (user_id, telegram_user_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Link not found")
+            db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.get("/ingredient-densities", dependencies=[Depends(get_current_user)])
 async def get_ingredient_densities():
     """Liefert alle Zutatendichte-Typen mit Keywords für Cup-zu-Gramm-Konvertierung."""
     db = get_db()
@@ -301,13 +446,13 @@ async def get_ingredient_densities():
 
 
 # ── Configuration Endpoints ──────────────────────────────────────────
-@app.get("/categories")
+@app.get("/categories", dependencies=[Depends(get_current_user)])
 async def get_categories():
     """Gibt alle erlaubten Rezept-Kategorien zurück."""
     return {"categories": CATEGORIES}
 
 
-@app.get("/categories/counts", response_model=CategoryCountsResponse)
+@app.get("/categories/counts", response_model=CategoryCountsResponse, dependencies=[Depends(get_current_user)])
 async def get_category_counts():
     """Returns total recipe count per category and overall total."""
     def _fetch_counts():
@@ -337,7 +482,7 @@ async def get_category_counts():
         raise HTTPException(status_code=500, detail="Failed to fetch category counts")
 
 
-@app.get("/tags")
+@app.get("/tags", dependencies=[Depends(get_current_user)])
 async def get_tags(category: str = ""):
     """Returns all unique tags across recipes, case-insensitively deduplicated.
 
@@ -379,7 +524,7 @@ async def get_tags(category: str = ""):
         raise HTTPException(status_code=500, detail="Failed to fetch tags")
 
 
-@app.get("/tags/counts")
+@app.get("/tags/counts", dependencies=[Depends(get_current_user)])
 async def get_tags_with_counts():
     """Returns all unique tags with recipe counts, sorted by count descending."""
     def _fetch_tags_counts():
@@ -412,7 +557,7 @@ class TagMergeRequest(BaseModel):
     target_tag: str
 
 
-@app.post("/tags/merge")
+@app.post("/tags/merge", dependencies=[Depends(get_current_user)])
 async def merge_tags(req: TagMergeRequest):
     """Merge multiple source tags into a single target tag (case-insensitive).
 
@@ -456,7 +601,7 @@ async def merge_tags(req: TagMergeRequest):
 
 
 # ── Import Endpoints ─────────────────────────────────────────────────
-@app.post("/import", response_model=ImportResponse)
+@app.post("/import", response_model=ImportResponse, dependencies=[Depends(get_current_user)])
 async def create_import(req: ImportRequest):
     """URL in die Import-Queue legen."""
     db = get_db()
@@ -518,7 +663,7 @@ async def create_import(req: ImportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/import/{queue_id}")
+@app.get("/import/{queue_id}", dependencies=[Depends(get_current_user)])
 async def get_import_status(queue_id: str):
     """Status eines Import-Jobs abfragen."""
     db = get_db()
@@ -549,7 +694,7 @@ async def get_import_status(queue_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/import")
+@app.get("/import", dependencies=[Depends(get_current_user)])
 async def list_imports(limit: int = 20):
     """Letzte Import-Jobs auflisten."""
     db = get_db()
@@ -575,7 +720,7 @@ async def list_imports(limit: int = 20):
 _instagram_challenge_client = None
 
 
-@app.post("/instagram/login")
+@app.post("/instagram/login", dependencies=[Depends(get_current_user)])
 async def instagram_login():
     """Instagram-Session initialisieren."""
     global _instagram_challenge_client
@@ -623,7 +768,7 @@ async def instagram_login():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/instagram/challenge")
+@app.post("/instagram/challenge", dependencies=[Depends(get_current_user)])
 async def instagram_challenge(body: dict):
     """Verification Code einreichen."""
     global _instagram_challenge_client
@@ -648,7 +793,7 @@ async def instagram_challenge(body: dict):
         raise HTTPException(status_code=400, detail=f"Challenge fehlgeschlagen: {e}")
 
 
-@app.post("/instagram/sync")
+@app.post("/instagram/sync", dependencies=[Depends(get_current_user)])
 async def instagram_sync():
     """Instagram Collection-Sync."""
     from app.instagram_service import get_collection_media_urls
@@ -746,7 +891,7 @@ async def get_og_recipe(recipe_slug: str):
 
 
 # ── Recipes Endpoints ───────────────────────────────────────────────
-@app.get("/recipes")
+@app.get("/recipes", dependencies=[Depends(get_current_user)])
 async def list_recipes(
     limit: int = 20,
     offset: int = 0,
@@ -823,7 +968,7 @@ async def list_recipes(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/recipes/{recipe_slug}")
+@app.get("/recipes/{recipe_slug}", dependencies=[Depends(get_current_user)])
 async def get_recipe(recipe_slug: str):
     """Rezept mit Zutaten und Schritten abrufen. Slug-Format: 'rezept-name-{uuid}'."""
     db = get_db()
@@ -873,7 +1018,7 @@ async def get_recipe(recipe_slug: str):
 
 
 # ── Recipe Update Endpoint ──────────────────────────────────────────
-@app.patch("/recipes/{recipe_id}")
+@app.patch("/recipes/{recipe_id}", dependencies=[Depends(get_current_user)])
 async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
     """Update recipe metadata (title, servings, notes, rating, category, tags, prep_time, cook_time)."""
     db = get_db()
@@ -992,7 +1137,7 @@ async def update_recipe(recipe_id: str, req: RecipeUpdateRequest):
 
 
 # ── Recipe Translation Endpoint ─────────────────────────────────────
-@app.post("/recipes/{recipe_id}/translate", response_model=TranslationResponse)
+@app.post("/recipes/{recipe_id}/translate", response_model=TranslationResponse, dependencies=[Depends(get_current_user)])
 async def translate_recipe(recipe_id: str, lang: str):
     """
     Fetch or generate translations for a recipe in target language.
@@ -1112,7 +1257,7 @@ async def translate_recipe(recipe_id: str, lang: str):
 
 
 # ── Delete Recipe ───────────────────────────────────────────────────
-@app.delete("/recipes/{recipe_id}")
+@app.delete("/recipes/{recipe_id}", dependencies=[Depends(get_current_user)])
 async def delete_recipe(recipe_id: str):
     """Delete a recipe (ingredients and steps cascade automatically)."""
     logger.info(f"Attempting to delete recipe: {recipe_id}")
@@ -1162,7 +1307,7 @@ async def delete_recipe(recipe_id: str):
 
 
 # ── Image Upload ─────────────────────────────────────────────────────
-@app.post("/recipes/{recipe_id}/image")
+@app.post("/recipes/{recipe_id}/image", dependencies=[Depends(get_current_user)])
 async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
     """Upload or replace the cover image for a recipe."""
     db = get_db()
@@ -1186,7 +1331,7 @@ async def upload_recipe_image(recipe_id: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/recipes/{recipe_id}/steps/{step_id}/image")
+@app.post("/recipes/{recipe_id}/steps/{step_id}/image", dependencies=[Depends(get_current_user)])
 async def upload_step_image(recipe_id: str, step_id: str, file: UploadFile = File(...)):
     """Upload or replace a step image."""
     db = get_db()
@@ -1226,7 +1371,7 @@ async def upload_step_image(recipe_id: str, step_id: str, file: UploadFile = Fil
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/recipes/{recipe_id}/steps/{step_id}/image")
+@app.delete("/recipes/{recipe_id}/steps/{step_id}/image", dependencies=[Depends(get_current_user)])
 async def delete_step_image(recipe_id: str, step_id: str):
     """Delete a step image."""
     db = get_db()
@@ -1266,7 +1411,7 @@ async def delete_step_image(recipe_id: str, step_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/recipes/{recipe_id}/debug-step-images")
+@app.get("/recipes/{recipe_id}/debug-step-images", dependencies=[Depends(get_current_user)])
 async def debug_recipe_step_images(recipe_id: str):
     """
     Debug endpoint: Show what step image files exist on disk and in database.
@@ -1326,7 +1471,7 @@ async def debug_recipe_step_images(recipe_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/recipes/{recipe_id}/sync-step-images")
+@app.post("/recipes/{recipe_id}/sync-step-images", dependencies=[Depends(get_current_user)])
 async def sync_recipe_step_images(recipe_id: str):
     """
     Sync existing step image files from disk to database for a specific recipe.

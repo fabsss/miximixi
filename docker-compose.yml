@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: https://miximixi-api.sektbirne.fun
+        VITE_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-miximixi_bot}
     container_name: miximixi-frontend
     restart: unless-stopped
     ports:
@@ -53,7 +54,10 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_ADMIN_IDS=${TELEGRAM_ADMIN_IDS}
       - TELEGRAM_ALLOWED_USER_IDS=${TELEGRAM_ALLOWED_USER_IDS}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-miximixi_bot}
       - FRONTEND_URL=${FRONTEND_URL}
+      - VAULTWARDEN_API_URL=${VAULTWARDEN_API_URL:-http://vaultwarden-api:8080}
+      - VAULTWARDEN_API_KEY=${VAULTWARDEN_API_KEY}
     volumes:
       - /mnt/data/nobackup/miximixi/backend-tmp:/tmp/miximixi
       - /mnt/data/backup/miximixi/recipe-images:/data/recipe-images

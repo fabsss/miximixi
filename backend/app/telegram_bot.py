@@ -73,6 +73,69 @@ def is_admin(user_id: int) -> bool:
     return is_admin_user
 
 
+# ── DB-Backed User Lookup ────────────────────────────────────────────────────
+def get_user_id_for_telegram(telegram_user_id: int) -> str | None:
+    """Returns miximixi user_id (UUID str) for a linked Telegram user, or None."""
+    import psycopg2
+    from app.config import settings
+    try:
+        conn = psycopg2.connect(
+            host=settings.db_host, port=settings.db_port,
+            user=settings.db_user, password=settings.db_password,
+            dbname=settings.db_name,
+        )
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id FROM user_telegram_links WHERE telegram_user_id = %s",
+                (telegram_user_id,)
+            )
+            row = cur.fetchone()
+        conn.close()
+        return str(row[0]) if row else None
+    except Exception as e:
+        logger.error(f"DB lookup for telegram_user_id {telegram_user_id}: {e}")
+        return None
+
+
+def consume_link_code(code: str, telegram_user_id: int, telegram_username: str | None) -> bool:
+    """Validates and consumes a link code, creates the user_telegram_links row. Returns True on success."""
+    import psycopg2
+    from app.config import settings
+    try:
+        conn = psycopg2.connect(
+            host=settings.db_host, port=settings.db_port,
+            user=settings.db_user, password=settings.db_password,
+            dbname=settings.db_name,
+        )
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT user_id FROM telegram_link_codes
+                   WHERE code = %s AND expires_at > now() AND used_at IS NULL""",
+                (code,)
+            )
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                return False
+            user_id = row[0]
+            cur.execute(
+                """INSERT INTO user_telegram_links (user_id, telegram_user_id, telegram_username)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (telegram_user_id) DO UPDATE SET user_id = EXCLUDED.user_id, telegram_username = EXCLUDED.telegram_username""",
+                (user_id, telegram_user_id, telegram_username)
+            )
+            cur.execute(
+                "UPDATE telegram_link_codes SET used_at = now() WHERE code = %s",
+                (code,)
+            )
+            conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"consume_link_code error: {e}")
+        return False
+
+
 # ── Error Humanization ───────────────────────────────────────────────────────
 def humanize_error(error: str) -> str:
     """
@@ -102,31 +165,30 @@ def humanize_error(error: str) -> str:
 
 # ── Telegram Handlers ────────────────────────────────────────────────────────
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /start command."""
-    user_id = update.effective_user.id
+    """Handles /start command, including deep-link account linking via MIX- codes."""
+    user = update.message.from_user
+    args = context.args or []
 
-    # Access control
-    if not is_allowed(user_id):
-        await update.message.reply_text(
-            "❌ Du hast keinen Zugriff auf diesen Bot.\n"
-            "Bitte den Admin kontaktieren."
-        )
-        logger.warning(f"Unauthorized user {user_id} tried /start")
+    if args and args[0].startswith("MIX-"):
+        code = args[0]
+        success = consume_link_code(code, user.id, user.username)
+        if success:
+            await update.message.reply_text(
+                "✅ Dein Telegram-Gerät wurde erfolgreich mit deinem Miximixi-Account verknüpft!\n\n"
+                "Du kannst jetzt Instagram- und Rezept-Links direkt in diesen Chat schicken."
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Ungültiger oder abgelaufener Code.\n"
+                "Bitte einen neuen Code im Miximixi-Frontend generieren."
+            )
         return
 
-    welcome_msg = (
-        "👋 Hallo! Ich bin der Miximixi Recipe Bot.\n\n"
-        "🍳 *So funktioniert es:*\n"
-        "1. Sende mir einen Link zu einem Instagram-Post, YouTube-Video oder einer Website mit einem Rezept\n"
-        "2. Ich extrahiere automatisch das Rezept\n"
-        "3. Du erhältst eine Bestätigung wenn alles klappt\n\n"
-        "📝 *Unterstützte Quellen:*\n"
-        "• Instagram (Posts & Reels)\n"
-        "• YouTube Videos\n"
-        "• Website-Links\n\n"
-        "Los geht's! 🚀"
+    await update.message.reply_text(
+        "👋 Willkommen bei Miximixi!\n\n"
+        "Um dieses Gerät zu verknüpfen, öffne Miximixi im Browser, "
+        "gehe zu deinem Profil und scanne den QR-Code."
     )
-    await update.message.reply_text(welcome_msg, parse_mode="Markdown")
 
 
 async def getchatid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -148,13 +210,52 @@ async def getchatid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /jobs command — shows all failed and processing jobs (admin-only)."""
+    """Handles /jobs command and subcommands (admin-only).
+
+    /jobs                  - list failed/processing jobs
+    /jobs <id>             - show job details
+    /jobs delete <id>      - delete a job
+    /jobs clear            - delete all needs_review + pending jobs
+    /jobs restart <id>     - reset a job to pending
+    /jobs restart all      - reset all failed/pending jobs to pending
+    """
     user_id = str(update.effective_user.id)
 
     if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
         await update.message.reply_text("❌ Nur Admin-Benutzer können /jobs nutzen")
         return
 
+    args = context.args or []
+
+    if not args:
+        await _jobs_list(update, user_id)
+        return
+
+    sub = args[0].lower()
+
+    if sub == "clear":
+        await _clear_jobs(update, user_id)
+    elif sub == "delete" and len(args) >= 2:
+        await _delete_job(update, user_id, args[1].strip())
+    elif sub == "restart":
+        if len(args) >= 2 and args[1].lower() == "all":
+            await _restart_all_jobs(update, user_id)
+        elif len(args) >= 2:
+            await _restart_job(update, user_id, args[1].strip())
+        else:
+            await update.message.reply_text(
+                "❌ Nutze:\n"
+                "`/jobs restart <id>` - Einzelnen Job neu starten\n"
+                "`/jobs restart all` - Alle fehlgeschlagenen Jobs neu starten",
+                parse_mode="Markdown"
+            )
+    else:
+        # Treat as job ID (details view)
+        await _show_job_details(update, user_id, args[0].strip())
+
+
+async def _jobs_list(update: Update, user_id: str) -> None:
+    """Shows all failed and processing jobs."""
     try:
         import psycopg2
         from psycopg2.extras import RealDictCursor
@@ -168,7 +269,6 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         cursor = db.cursor(cursor_factory=RealDictCursor)
 
-        # Get needs_review jobs (failed)
         cursor.execute(
             """
             SELECT id, source_url, error_msg, created_at
@@ -181,7 +281,6 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         failed_jobs = cursor.fetchall()
 
-        # Get processing jobs (stuck or in-progress)
         cursor.execute(
             """
             SELECT id, source_url, created_at, updated_at,
@@ -197,38 +296,35 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         db.close()
 
-        # Build message
-        msg_lines = ["📊 *Job Queue Status*\n"]
+        msg_lines = ["📊 Job Queue Status\n"]
 
         if failed_jobs:
-            msg_lines.append(f"❌ *{len(failed_jobs)} Failed Jobs (needs_review):*\n")
-            for job in failed_jobs:  # Show ALL jobs
+            msg_lines.append(f"❌ {len(failed_jobs)} Failed Jobs (needs_review):\n")
+            for job in failed_jobs:
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
                 error_short = job["error_msg"][:60] + "…" if len(job["error_msg"]) > 60 else job["error_msg"]
-                job_id = str(job['id'])[:12]  # First 12 chars of UUID
-                msg_lines.append(f"• `{job_id}`")
+                error_safe = error_short.replace("[", "\\[").replace("]", "\\]").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
+                job_id = str(job['id'])[:12]
+                msg_lines.append(f"• {job_id}")
                 msg_lines.append(f"  🔗 {url_short}")
-                msg_lines.append(f"  ❌ {error_short}\n")
+                msg_lines.append(f"  ❌ {error_safe}\n")
         else:
             msg_lines.append("✅ Keine fehlgeschlagenen Jobs\n")
 
         if processing_jobs:
-            msg_lines.append(f"\n⏳ *{len(processing_jobs)} Processing Jobs:*\n")
+            msg_lines.append(f"\n⏳ {len(processing_jobs)} Processing Jobs:\n")
             for job in processing_jobs:
                 url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
                 age_str = str(job["age"]).split(".")[0] if job["age"] else "?"
                 job_id = str(job['id'])[:12]
-                msg_lines.append(f"• `{job_id}` (age: {age_str})")
+                msg_lines.append(f"• {job_id} (age: {age_str})")
                 msg_lines.append(f"  🔗 {url_short}\n")
         else:
             msg_lines.append("\n✅ Keine aktiven Jobs\n")
 
-        msg_lines.append("\n💡 Nutze `/job <id>` für Details")
+        msg_lines.append("\n💡 /jobs <id> · /jobs delete <id> · /jobs clear · /jobs restart <id|all>")
 
-        await update.message.reply_text(
-            "\n".join(msg_lines),
-            parse_mode="Markdown"
-        )
+        await update.message.reply_text("\n".join(msg_lines), parse_mode=None)
         logger.info(f"Admin {user_id} requested job status")
 
     except Exception as e:
@@ -236,8 +332,150 @@ async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(f"❌ Fehler: {e}")
 
 
+async def _clear_jobs(update: Update, user_id: str) -> None:
+    """Deletes all jobs with status needs_review or pending."""
+    try:
+        import psycopg2
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+        cursor.execute(
+            "DELETE FROM import_queue WHERE status IN ('needs_review', 'pending')"
+        )
+        deleted = cursor.rowcount
+        db.commit()
+        db.close()
+
+        await update.message.reply_text(f"🗑️ {deleted} Job(s) gelöscht (needs_review + pending)")
+        logger.info(f"Admin {user_id} cleared {deleted} jobs")
+
+    except Exception as e:
+        logger.exception(f"Error clearing jobs: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Löschen: {e}")
+
+
+async def _restart_job(update: Update, user_id: str, job_id: str) -> None:
+    """Resets a single job back to pending status."""
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            "SELECT id, source_url, status FROM import_queue WHERE id::text LIKE %s LIMIT 1",
+            (f"{job_id}%",)
+        )
+        job = cursor.fetchone()
+
+        if not job:
+            await update.message.reply_text("❌ Job nicht gefunden")
+            db.close()
+            return
+
+        # Check if URL already has an active entry that would violate the partial unique index
+        cursor.execute(
+            "SELECT id FROM import_queue WHERE source_url = %s AND status IN ('pending', 'processing', 'done') AND id != %s LIMIT 1",
+            (job["source_url"], job["id"])
+        )
+        conflict = cursor.fetchone()
+        if conflict:
+            db.close()
+            await update.message.reply_text(
+                f"⚠️ Kann nicht neu starten — URL bereits als aktiver Job vorhanden\n\nID: `{conflict[0]}`",
+                parse_mode="Markdown"
+            )
+            return
+
+        cursor.execute(
+            "UPDATE import_queue SET status = 'pending', error_msg = NULL, updated_at = now() WHERE id = %s",
+            (job["id"],)
+        )
+        db.commit()
+        db.close()
+
+        url_short = job["source_url"][:60] + "…" if len(job["source_url"]) > 60 else job["source_url"]
+        await update.message.reply_text(
+            f"🔄 Job neu gestartet\n\nID: `{job['id']}`\nURL: {url_short}",
+            parse_mode="Markdown"
+        )
+        logger.info(f"Admin {user_id} restarted job {job['id']}")
+
+    except Exception as e:
+        logger.exception(f"Error restarting job: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Neustarten: {e}")
+
+
+async def _restart_all_jobs(update: Update, user_id: str) -> None:
+    """Resets all needs_review and error jobs back to pending."""
+    try:
+        import psycopg2
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor()
+        # Use a CTE to pick only the single newest failed job per URL,
+        # then exclude URLs that already have an active entry.
+        # This avoids constraint violations when multiple failed jobs share
+        # the same URL (both would otherwise pass the NOT IN check simultaneously).
+        # Count total candidates first for diagnostics
+        cursor.execute(
+            "SELECT COUNT(*) FROM import_queue WHERE status IN ('needs_review', 'error')"
+        )
+        total_failed = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            WITH candidates AS (
+                SELECT DISTINCT ON (source_url) id
+                FROM import_queue
+                WHERE status IN ('needs_review', 'error')
+                ORDER BY source_url, updated_at DESC
+            )
+            UPDATE import_queue
+            SET status = 'pending', error_msg = NULL, updated_at = now()
+            WHERE id IN (SELECT id FROM candidates)
+              AND source_url NOT IN (
+                  SELECT source_url FROM import_queue
+                  WHERE status IN ('pending', 'processing', 'done')
+              )
+            """
+        )
+        updated = cursor.rowcount
+        skipped = total_failed - updated
+        db.commit()
+        db.close()
+
+        msg = f"🔄 {updated} Job(s) zurück auf pending gesetzt"
+        if skipped > 0:
+            msg += f"\n⏭️ {skipped} übersprungen (URL bereits aktiv oder bereits importiert)"
+        await update.message.reply_text(msg)
+        logger.info(f"Admin {user_id} restarted {updated} jobs, skipped {skipped} of {total_failed}")
+
+    except Exception as e:
+        logger.exception(f"Error restarting all jobs: {e}")
+        await update.message.reply_text(f"❌ Fehler beim Neustarten: {e}")
+
+
 async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles /job <id> command — shows details of a specific job, or /job delete <id>."""
+    """Handles /job <id> — alias for /jobs <id> (backwards compatibility)."""
     user_id = str(update.effective_user.id)
 
     if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
@@ -246,22 +484,17 @@ async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if not context.args or len(context.args) < 1:
         await update.message.reply_text(
-            "❌ Nutze:\n"
-            "`/job <id>` - Zeige Details\n"
-            "`/job delete <id>` - Lösche Job",
+            "💡 Nutze `/jobs` für die neue Kommando-Übersicht",
             parse_mode="Markdown"
         )
         return
 
-    # Check for delete subcommand
+    # Support legacy /job delete <id>
     if context.args[0].lower() == "delete" and len(context.args) >= 2:
-        job_id = context.args[1].strip()
-        await _delete_job(update, user_id, job_id)
+        await _delete_job(update, user_id, context.args[1].strip())
         return
 
-    # Otherwise: show job details
-    job_id = context.args[0].strip()
-    await _show_job_details(update, user_id, job_id)
+    await _show_job_details(update, user_id, context.args[0].strip())
 
 
 async def _show_job_details(update: Update, user_id: str, job_id: str) -> None:
@@ -312,7 +545,7 @@ async def _show_job_details(update: Update, user_id: str, job_id: str) -> None:
         if job['recipe_id']:
             msg += f"\n✅ Recipe ID: `{job['recipe_id']}`\n"
 
-        msg += f"\n💡 Lösche mit: `/job delete {str(job['id'])[:12]}`"
+        msg += f"\n💡 `/jobs delete {str(job['id'])[:12]}` · `/jobs restart {str(job['id'])[:12]}`"
 
         await update.message.reply_text(msg, parse_mode="Markdown")
         db.close()
@@ -374,10 +607,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = update.effective_user.id
     text = update.message.text
     
-    # Access control
-    if not is_allowed(user_id):
-        await update.message.reply_text("❌ Du hast keinen Zugriff auf diesen Bot.")
-        logger.warning(f"Unauthorized user {user_id} sent message")
+    # Access control — DB-backed lookup
+    user_id_str = get_user_id_for_telegram(user_id)
+    if user_id_str is None:
+        await update.message.reply_text(
+            "❌ Kein Miximixi-Account verknüpft.\n\n"
+            "Öffne Miximixi im Browser, gehe zu deinem Profil und scanne den QR-Code."
+        )
         return
     
     # URL extraction

@@ -1,0 +1,65 @@
+name: vaultwarden
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    volumes:
+      - vaultwarden_data:/data
+    environment:
+      DOMAIN: "https://vault.sektbirne.fun"
+      SIGNUPS_ALLOWED: "true"
+      WEBSOCKET_ENABLED: "true"
+      TZ: "Europe/Berlin"
+    networks:
+      - proxy
+
+  vaultwarden-admin:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden-admin
+    restart: unless-stopped
+    volumes:
+      - vaultwarden_data:/data
+    environment:
+      DOMAIN: "https://vault.sektbirne.fun"
+      SIGNUPS_ALLOWED: "false"
+      ADMIN_TOKEN: "${ADMIN_TOKEN}"
+      ROCKET_PORT: "8081"
+      TZ: "Europe/Berlin"
+    networks:
+      - proxy
+
+  # ── Vaultwarden API Server ────────────────────────────────────
+  # Proxy for Vaultwarden API — fetches secrets and provides REST endpoints
+  vaultwarden-api:
+    image: ghcr.io/turbootzz/vaultwarden-api:latest
+    container_name: vaultwarden-api
+    restart: unless-stopped
+    environment:
+      - API_PORT=8080
+      - ENVIRONMENT=production
+      - API_KEY=${VAULTWARDEN_API_KEY}
+      - VAULTWARDEN_URL=${VAULTWARDEN_URL}
+      - VAULTWARDEN_EMAIL=${VAULTWARDEN_EMAIL}
+      - VAULTWARDEN_PASSWORD=${VAULTWARDEN_PASSWORD}
+      - SYNC_INTERVAL=5m
+      - CACHE_TTL=5m
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - proxy
+    depends_on:
+      - vaultwarden
+
+volumes:
+  vaultwarden_data:
+    name: vaultwarden_data
+
+networks:
+  proxy:
+    external: true

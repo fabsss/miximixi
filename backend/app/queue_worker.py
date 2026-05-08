@@ -89,6 +89,7 @@ def _is_retryable_error(error_msg: str) -> bool:
         "no recipe",
         "parsing error",
         "json error",
+        "abgelaufen",          # "Cookie könnte abgelaufen sein" → requires admin intervention
     ]
 
     # Check fatal first
@@ -156,6 +157,24 @@ def _save_recipe_to_db(
     # Extract source type and ID for deduplication tracking
     source_type = get_source_type_from_url(source_url)
     source_id = extract_source_id(source_url) if source_type != 'web' else None
+
+    # Check if recipe with same source_id already exists (e.g. job restarted after successful import)
+    if source_id and source_type in ('instagram', 'youtube'):
+        cursor.execute(
+            "SELECT id FROM recipes WHERE source_type = %s AND source_id = %s LIMIT 1",
+            (source_type, source_id),
+        )
+        existing = cursor.fetchone()
+        if existing:
+            logger.info(f"Recipe already imported (source_id={source_id}), marking job done: {queue_id}")
+            cursor.execute(
+                "UPDATE import_queue SET status = 'done', recipe_id = %s WHERE id = %s",
+                (existing[0], queue_id),
+            )
+            db.commit()
+            if should_close:
+                db.close()
+            return
 
     try:
         # 1. Insert Recipe

@@ -6,8 +6,34 @@ const baseUrl =
 
 const API_BASE_URL = baseUrl.replace(/\/$/, '')
 
+const TOKEN_KEY = 'miximixi_auth_token'
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setStoredToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearStoredToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, options)
+  const token = getStoredToken()
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>),
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers })
+  if (response.status === 401) {
+    clearStoredToken()
+    window.location.href = '/login'
+    throw new Error('Session expired')
+  }
   if (!response.ok) {
     throw new Error(`API error ${response.status}`)
   }
@@ -233,4 +259,58 @@ export async function getCategoryCounts(): Promise<CategoryCountsResponse> {
 
 export async function getDensities(): Promise<DensityType[]> {
   return request<DensityType[]>('/ingredient-densities')
+}
+
+export interface LoginResponse {
+  access_token: string
+  token_type: string
+  user: { id: string; email: string; display_name: string }
+}
+
+export interface CurrentUser {
+  id: string
+  email: string
+  display_name: string
+  created_at: string
+}
+
+export interface TelegramLinkResponse {
+  code: string
+  deep_link: string
+  expires_in: number
+}
+
+export interface TelegramLink {
+  telegram_user_id: number
+  telegram_username: string | null
+  linked_at: string
+}
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail || `Login failed: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function getMe(): Promise<CurrentUser> {
+  return request<CurrentUser>('/auth/me')
+}
+
+export async function createTelegramLinkCode(): Promise<TelegramLinkResponse> {
+  return request<TelegramLinkResponse>('/auth/telegram-link-code', { method: 'POST' })
+}
+
+export async function getTelegramLinks(): Promise<TelegramLink[]> {
+  return request<TelegramLink[]>('/auth/telegram-links')
+}
+
+export async function unlinkTelegramDevice(telegramUserId: number): Promise<void> {
+  await request<void>(`/auth/telegram-links/${telegramUserId}`, { method: 'DELETE' })
 }

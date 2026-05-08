@@ -2,6 +2,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 import logging
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,18 @@ class Settings(BaseSettings):
     # Frontend URL for deep links in Telegram notifications
     frontend_url: str = "https://miximixi.example.com"
 
+    # Auth
+    secret_key: str = ""          # JWT signing secret — fetched from Vaultwarden
+    admin_key: str = ""           # X-Admin-Key for POST /auth/register — fetched from Vaultwarden
+    encryption_key: str = ""      # Fernet key for Instagram passwords — fetched from Vaultwarden
+
+    # Telegram
+    telegram_bot_username: str = "miximixi_bot"
+
+    # Vaultwarden API Proxy (retrieves secrets at startup)
+    vaultwarden_api_url: str = "http://vaultwarden-api:8080"
+    vaultwarden_api_key: str = ""
+
     # Worker
     worker_max_concurrent: int = 3
     # 1 = seriell (für lokale LLMs: Ollama, Gemma3n — nur ein Modell)
@@ -98,6 +111,79 @@ class Settings(BaseSettings):
 
     # Temp storage for media downloads
     tmp_dir: str = "/tmp/miximixi"
+
+    def __init__(self, **data):
+        super().__init__(**data)
+
+        # Try to fetch secrets from Vaultwarden API if configured
+        if self.vaultwarden_api_key:
+            logger.warning(f"🔐 Vaultwarden API configured. Attempting to fetch secrets...")
+            try:
+                self._fetch_secrets_from_vaultwarden_api()
+            except Exception as e:
+                logger.warning(f"⚠️ Vaultwarden API fetch failed ({e}). Falling back to env variables.")
+                import traceback
+                logger.warning(f"Traceback: {traceback.format_exc()}")
+        else:
+            logger.warning("⚠️ Vaultwarden API not configured (VAULTWARDEN_API_KEY empty). Using env variables for secrets.")
+
+    def _fetch_secrets_from_vaultwarden_api(self):
+        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden API Server."""
+        try:
+            base_url = self.vaultwarden_api_url.rstrip('/')
+            headers = {
+                "Authorization": f"Bearer {self.vaultwarden_api_key}",
+            }
+
+            logger.warning(f"🔐 Fetching secrets from Vaultwarden API Server: {base_url}")
+
+            # Fetch each secret individually from the API
+            secrets_map = {}
+            for secret_name in ("SECRET_KEY", "ADMIN_KEY", "ENCRYPTION_KEY"):
+                logger.warning(f"🔍 Fetching {secret_name}...")
+                response = httpx.get(
+                    f"{base_url}/secret/{secret_name}",
+                    headers=headers,
+                    timeout=10.0
+                )
+
+                if response.status_code == 200:
+                    # API returns JSON: {"name":"SECRET_KEY","value":"..."}
+                    data = response.json()
+                    secret_value = data.get("value", "").strip()
+                    if secret_value:
+                        secrets_map[secret_name.lower()] = secret_value
+                        logger.warning(f"✅ Fetched {secret_name}")
+                    else:
+                        logger.warning(f"⚠️ {secret_name} value is empty")
+                elif response.status_code == 404:
+                    logger.warning(f"⚠️ {secret_name} not found in Vaultwarden")
+                else:
+                    logger.error(f"❌ Failed to fetch {secret_name}: {response.status_code}")
+                    response.raise_for_status()
+
+            # Apply secrets to settings
+            if "secret_key" in secrets_map:
+                self.secret_key = secrets_map["secret_key"]
+                logger.warning("✅ SECRET_KEY loaded")
+            if "admin_key" in secrets_map:
+                self.admin_key = secrets_map["admin_key"]
+                logger.warning("✅ ADMIN_KEY loaded")
+            if "encryption_key" in secrets_map:
+                self.encryption_key = secrets_map["encryption_key"]
+                logger.warning("✅ ENCRYPTION_KEY loaded")
+
+            if secrets_map:
+                logger.warning(f"✅ Loaded {len(secrets_map)}/3 secrets from Vaultwarden API")
+            else:
+                logger.warning("⚠️ No secrets found in Vaultwarden API")
+
+        except httpx.HTTPError as e:
+            logger.error(f"❌ Vaultwarden API error: {e}")
+            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden API: {e}") from e
+        except Exception as e:
+            logger.error(f"❌ Error fetching secrets: {e}")
+            raise RuntimeError(f"Cannot fetch secrets from Vaultwarden API: {e}") from e
 
 
 settings = Settings()
