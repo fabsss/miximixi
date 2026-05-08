@@ -36,6 +36,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('mx-theme', theme)
   }, [theme])
 
+  // Apply data-theme attribute to <html> so CSS selectors work
+  useEffect(() => {
+    if (theme === 'system') {
+      document.documentElement.removeAttribute('data-theme')
+    } else {
+      document.documentElement.setAttribute('data-theme', theme)
+    }
+  }, [theme])
+
   // Compute effective theme (derived state, not stored state)
   const effectiveTheme = theme === 'system' ? systemPreference : theme
 
