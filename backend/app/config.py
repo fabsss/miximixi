@@ -137,34 +137,10 @@ class Settings(BaseSettings):
 
             logger.info(f"🔐 Vaultwarden: url={base_url}, client_id={self.vaultwarden_client_id}")
 
-            # Step 0: Get OAuth2 access token using client credentials
-            logger.info("🔑 Fetching OAuth2 access token...")
-
-            token_response = httpx.post(
-                f"{base_url}/identity/connect/token",
-                data={
-                    "grant_type": "client_credentials",
-                    "scope": "api",
-                    "client_id": self.vaultwarden_client_id,
-                    "client_secret": self.vaultwarden_client_secret,
-                    "device_identifier": "miximixi-backend",
-                    "device_name": "Miximixi Backend",
-                    "device_type": "Application"
-                },
-                timeout=10.0
-            )
-
-            if token_response.status_code != 200:
-                logger.error(f"❌ Token endpoint returned {token_response.status_code}")
-                logger.error(f"Response body: {token_response.text}")
-                token_response.raise_for_status()
-
-            access_token = token_response.json()["access_token"]
-            logger.info("✅ OAuth2 access token obtained")
-
-            # Prepare headers with Bearer token for all subsequent requests
+            # Use client_id directly as Personal API Token (it's a user.* token, not OAuth2)
+            logger.info("🔑 Using Personal API Token authentication")
             headers = {
-                "Authorization": f"Bearer {access_token}",
+                "Authorization": f"Bearer {self.vaultwarden_client_id}",
                 "Content-Type": "application/json"
             }
 
