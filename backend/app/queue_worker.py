@@ -54,6 +54,57 @@ llm = LLMProvider()
 _MULTI_REF_RE = re.compile(r'\[([^\]]+)\]\{(\d+(?:,\s*\d+)+)\}')
 
 
+def _is_retryable_error(error_msg: str) -> bool:
+    """
+    Determines if an error is retryable (temporary) or fatal.
+
+    Retryable errors: Auth issues, timeouts, rate limits, connection issues
+    Fatal errors: 404, no recipe found, parsing errors
+    """
+    error_lower = error_msg.lower()
+
+    # Retryable patterns
+    retryable_patterns = [
+        "cookie",
+        "authentication",
+        "auth",
+        "unauthorized",
+        "session expired",
+        "login required",
+        "timeout",
+        "connection",
+        "rate limit",
+        "challenge",
+        "checkpoint",
+    ]
+
+    # Fatal patterns (take precedence)
+    fatal_patterns = [
+        "404",
+        "not found",
+        "does not exist",
+        "removed",
+        "existiert nicht",
+        "kein rezept",
+        "no recipe",
+        "parsing error",
+        "json error",
+    ]
+
+    # Check fatal first
+    for pattern in fatal_patterns:
+        if pattern in error_lower:
+            return False
+
+    # Then check retryable
+    for pattern in retryable_patterns:
+        if pattern in error_lower:
+            return True
+
+    # Default: not retryable (safer)
+    return False
+
+
 def _sanitize_step_text(text: str) -> str:
     """Entfernt [Sammelbegriff]{1,2,3}-Tags, die das Frontend nicht rendern kann.
 
@@ -346,24 +397,40 @@ async def process_job(job: dict, notify_callback=None) -> None:
 
     except Exception as e:
         logger.exception(f"Fehler bei Job {queue_id}: {e}")
+        error_str = str(e)[:1000]
+
+        # Determine if error is retryable
+        is_retryable = _is_retryable_error(error_str)
+        new_status = "pending" if is_retryable else "needs_review"
+
         if db:
             try:
                 cursor = db.cursor()
-                cursor.execute(
-                    "UPDATE import_queue SET status = %s, error_msg = %s WHERE id = %s",
-                    ("needs_review", str(e)[:1000], queue_id),
-                )
+                if is_retryable:
+                    # Retryable error: reset to pending for later retry
+                    cursor.execute(
+                        "UPDATE import_queue SET status = %s, error_msg = %s WHERE id = %s",
+                        ("pending", f"Retryable: {error_str}", queue_id),
+                    )
+                    logger.info(f"Job {queue_id} reset to pending (retryable error)")
+                else:
+                    # Fatal error: mark as needs_review for manual intervention
+                    cursor.execute(
+                        "UPDATE import_queue SET status = %s, error_msg = %s WHERE id = %s",
+                        ("needs_review", error_str, queue_id),
+                    )
+                    logger.warning(f"Job {queue_id} marked as needs_review (fatal error)")
                 db.commit()
             except Exception as db_err:
                 logger.warning(f"Fehler beim Update der import_queue: {db_err}")
-        
-        # User notification for errors
-        if notify_callback and telegram_chat_id:
+
+        # User notification for errors (only for fatal errors)
+        if not is_retryable and notify_callback and telegram_chat_id:
             try:
                 await notify_callback(
                     chat_id=telegram_chat_id,
                     success=False,
-                    error_msg=str(e),
+                    error_msg=error_str,
                 )
                 # Null the chat_id after notification
                 cursor = db.cursor()
@@ -374,8 +441,10 @@ async def process_job(job: dict, notify_callback=None) -> None:
                 db.commit()
             except Exception as notify_err:
                 logger.warning(f"Error notification failed: {notify_err}")
-        
-        await _notify_needs_review(source_url, str(e), queue_id)
+
+        # Admin notification (all errors)
+        if not is_retryable:
+            await _notify_needs_review(source_url, error_str, queue_id)
 
     finally:
         if db:
