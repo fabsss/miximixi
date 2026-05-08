@@ -139,19 +139,14 @@ class Settings(BaseSettings):
 
             # Step 0: Get OAuth2 access token using client credentials
             logger.info("🔑 Fetching OAuth2 access token...")
-            import base64
-            credentials = base64.b64encode(
-                f"{self.vaultwarden_client_id}:{self.vaultwarden_client_secret}".encode()
-            ).decode()
 
             token_response = httpx.post(
                 f"{base_url}/identity/connect/token",
-                headers={
-                    "Authorization": f"Basic {credentials}",
-                },
                 data={
                     "grant_type": "client_credentials",
-                    "scope": "api"
+                    "scope": "api",
+                    "client_id": self.vaultwarden_client_id,
+                    "client_secret": self.vaultwarden_client_secret
                 },
                 timeout=10.0
             )
