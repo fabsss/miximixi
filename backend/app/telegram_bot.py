@@ -147,6 +147,162 @@ async def getchatid_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     logger.info(f"User {user_id} requested chat ID: {chat_id}")
 
 
+async def jobs_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles /jobs command — shows all failed and processing jobs (admin-only)."""
+    user_id = str(update.effective_user.id)
+
+    if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
+        await update.message.reply_text("❌ Nur Admin-Benutzer können /jobs nutzen")
+        return
+
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+
+        # Get needs_review jobs (failed)
+        cursor.execute(
+            """
+            SELECT id, source_url, error_msg, created_at
+            FROM import_queue
+            WHERE status = %s
+            ORDER BY created_at DESC
+            LIMIT 10
+            """,
+            ("needs_review",)
+        )
+        failed_jobs = cursor.fetchall()
+
+        # Get processing jobs (stuck or in-progress)
+        cursor.execute(
+            """
+            SELECT id, source_url, created_at, updated_at,
+                   now() - updated_at as age
+            FROM import_queue
+            WHERE status = %s
+            ORDER BY created_at DESC
+            LIMIT 5
+            """,
+            ("processing",)
+        )
+        processing_jobs = cursor.fetchall()
+
+        db.close()
+
+        # Build message
+        msg_lines = ["📊 *Job Queue Status*\n"]
+
+        if failed_jobs:
+            msg_lines.append(f"❌ *{len(failed_jobs)} Failed Jobs (needs_review):*\n")
+            for job in failed_jobs[:3]:  # Show first 3
+                url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
+                error_short = job["error_msg"][:80] + "…" if len(job["error_msg"]) > 80 else job["error_msg"]
+                msg_lines.append(f"• `{job['id'][:8]}…`")
+                msg_lines.append(f"  🔗 {url_short}")
+                msg_lines.append(f"  ❌ {error_short}\n")
+            if len(failed_jobs) > 3:
+                msg_lines.append(f"… und {len(failed_jobs) - 3} weitere\n")
+        else:
+            msg_lines.append("✅ Keine fehlgeschlagenen Jobs\n")
+
+        if processing_jobs:
+            msg_lines.append(f"\n⏳ *{len(processing_jobs)} Processing Jobs:*\n")
+            for job in processing_jobs:
+                url_short = job["source_url"][:50] + "…" if len(job["source_url"]) > 50 else job["source_url"]
+                age_str = str(job["age"]).split(".")[0] if job["age"] else "?"
+                msg_lines.append(f"• `{job['id'][:8]}…` (age: {age_str})")
+                msg_lines.append(f"  🔗 {url_short}\n")
+        else:
+            msg_lines.append("\n✅ Keine aktiven Jobs\n")
+
+        msg_lines.append("\n💡 Nutze `/job <id>` für Details")
+
+        await update.message.reply_text(
+            "\n".join(msg_lines),
+            parse_mode="Markdown"
+        )
+        logger.info(f"Admin {user_id} requested job status")
+
+    except Exception as e:
+        logger.exception(f"Error in /jobs command: {e}")
+        await update.message.reply_text(f"❌ Fehler: {e}")
+
+
+async def job_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles /job <id> command — shows details of a specific job."""
+    user_id = str(update.effective_user.id)
+
+    if settings.telegram_admin_ids and user_id not in settings.telegram_admin_ids:
+        await update.message.reply_text("❌ Nur Admin-Benutzer können /job nutzen")
+        return
+
+    if not context.args:
+        await update.message.reply_text("❌ Nutze: `/job <job-id>`", parse_mode="Markdown")
+        return
+
+    job_id = context.args[0]
+
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+
+        db = psycopg2.connect(
+            host=settings.db_host,
+            port=settings.db_port,
+            user=settings.db_user,
+            password=settings.db_password,
+            database=settings.db_name,
+        )
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute(
+            """
+            SELECT id, status, source_url, source_type, error_msg,
+                   created_at, updated_at, recipe_id
+            FROM import_queue
+            WHERE id LIKE %s
+            LIMIT 1
+            """,
+            (f"{job_id}%",)
+        )
+        job = cursor.fetchone()
+
+        if not job:
+            await update.message.reply_text("❌ Job nicht gefunden")
+            db.close()
+            return
+
+        # Format message
+        msg = f"📋 *Job Details*\n\n"
+        msg += f"ID: `{job['id']}`\n"
+        msg += f"Status: {job['status']}\n"
+        msg += f"Type: {job['source_type']}\n"
+        msg += f"URL: {job['source_url']}\n"
+        msg += f"Created: {job['created_at']}\n"
+        msg += f"Updated: {job['updated_at']}\n"
+
+        if job['error_msg']:
+            msg += f"\n❌ *Error:*\n`{job['error_msg']}`\n"
+        if job['recipe_id']:
+            msg += f"\n✅ Recipe ID: `{job['recipe_id']}`\n"
+
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        db.close()
+        logger.info(f"Admin {user_id} requested job details: {job_id}")
+
+    except Exception as e:
+        logger.exception(f"Error in /job command: {e}")
+        await update.message.reply_text(f"❌ Fehler: {e}")
+
+
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles text messages — URL extraction and queueing."""
     user_id = update.effective_user.id
@@ -741,6 +897,8 @@ async def run_bot(set_notify_callback: Callable[[Callable], None], sync_control=
     # Add handlers
     app.add_handler(CommandHandler("start", start_handler))
     app.add_handler(CommandHandler("getchatid", getchatid_handler))
+    app.add_handler(CommandHandler("jobs", jobs_handler))
+    app.add_handler(CommandHandler("job", job_details_handler))
     app.add_handler(CommandHandler("sync_setup", sync_setup_handler))
     app.add_handler(CommandHandler("sync_status", sync_status_handler))
     app.add_handler(CommandHandler("sync_enable", sync_enable_handler))
