@@ -128,12 +128,7 @@ class Settings(BaseSettings):
             logger.info("⚠️ Vaultwarden not configured (VAULTWARDEN_CLIENT_ID or VAULTWARDEN_CLIENT_SECRET empty). Using env variables for secrets.")
 
     def _fetch_secrets_from_vaultwarden(self):
-        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden.
-
-        Supports two auth methods:
-        1. Personal API Token (client_id is the token, client_secret is ignored)
-        2. Basic Auth (client_id:client_secret encoded as base64)
-        """
+        """Fetch SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY from Vaultwarden using OAuth2."""
         try:
             # Normalize base URL
             base_url = self.vaultwarden_url.rstrip('/')
@@ -142,25 +137,33 @@ class Settings(BaseSettings):
 
             logger.info(f"🔐 Vaultwarden: url={base_url}, client_id={self.vaultwarden_client_id}")
 
-            # Determine auth method based on client_id format
-            # If client_id looks like a Personal API Token (contains "user." or "org."), use Bearer token
-            # Otherwise, use Basic Auth with client_id:client_secret
-            if self.vaultwarden_client_id.startswith(("user.", "org.")):
-                logger.info("🔑 Using Personal API Token authentication")
-                headers = {
-                    "Authorization": f"Bearer {self.vaultwarden_client_id}",
-                    "Content-Type": "application/json"
-                }
-            else:
-                logger.info("🔑 Using Basic Auth (client_id:client_secret)")
-                import base64
-                credentials = base64.b64encode(
-                    f"{self.vaultwarden_client_id}:{self.vaultwarden_client_secret}".encode()
-                ).decode()
-                headers = {
+            # Step 0: Get OAuth2 access token using client credentials
+            logger.info("🔑 Fetching OAuth2 access token...")
+            import base64
+            credentials = base64.b64encode(
+                f"{self.vaultwarden_client_id}:{self.vaultwarden_client_secret}".encode()
+            ).decode()
+
+            token_response = httpx.post(
+                f"{base_url}/identity/connect/token",
+                headers={
                     "Authorization": f"Basic {credentials}",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
+                },
+                data={
+                    "grant_type": "client_credentials",
+                    "scope": "api"
+                },
+                timeout=10.0
+            )
+            token_response.raise_for_status()
+            access_token = token_response.json()["access_token"]
+            logger.info("✅ OAuth2 access token obtained")
+
+            # Prepare headers with Bearer token for all subsequent requests
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
 
             # Step 1: Get organization ID
             logger.info("📦 Fetching organization...")
