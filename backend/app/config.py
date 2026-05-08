@@ -146,7 +146,10 @@ class Settings(BaseSettings):
                     "grant_type": "client_credentials",
                     "scope": "api",
                     "client_id": self.vaultwarden_client_id,
-                    "client_secret": self.vaultwarden_client_secret
+                    "client_secret": self.vaultwarden_client_secret,
+                    "device_identifier": "miximixi-backend",
+                    "device_name": "Miximixi Backend",
+                    "device_type": "Application"
                 },
                 timeout=10.0
             )
