@@ -144,52 +144,74 @@ class Settings(BaseSettings):
                 "Content-Type": "application/json"
             }
 
-            # Step 1: Get organization ID
-            logger.info("📦 Fetching organization...")
-            org_response = httpx.get(
-                f"{base_url}/api/organizations/self",
+            # Step 1: Verify token is valid by getting current user profile
+            logger.info("🔐 Verifying token...")
+            profile_response = httpx.get(
+                f"{base_url}/api/accounts/profile",
                 headers=headers,
                 timeout=10.0
             )
 
-            if org_response.status_code != 200:
-                logger.error(f"❌ /api/organizations/self returned {org_response.status_code}")
-                logger.error(f"Response body: {org_response.text}")
-                org_response.raise_for_status()
+            if profile_response.status_code != 200:
+                logger.error(f"❌ Token verification failed: {profile_response.status_code}")
+                logger.error(f"Response: {profile_response.text}")
+                profile_response.raise_for_status()
 
-            org_id = org_response.json()["id"]
+            profile = profile_response.json()
+            logger.info(f"✅ Token valid for user: {profile.get('Name', 'unknown')}")
+
+            # Step 2: Get organization ID
+            logger.info("📦 Fetching organizations...")
+            orgs_response = httpx.get(
+                f"{base_url}/api/organizations",
+                headers=headers,
+                timeout=10.0
+            )
+
+            if orgs_response.status_code != 200:
+                logger.error(f"❌ /api/organizations returned {orgs_response.status_code}")
+                logger.error(f"Response body: {orgs_response.text}")
+                orgs_response.raise_for_status()
+
+            organizations = orgs_response.json()
+            if not organizations:
+                raise RuntimeError("No organizations found for this user")
+
+            org_id = organizations[0]["Id"]
             logger.info(f"✅ Organization ID: {org_id[:12]}...")
 
-            # Step 2: Get items in organization
+            # Step 3: Get items (ciphers) in organization
             logger.info("🔍 Fetching items from Vaultwarden...")
             items_response = httpx.get(
-                f"{base_url}/api/organizations/{org_id}/items",
+                f"{base_url}/api/ciphers?organizationId={org_id}",
                 headers=headers,
                 timeout=10.0
             )
 
             if items_response.status_code != 200:
-                logger.error(f"❌ /api/organizations/{{org_id}}/items returned {items_response.status_code}")
+                logger.error(f"❌ /api/ciphers returned {items_response.status_code}")
                 logger.error(f"Response body: {items_response.text}")
                 items_response.raise_for_status()
 
-            items = items_response.json()
+            ciphers_data = items_response.json()
+            items = ciphers_data.get("Data", []) if isinstance(ciphers_data, dict) else ciphers_data
             logger.info(f"✅ Found {len(items)} items")
 
-            # Step 4: Extract secrets from items
+            # Step 4: Extract secrets from ciphers
             secrets_map = {}
             for item in items:
-                item_name = item.get("name", "").strip().upper()
+                # Vaultwarden cipher structure: Name, Notes, Fields
+                item_name = item.get("Name", "").strip().upper()
 
                 if item_name in ("SECRET_KEY", "ADMIN_KEY", "ENCRYPTION_KEY"):
-                    # Try to get value from notes field first, then from custom fields
-                    secret_value = item.get("notes", "").strip()
+                    # Try to get value from Notes field first
+                    secret_value = item.get("Notes", "").strip()
 
                     if not secret_value:
-                        # Try to extract from fields array
-                        fields = item.get("fields", [])
-                        if fields and isinstance(fields, list):
-                            secret_value = fields[0].get("data", "").strip()
+                        # Try to extract from Fields array
+                        fields = item.get("Fields", [])
+                        if fields and isinstance(fields, list) and len(fields) > 0:
+                            secret_value = fields[0].get("Data", "").strip()
 
                     if secret_value:
                         secrets_map[item_name.lower()] = secret_value
