@@ -78,6 +78,9 @@ export function ProfilePage() {
 
   async function handleUnlink(telegramUserId: number) {
     await unlinkTelegramDevice(telegramUserId)
+    setLinkCode(null)
+    setQrDataUrl(null)
+    setCodeExpiry(0)
     await loadLinks()
   }
 
