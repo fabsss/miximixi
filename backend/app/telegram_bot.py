@@ -435,6 +435,12 @@ async def _restart_all_jobs(update: Update, user_id: str) -> None:
         # then exclude URLs that already have an active entry.
         # This avoids constraint violations when multiple failed jobs share
         # the same URL (both would otherwise pass the NOT IN check simultaneously).
+        # Count total candidates first for diagnostics
+        cursor.execute(
+            "SELECT COUNT(*) FROM import_queue WHERE status IN ('needs_review', 'error')"
+        )
+        total_failed = cursor.fetchone()[0]
+
         cursor.execute(
             """
             WITH candidates AS (
@@ -453,11 +459,15 @@ async def _restart_all_jobs(update: Update, user_id: str) -> None:
             """
         )
         updated = cursor.rowcount
+        skipped = total_failed - updated
         db.commit()
         db.close()
 
-        await update.message.reply_text(f"🔄 {updated} Job(s) zurück auf pending gesetzt")
-        logger.info(f"Admin {user_id} restarted all {updated} failed jobs")
+        msg = f"🔄 {updated} Job(s) zurück auf pending gesetzt"
+        if skipped > 0:
+            msg += f"\n⏭️ {skipped} übersprungen (URL bereits aktiv oder bereits importiert)"
+        await update.message.reply_text(msg)
+        logger.info(f"Admin {user_id} restarted {updated} jobs, skipped {skipped} of {total_failed}")
 
     except Exception as e:
         logger.exception(f"Error restarting all jobs: {e}")
