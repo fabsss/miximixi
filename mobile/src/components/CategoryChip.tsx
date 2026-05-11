@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { MaterialIcon } from './MaterialIcon'
-import { getCategoryColors } from '../theme/colors'
+import { getCatColors } from '../theme/colors'
 import { getCategoryIcon, getCategoryLabel } from '@miximixi/shared/categoryUtils'
 import { useTheme } from '../context/ThemeContext'
 
@@ -11,9 +11,9 @@ interface Props {
 }
 
 export function CategoryChip({ category, size = 'md', testID }: Props) {
-  const { effectiveTheme } = useTheme()
+  const { colors, effectiveTheme } = useTheme()
   const isDark = effectiveTheme === 'dark'
-  const catColors = getCategoryColors(category, isDark)
+  const catColors = getCatColors(category, colors)
   const iconName = getCategoryIcon(category)
   const label = getCategoryLabel(category)
   const isSmall = size === 'sm'

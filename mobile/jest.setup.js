@@ -79,5 +79,5 @@ jest.mock('react-native-qrcode-svg', () => {
 
 // Mock nativewind
 jest.mock('nativewind', () => ({
-  useColorScheme: jest.fn().mockReturnValue({ colorScheme: 'light' }),
+  useColorScheme: jest.fn().mockReturnValue('light'),
 }))
