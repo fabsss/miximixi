@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTimers } from '../context/TimerContext'
 import { MaterialIcon } from './MaterialIcon'
@@ -20,14 +21,16 @@ function formatTime(seconds: number): string {
 
 export function StepTimer({ recipeId, stepIndex, stepLabel, recipeTitle, totalSeconds, testID }: Props) {
   const { colors } = useTheme()
-  const { timers, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, initializeTimer } = useTimers()
+  const { timers, hydrated, getRemainingSeconds, startTimer, pauseTimer, resumeTimer, initializeTimer } = useTimers()
   const id = `${recipeId}:${stepIndex}`
   const timer = timers.get(id)
 
-  // Initialize on first render
-  if (!timer) {
-    initializeTimer(recipeId, stepIndex, stepLabel, recipeTitle, totalSeconds)
-  }
+  useEffect(() => {
+    if (hydrated && !timers.get(id)) {
+      initializeTimer(recipeId, stepIndex, stepLabel, recipeTitle, totalSeconds)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated])
 
   const remaining = timer ? getRemainingSeconds(timer) : totalSeconds
   const isDone = timer?.isDone ?? false
@@ -97,14 +100,17 @@ export function StepTimer({ recipeId, stepIndex, stepLabel, recipeTitle, totalSe
 
 // Connected version that wires up adjust buttons via context
 export function ConnectedStepTimer(props: Props) {
-  const { adjustTimer, startTimer, pauseTimer, timers, getRemainingSeconds, initializeTimer } = useTimers()
+  const { adjustTimer, startTimer, pauseTimer, timers, hydrated, getRemainingSeconds, initializeTimer } = useTimers()
   const { colors } = useTheme()
   const id = `${props.recipeId}:${props.stepIndex}`
   const timer = timers.get(id)
 
-  if (!timer) {
-    initializeTimer(props.recipeId, props.stepIndex, props.stepLabel, props.recipeTitle, props.totalSeconds)
-  }
+  useEffect(() => {
+    if (hydrated && !timers.get(id)) {
+      initializeTimer(props.recipeId, props.stepIndex, props.stepLabel, props.recipeTitle, props.totalSeconds)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated])
 
   const remaining = timer ? getRemainingSeconds(timer) : props.totalSeconds
   const isDone = timer?.isDone ?? false
