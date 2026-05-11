@@ -1,13 +1,7 @@
 import { useEffect } from 'react'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
-import { useFonts, NotoSerif_400Regular, NotoSerif_700Bold } from '@expo-google-fonts/noto-serif'
-import {
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-} from '@expo-google-fonts/plus-jakarta-sans'
+import { useFonts } from 'expo-font'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -45,12 +39,12 @@ function RootStack() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    NotoSerif_400Regular,
-    NotoSerif_700Bold,
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
+    NotoSerif_400Regular:        require('../assets/fonts/NotoSerif_400Regular.ttf'),
+    NotoSerif_700Bold:           require('../assets/fonts/NotoSerif_700Bold.ttf'),
+    PlusJakartaSans_400Regular:  require('../assets/fonts/PlusJakartaSans_400Regular.ttf'),
+    PlusJakartaSans_500Medium:   require('../assets/fonts/PlusJakartaSans_500Medium.ttf'),
+    PlusJakartaSans_600SemiBold: require('../assets/fonts/PlusJakartaSans_600SemiBold.ttf'),
+    PlusJakartaSans_700Bold:     require('../assets/fonts/PlusJakartaSans_700Bold.ttf'),
   })
 
   useEffect(() => {

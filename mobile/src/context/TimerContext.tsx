@@ -77,7 +77,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     })
 
     Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {})
-    Audio.Sound.createAsync(require('../../assets/audio/gong.mp3')).then(({ sound }) => {
+    Audio.Sound.createAsync(require('../../assets/audio/gong.wav')).then(({ sound }) => {
       soundRef.current = sound
     }).catch(() => {})
 
