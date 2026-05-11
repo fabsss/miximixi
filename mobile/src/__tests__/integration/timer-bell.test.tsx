@@ -22,7 +22,7 @@ describe('Timer bell integration', () => {
   test('bell fires exactly once when timer reaches 0', async () => {
     const mockReplay = jest.fn().mockResolvedValue(undefined)
     ;(Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-      sound: { replayAsync: mockReplay, unloadAsync: jest.fn() },
+      sound: { replayAsync: mockReplay, unloadAsync: jest.fn().mockResolvedValue(undefined) },
     })
 
     const { result } = renderHook(() => useTimers(), { wrapper })
@@ -41,7 +41,7 @@ describe('Timer bell integration', () => {
   test('bell does NOT fire a second time if timer is already done', async () => {
     const mockReplay = jest.fn().mockResolvedValue(undefined)
     ;(Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-      sound: { replayAsync: mockReplay, unloadAsync: jest.fn() },
+      sound: { replayAsync: mockReplay, unloadAsync: jest.fn().mockResolvedValue(undefined) },
     })
 
     const { result } = renderHook(() => useTimers(), { wrapper })
@@ -59,7 +59,7 @@ describe('Timer bell integration', () => {
   test('multiple timers fire their bells independently', async () => {
     const mockReplay = jest.fn().mockResolvedValue(undefined)
     ;(Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-      sound: { replayAsync: mockReplay, unloadAsync: jest.fn() },
+      sound: { replayAsync: mockReplay, unloadAsync: jest.fn().mockResolvedValue(undefined) },
     })
 
     const { result } = renderHook(() => useTimers(), { wrapper })

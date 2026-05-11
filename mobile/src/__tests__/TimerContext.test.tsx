@@ -131,7 +131,7 @@ describe('TimerContext — countdown to zero', () => {
   test('plays bell exactly once when timer completes', async () => {
     const mockReplay = jest.fn().mockResolvedValue(undefined)
     ;(Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-      sound: { replayAsync: mockReplay, unloadAsync: jest.fn() },
+      sound: { replayAsync: mockReplay, unloadAsync: jest.fn().mockResolvedValue(undefined) },
     })
 
     const { result } = renderHook(() => useTimers(), { wrapper })
