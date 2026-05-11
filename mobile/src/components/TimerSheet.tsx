@@ -95,7 +95,6 @@ export function TimerSheet() {
         snapPoints={snapPoints}
         enablePanDownToClose
         backgroundStyle={{ backgroundColor: colors.surfaceLow }}
-        testID="timer-sheet"
       >
         <BottomSheetScrollView>
           <Text style={[styles.sheetTitle, { color: colors.onSurface }]}>
