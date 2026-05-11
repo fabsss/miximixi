@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, router, Stack } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
-import { activateKeepAwakeAsync, deactivateKeepAwakeAsync } from 'expo-keep-awake'
+import { useKeepAwake } from 'expo-keep-awake'
 import { getRecipe, getStepImageUrl } from '@miximixi/shared/api'
 import type { RecipeDetail } from '@miximixi/shared/types'
 import { ConnectedStepTimer } from '../../../src/components/StepTimer'
@@ -30,11 +30,7 @@ export default function CookScreen() {
     enabled: !!id,
   })
 
-  // Keep screen awake while cooking
-  useEffect(() => {
-    activateKeepAwakeAsync()
-    return () => { deactivateKeepAwakeAsync() }
-  }, [])
+  useKeepAwake()
 
   if (isLoading || !recipe) {
     return (

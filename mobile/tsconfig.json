@@ -4,6 +4,8 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
+      "@miximixi/shared": ["../shared/src/index.ts"],
+      "@miximixi/shared/*": ["../shared/src/*"],
       "@shared/*": ["../shared/src/*"],
       "@/*": ["src/*"]
     }

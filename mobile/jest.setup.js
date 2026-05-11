@@ -33,8 +33,8 @@ jest.mock('expo-image-picker', () => ({
 
 // Mock expo-keep-awake
 jest.mock('expo-keep-awake', () => ({
+  useKeepAwake: jest.fn(),
   activateKeepAwakeAsync: jest.fn().mockResolvedValue(undefined),
-  deactivateKeepAwakeAsync: jest.fn().mockResolvedValue(undefined),
 }))
 
 // Mock expo-router

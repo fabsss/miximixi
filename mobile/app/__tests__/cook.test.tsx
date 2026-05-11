@@ -71,18 +71,11 @@ describe('CookScreen', () => {
     expect(getByTestId('step-counter').props.children).toContain('Step 1 of 3')
   })
 
-  test('activates keepawake on mount', async () => {
+  test('activates keepawake via useKeepAwake hook', async () => {
     render(<CookScreen />, { wrapper })
     await waitFor(() =>
-      expect(KeepAwake.activateKeepAwakeAsync).toHaveBeenCalled()
+      expect(KeepAwake.useKeepAwake).toHaveBeenCalled()
     )
-  })
-
-  test('deactivates keepawake on unmount', async () => {
-    const { unmount } = render(<CookScreen />, { wrapper })
-    await waitFor(() => expect(KeepAwake.activateKeepAwakeAsync).toHaveBeenCalled())
-    unmount()
-    expect(KeepAwake.deactivateKeepAwakeAsync).toHaveBeenCalled()
   })
 
   test('next button advances to step 2', async () => {

@@ -12,6 +12,15 @@
     "./categoryUtils": "./src/categoryUtils.ts",
     "./constants": "./src/constants.ts"
   },
+  "typesVersions": {
+    "*": {
+      "types": ["./src/types.ts"],
+      "api": ["./src/api.ts"],
+      "cupConversions": ["./src/cupConversions.ts"],
+      "categoryUtils": ["./src/categoryUtils.ts"],
+      "constants": ["./src/constants.ts"]
+    }
+  },
   "scripts": {
     "test": "jest",
     "typecheck": "tsc --noEmit"
