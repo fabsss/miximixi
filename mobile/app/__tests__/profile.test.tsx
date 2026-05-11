@@ -17,16 +17,14 @@ jest.mock('../../src/context/AuthContext', () => ({
 const mockTelegramLinks = [
   { telegram_user_id: 123456, telegram_username: 'testuser', linked_at: '2024-01-01' },
 ]
-const mockCreateCode = jest.fn().mockResolvedValue({
-  code: 'MIX-TESTCODE',
-  deep_link: 'https://t.me/miximixi_bot?start=MIX-TESTCODE',
-  expires_in: 300,
-})
-const mockUnlink = jest.fn().mockResolvedValue(undefined)
+
+const mockGetTelegramLinks = jest.fn()
+const mockCreateCode = jest.fn()
+const mockUnlink = jest.fn()
 
 jest.mock('@miximixi/shared/api', () => ({
-  getTelegramLinks: jest.fn().mockResolvedValue(mockTelegramLinks),
-  createTelegramLinkCode: () => mockCreateCode(),
+  getTelegramLinks: (...args: unknown[]) => mockGetTelegramLinks(...args),
+  createTelegramLinkCode: (...args: unknown[]) => mockCreateCode(...args),
   unlinkTelegramDevice: (...args: unknown[]) => mockUnlink(...args),
 }))
 
@@ -38,6 +36,17 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
     </QueryClientProvider>
   )
 }
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockGetTelegramLinks.mockResolvedValue(mockTelegramLinks)
+  mockCreateCode.mockResolvedValue({
+    code: 'MIX-TESTCODE',
+    deep_link: 'https://t.me/miximixi_bot?start=MIX-TESTCODE',
+    expires_in: 300,
+  })
+  mockUnlink.mockResolvedValue(undefined)
+})
 
 describe('ProfileScreen', () => {
   test('shows user display name', async () => {

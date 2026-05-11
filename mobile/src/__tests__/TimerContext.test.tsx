@@ -141,8 +141,6 @@ describe('TimerContext — countdown to zero', () => {
     act(() => { jest.advanceTimersByTime(2_000) })
 
     await waitFor(() => result.current.timers.get('r:0')?.isDone)
-    // Give async sound callback time
-    await new Promise(r => setTimeout(r, 50))
     expect(mockReplay).toHaveBeenCalledTimes(1)
   })
 })

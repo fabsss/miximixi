@@ -32,17 +32,28 @@ const mockRecipe = {
   ],
 }
 
-jest.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({ id: 'r1' }),
-  router: { push: jest.fn(), back: jest.fn() },
-  Stack: { Screen: ({ options }: { options?: unknown }) => null },
-}))
+const mockGetRecipe = jest.fn()
+const mockUpdateRecipe = jest.fn()
+const mockDeleteRecipe = jest.fn()
+const mockTranslateRecipe = jest.fn()
+
+jest.mock('expo-router', () => {
+  const React = require('react')
+  return {
+    useLocalSearchParams: () => ({ id: 'r1' }),
+    router: { push: jest.fn(), back: jest.fn() },
+    Stack: {
+      Screen: ({ options }: { options?: { headerRight?: () => React.ReactNode; title?: string } }) =>
+        options?.headerRight ? React.createElement(React.Fragment, null, options.headerRight()) : null,
+    },
+  }
+})
 
 jest.mock('@miximixi/shared/api', () => ({
-  getRecipe: jest.fn().mockResolvedValue(mockRecipe),
-  updateRecipe: jest.fn().mockResolvedValue(mockRecipe),
-  deleteRecipe: jest.fn().mockResolvedValue(undefined),
-  translateRecipe: jest.fn().mockResolvedValue({ title: 'Pasta', ingredients: [], steps: [] }),
+  getRecipe: (...args: unknown[]) => mockGetRecipe(...args),
+  updateRecipe: (...args: unknown[]) => mockUpdateRecipe(...args),
+  deleteRecipe: (...args: unknown[]) => mockDeleteRecipe(...args),
+  translateRecipe: (...args: unknown[]) => mockTranslateRecipe(...args),
   getImageUrl: (id: string) => `https://api.test/images/${id}`,
   getStepImageUrl: (id: string, f: string) => `https://api.test/images/${id}/${f}`,
 }))
@@ -65,6 +76,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
 beforeEach(() => {
   jest.clearAllMocks()
   ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+  mockGetRecipe.mockResolvedValue(mockRecipe)
+  mockUpdateRecipe.mockResolvedValue(mockRecipe)
+  mockDeleteRecipe.mockResolvedValue(undefined)
+  mockTranslateRecipe.mockResolvedValue({ title: 'Pasta', ingredients: [], steps: [] })
 })
 
 describe('RecipeDetailScreen', () => {

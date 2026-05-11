@@ -31,6 +31,8 @@ const mockRecipe = {
   ],
 }
 
+const mockGetRecipe = jest.fn()
+
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'r1' }),
   router: { back: jest.fn(), push: jest.fn() },
@@ -38,7 +40,7 @@ jest.mock('expo-router', () => ({
 }))
 
 jest.mock('@miximixi/shared/api', () => ({
-  getRecipe: jest.fn().mockResolvedValue(mockRecipe),
+  getRecipe: (...args: unknown[]) => mockGetRecipe(...args),
   getStepImageUrl: (id: string, f: string) => `https://api.test/images/${id}/${f}`,
 }))
 
@@ -56,6 +58,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
 beforeEach(() => {
   jest.clearAllMocks()
   ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+  mockGetRecipe.mockResolvedValue(mockRecipe)
 })
 
 describe('CookScreen', () => {

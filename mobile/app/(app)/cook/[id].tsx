@@ -71,7 +71,7 @@ export default function CookScreen() {
         <ScrollView contentContainerStyle={styles.content} testID="cook-scroll">
           {/* Step number */}
           <Text style={[styles.stepCounter, { color: colors.onSurfaceVariant }]} testID="step-counter">
-            Step {currentStep + 1} of {steps.length}
+            {`Step ${currentStep + 1} of ${steps.length}`}
           </Text>
 
           {/* Step image */}

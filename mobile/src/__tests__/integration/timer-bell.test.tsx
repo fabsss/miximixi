@@ -35,9 +35,6 @@ describe('Timer bell integration', () => {
 
     await waitFor(() => result.current.timers.get('r:0')?.isDone === true)
 
-    // Allow async sound call to complete
-    await act(async () => await new Promise(r => setTimeout(r, 100)))
-
     expect(mockReplay).toHaveBeenCalledTimes(1)
   })
 
@@ -53,9 +50,8 @@ describe('Timer bell integration', () => {
     act(() => { result.current.startTimer('r', 0, 'Step', 'Recipe', 1) })
     act(() => { jest.advanceTimersByTime(2_000) })
     await waitFor(() => result.current.timers.get('r:0')?.isDone === true)
-    // Keep advancing
+    // Keep advancing — bell should not fire again
     act(() => { jest.advanceTimersByTime(5_000) })
-    await act(async () => await new Promise(r => setTimeout(r, 100)))
 
     expect(mockReplay).toHaveBeenCalledTimes(1)
   })
@@ -75,12 +71,12 @@ describe('Timer bell integration', () => {
     })
 
     act(() => { jest.advanceTimersByTime(1_500) })
-    await act(async () => await new Promise(r => setTimeout(r, 100)))
+    await waitFor(() => result.current.timers.get('r:0')?.isDone === true)
     // First timer done
     expect(mockReplay).toHaveBeenCalledTimes(1)
 
     act(() => { jest.advanceTimersByTime(1_500) })
-    await act(async () => await new Promise(r => setTimeout(r, 100)))
+    await waitFor(() => result.current.timers.get('r:1')?.isDone === true)
     // Second timer done
     expect(mockReplay).toHaveBeenCalledTimes(2)
   })

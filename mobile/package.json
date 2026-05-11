@@ -58,16 +58,18 @@
     "setupFilesAfterEnv": [],
     "setupFiles": ["./jest.setup.js"],
     "moduleNameMapper": {
-      "^@miximixi/shared/(.+)$": "<rootDir>/../shared/src/$1.ts",
-      "^@miximixi/shared$": "<rootDir>/../shared/src/index.ts"
+      "^@miximixi/shared/(.+)$": "<rootDir>/node_modules/@miximixi/shared/src/$1.ts",
+      "^@miximixi/shared$": "<rootDir>/node_modules/@miximixi/shared/src/index.ts",
+      "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|@gorhom/.*)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|@gorhom/.*|@miximixi/.*)"
     ],
     "testMatch": [
       "<rootDir>/src/__tests__/**/*.test.{ts,tsx}",
       "<rootDir>/app/__tests__/**/*.test.{ts,tsx}",
-      "<rootDir>/src/components/__tests__/**/*.test.{ts,tsx}"
+      "<rootDir>/src/components/__tests__/**/*.test.{ts,tsx}",
+      "<rootDir>/src/__tests__/integration/**/*.test.{ts,tsx}"
     ]
   }
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native'
+import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import FeedScreen from '../(app)/index'
 import { ThemeProvider } from '../../src/context/ThemeContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -10,17 +10,10 @@ const mockRecipes = [
 ]
 
 const mockFetchNextPage = jest.fn()
-const mockHasNextPage = false
+const mockUseInfiniteRecipes = jest.fn()
 
 jest.mock('../../src/hooks/useInfiniteRecipes', () => ({
-  useInfiniteRecipes: jest.fn().mockReturnValue({
-    data: { pages: [mockRecipes] },
-    hasNextPage: mockHasNextPage,
-    isFetchingNextPage: false,
-    isLoading: false,
-    isError: false,
-    fetchNextPage: mockFetchNextPage,
-  }),
+  useInfiniteRecipes: (...args: unknown[]) => mockUseInfiniteRecipes(...args),
 }))
 
 jest.mock('../../src/hooks/useCategories', () => ({
@@ -45,6 +38,18 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
     </QueryClientProvider>
   )
 }
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockUseInfiniteRecipes.mockReturnValue({
+    data: { pages: [mockRecipes] },
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    isLoading: false,
+    isError: false,
+    fetchNextPage: mockFetchNextPage,
+  })
+})
 
 describe('FeedScreen', () => {
   test('renders recipe grid', () => {
@@ -76,32 +81,29 @@ describe('FeedScreen', () => {
   })
 
   test('searching updates the query filter', async () => {
-    const { useInfiniteRecipes } = require('../../src/hooks/useInfiniteRecipes')
     const { getByTestId } = render(<FeedScreen />, { wrapper })
     fireEvent.changeText(getByTestId('search-input'), 'pasta')
     await waitFor(() => {
-      const lastCall = useInfiniteRecipes.mock.calls[useInfiniteRecipes.mock.calls.length - 1]
+      const lastCall = mockUseInfiniteRecipes.mock.calls[mockUseInfiniteRecipes.mock.calls.length - 1]
       expect(lastCall[0].q).toBe('pasta')
     })
   })
 
   test('selecting a category updates the filter', async () => {
-    const { useInfiniteRecipes } = require('../../src/hooks/useInfiniteRecipes')
     const { getByTestId } = render(<FeedScreen />, { wrapper })
     await waitFor(() => getByTestId('category-pill-hauptspeisen'))
     fireEvent.press(getByTestId('category-pill-hauptspeisen'))
     await waitFor(() => {
-      const lastCall = useInfiniteRecipes.mock.calls[useInfiniteRecipes.mock.calls.length - 1]
+      const lastCall = mockUseInfiniteRecipes.mock.calls[mockUseInfiniteRecipes.mock.calls.length - 1]
       expect(lastCall[0].category).toBe('Hauptspeisen')
     })
   })
 
   test('favorites toggle sets favorites filter', async () => {
-    const { useInfiniteRecipes } = require('../../src/hooks/useInfiniteRecipes')
     const { getByTestId } = render(<FeedScreen />, { wrapper })
     fireEvent.press(getByTestId('favorites-toggle'))
     await waitFor(() => {
-      const lastCall = useInfiniteRecipes.mock.calls[useInfiniteRecipes.mock.calls.length - 1]
+      const lastCall = mockUseInfiniteRecipes.mock.calls[mockUseInfiniteRecipes.mock.calls.length - 1]
       expect(lastCall[0].favorites).toBe(true)
     })
   })

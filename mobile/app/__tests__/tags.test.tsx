@@ -10,10 +10,11 @@ const mockTags = [
   { tag: 'Schnell', count: 5 },
 ]
 
-const mockMergeTags = jest.fn().mockResolvedValue({ updated_recipes: 3 })
+const mockGetTagsWithCounts = jest.fn()
+const mockMergeTags = jest.fn()
 
 jest.mock('@miximixi/shared/api', () => ({
-  getTagsWithCounts: jest.fn().mockResolvedValue(mockTags),
+  getTagsWithCounts: (...args: unknown[]) => mockGetTagsWithCounts(...args),
   mergeTags: (...args: unknown[]) => mockMergeTags(...args),
 }))
 
@@ -25,6 +26,12 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
     </QueryClientProvider>
   )
 }
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockGetTagsWithCounts.mockResolvedValue(mockTags)
+  mockMergeTags.mockResolvedValue({ updated_recipes: 3 })
+})
 
 describe('TagsScreen', () => {
   test('renders tag list', async () => {
