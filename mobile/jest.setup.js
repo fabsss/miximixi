@@ -1,3 +1,9 @@
+const { notifyManager } = require('@tanstack/query-core')
+const { act } = require('@testing-library/react-native')
+// Make React Query dispatch state updates synchronously inside act(), so
+// waitFor() can see query results in the same polling cycle on any Node version.
+notifyManager.setScheduler(act)
+
 // Mock expo-secure-store
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn().mockResolvedValue(null),
