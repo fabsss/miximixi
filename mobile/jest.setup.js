@@ -81,3 +81,21 @@ jest.mock('react-native-qrcode-svg', () => {
 jest.mock('nativewind', () => ({
   useColorScheme: jest.fn().mockReturnValue('light'),
 }))
+
+// Mock @expo/vector-icons to avoid expo-font → expo-asset native module chain
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react')
+  const { Text } = require('react-native')
+  const Icon = ({ name, testID }) =>
+    React.createElement(Text, { testID: testID ?? `icon-${name}` }, name)
+  return {
+    MaterialCommunityIcons: Icon,
+    Ionicons: Icon,
+    FontAwesome: Icon,
+    FontAwesome5: Icon,
+    AntDesign: Icon,
+    Entypo: Icon,
+    Feather: Icon,
+    MaterialIcons: Icon,
+  }
+})

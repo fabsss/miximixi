@@ -109,8 +109,8 @@ describe('useCategoryCounts', () => {
 describe('useDensities', () => {
   test('fetches and returns density list', async () => {
     const { result } = renderHook(() => useDensities(), { wrapper: makeWrapper() })
-    await waitFor(() => expect(result.current.data).toBeDefined())
-    expect(result.current.data?.[0].type_name).toBe('flour')
+    await waitFor(() => expect(result.current.data?.length).toBeGreaterThan(0))
+    expect(result.current.data![0].type_name).toBe('flour')
   })
 
   test('returns empty array as initial data', () => {
