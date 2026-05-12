@@ -22,12 +22,10 @@ interface Props {
   counts: Record<string, number>
   selectedCategory: string | null
   onSelectCategory: (cat: string | null) => void
-  favoritesOnly: boolean
-  onToggleFavorites: () => void
 }
 
 export function CategoryDrawer({
-  isOpen, onClose, categories, counts, selectedCategory, onSelectCategory, favoritesOnly, onToggleFavorites,
+  isOpen, onClose, categories, counts, selectedCategory, onSelectCategory,
 }: Props) {
   const { colors, effectiveTheme } = useTheme()
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current
@@ -135,24 +133,6 @@ export function CategoryDrawer({
               )
             })}
 
-            <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
-
-            {/* Favorites */}
-            <Pressable
-              onPress={() => { onToggleFavorites(); onClose() }}
-              style={[
-                styles.catRow,
-                { backgroundColor: favoritesOnly ? colors.primaryContainer : 'transparent' },
-              ]}
-              testID="favorites-toggle"
-            >
-              <View style={[styles.catIconWrap, { backgroundColor: favoritesOnly ? colors.primary : colors.surfaceVariant }]}>
-                <MaterialIcon name={favoritesOnly ? 'favorite' : 'favorite_border'} size={18} color={favoritesOnly ? colors.onPrimary : colors.onSurfaceVariant} />
-              </View>
-              <Text style={[styles.catLabel, { color: favoritesOnly ? colors.primaryDim : colors.onSurface, fontWeight: favoritesOnly ? '700' : '500' }]}>
-                Favorites
-              </Text>
-            </Pressable>
           </ScrollView>
         </Animated.View>
       </View>
@@ -231,9 +211,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginVertical: 8,
-    marginHorizontal: 8,
-  },
+
 })

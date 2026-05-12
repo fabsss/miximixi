@@ -102,56 +102,56 @@ export default function FeedScreen() {
         )}
       </View>
 
-      {/* Active filter chips */}
-      {(selectedCategory || favoritesOnly || selectedTags.length > 0) && (
+      {/* Active category chip */}
+      {selectedCategory && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.activeFilterRow}
         >
-          {selectedCategory && (
-            <Pressable
-              onPress={() => handleCategorySelect(null)}
-              style={styles.activeChipWrap}
-              accessibilityLabel={`Remove ${selectedCategory} filter`}
-            >
-              <CategoryChip category={selectedCategory} size="sm" />
-              <View style={[styles.removeChipBadge, { backgroundColor: colors.onSurface }]}>
-                <MaterialIcon name="close" size={10} color={colors.surface} />
-              </View>
-            </Pressable>
-          )}
-          {favoritesOnly && (
-            <Pressable
-              onPress={() => setFavoritesOnly(false)}
-              style={[styles.filterChip, { backgroundColor: colors.primaryContainer, borderColor: colors.primary }]}
-            >
-              <MaterialIcon name="favorite" size={12} color={colors.primaryDim} />
-              <Text style={{ color: colors.primaryDim, fontSize: 12, fontWeight: '600' }}>Favorites</Text>
-              <MaterialIcon name="close" size={12} color={colors.primaryDim} />
-            </Pressable>
-          )}
-          {selectedTags.map(tag => (
-            <Pressable
-              key={tag}
-              onPress={() => handleTagToggle(tag)}
-              style={[styles.filterChip, { backgroundColor: colors.secondaryContainer, borderColor: colors.secondary }]}
-            >
-              <Text style={{ color: colors.secondary, fontSize: 12, fontWeight: '600' }}>{tag}</Text>
-              <MaterialIcon name="close" size={12} color={colors.secondary} />
-            </Pressable>
-          ))}
+          <Pressable
+            onPress={() => handleCategorySelect(null)}
+            style={styles.activeChipWrap}
+            accessibilityLabel={`Remove ${selectedCategory} filter`}
+          >
+            <CategoryChip category={selectedCategory} size="sm" />
+            <View style={[styles.removeChipBadge, { backgroundColor: colors.onSurface }]}>
+              <MaterialIcon name="close" size={10} color={colors.surface} />
+            </View>
+          </Pressable>
         </ScrollView>
       )}
 
-      {/* Tag chips */}
-      {tagsQuery.data && tagsQuery.data.length > 0 && (
+      {/* Tag chips + favorites toggle */}
+      {tagsQuery.data && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.pillRow}
           testID="tag-chips"
         >
+          {/* Favorites — first chip in the tag row */}
+          <Pressable
+            onPress={() => setFavoritesOnly(f => !f)}
+            style={[
+              styles.tagChip,
+              {
+                backgroundColor: favoritesOnly ? colors.primaryContainer : colors.surfaceContainer,
+                borderColor: favoritesOnly ? colors.primary : colors.outlineVariant,
+              },
+            ]}
+            testID="favorites-toggle"
+          >
+            <MaterialIcon
+              name={favoritesOnly ? 'favorite' : 'favorite_border'}
+              size={12}
+              color={favoritesOnly ? colors.primaryDim : colors.onSurfaceVariant}
+            />
+            <Text style={{ color: favoritesOnly ? colors.primaryDim : colors.onSurfaceVariant, fontSize: 12, fontWeight: favoritesOnly ? '700' : '400' }}>
+              Favorites
+            </Text>
+          </Pressable>
+
           {tagsQuery.data.slice(0, 20).map(tag => (
             <Pressable
               key={tag}
@@ -226,8 +226,6 @@ export default function FeedScreen() {
         counts={countsQuery.data?.counts ?? {}}
         selectedCategory={selectedCategory}
         onSelectCategory={handleCategorySelect}
-        favoritesOnly={favoritesOnly}
-        onToggleFavorites={() => setFavoritesOnly(f => !f)}
       />
     </View>
   )
