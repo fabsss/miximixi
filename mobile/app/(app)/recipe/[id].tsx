@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Animated,
   View,
   Text,
   ScrollView,
@@ -12,7 +11,8 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
-import { useLocalSearchParams, router, Stack } from 'expo-router'
+import { useLocalSearchParams, router } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Slider from '@react-native-community/slider'
 import {
@@ -29,7 +29,6 @@ import { useDensities } from '../../../src/hooks/useDensities'
 
 const LANGUAGES = ['de', 'en', 'fr', 'it', 'es', 'pl', 'nl']
 
-// Parse [ingredient name]{sort_order} refs embedded in step text
 type StepPart = { type: 'text'; content: string } | { type: 'ref'; label: string; sortOrder: number }
 
 function parseIngredientRefs(text: string): StepPart[] {
@@ -57,6 +56,7 @@ function fmtAmount(n: number): string {
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const { data: densities = [] } = useDensities()
 
@@ -65,12 +65,11 @@ export default function RecipeDetailScreen() {
   const [translatedData, setTranslatedData] = useState<{ title: string; ingredients: Record<string, string>; steps: Record<string, string> } | null>(null)
   const [highlightedSortOrder, setHighlightedSortOrder] = useState<number | null>(null)
   const [fullscreenImageUri, setFullscreenImageUri] = useState<string | null>(null)
-  const [ingredientBubble, setIngredientBubble] = useState<string | null>(null)
-  const bubbleOpacity = useRef(new Animated.Value(0)).current
+  // Inline ingredient tip shown inside the step card that was tapped
+  const [activeTip, setActiveTip] = useState<{ stepId: string; text: string } | null>(null)
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Edit state
   const [editTitle, setEditTitle] = useState('')
   const [editServings, setEditServings] = useState('')
   const [editPrepTime, setEditPrepTime] = useState('')
@@ -154,50 +153,76 @@ export default function RecipeDetailScreen() {
     }
   }, [])
 
-  const showBubble = useCallback((text: string) => {
-    if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
-    setIngredientBubble(text)
-    Animated.sequence([
-      Animated.timing(bubbleOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(bubbleOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => setIngredientBubble(null))
-  }, [bubbleOpacity])
-
-  const handleIngredientRefPress = useCallback((sortOrder: number) => {
-    setHighlight(highlightedSortOrder === sortOrder ? null : sortOrder)
-    if (highlightedSortOrder !== sortOrder && recipe) {
+  // Called from StepCard when an ingredient ref is tapped — shows inline bubble in that step
+  const handleIngredientRefPress = useCallback((sortOrder: number, stepId: string) => {
+    const deselecting = highlightedSortOrder === sortOrder
+    setHighlight(deselecting ? null : sortOrder)
+    if (deselecting) {
+      setActiveTip(null)
+      if (tipTimer.current) clearTimeout(tipTimer.current)
+      return
+    }
+    if (recipe) {
       const ing = recipe.ingredients.find(i => i.sort_order === sortOrder)
       if (ing) {
         const scaledAmt = ing.amount != null ? ing.amount * scale : null
-        const amtStr = scaledAmt != null ? `${fmtAmount(scaledAmt)}${ing.unit ? ' ' + ing.unit : ''}` : ''
-        showBubble([amtStr, ing.name].filter(Boolean).join(' — '))
+        const amtStr = scaledAmt != null ? `${fmtAmount(scaledAmt)}${ing.unit ? ' ' + ing.unit : ''}` : ''
+        setActiveTip({ stepId, text: [amtStr, ing.name].filter(Boolean).join(' — ') })
+        if (tipTimer.current) clearTimeout(tipTimer.current)
+        tipTimer.current = setTimeout(() => setActiveTip(null), 3000)
       }
     }
-  }, [highlightedSortOrder, setHighlight, recipe, scale, showBubble])
+  }, [highlightedSortOrder, setHighlight, recipe, scale])
 
   const handleIngredientPress = useCallback((sortOrder: number) => {
     setHighlight(highlightedSortOrder === sortOrder ? null : sortOrder)
   }, [highlightedSortOrder, setHighlight])
 
-  // Cleanup timers on unmount
   useEffect(() => () => {
     if (highlightTimer.current) clearTimeout(highlightTimer.current)
-    if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
+    if (tipTimer.current) clearTimeout(tipTimer.current)
   }, [])
+
+  // ── Custom sticky header (Tabs sets headerShown:false for this screen) ──
+  const stickyHeader = (
+    <View style={[styles.stickyHeader, { paddingTop: insets.top, backgroundColor: colors.surface, borderBottomColor: colors.outlineVariant }]}>
+      <Pressable onPress={() => router.back()} style={styles.headerBtn} testID="back-button" accessibilityLabel="Go back">
+        <MaterialIcon name="arrow_back" size={22} color={colors.onSurface} />
+      </Pressable>
+      <Text style={[styles.headerTitle, { color: colors.onSurface }]} numberOfLines={1}>
+        {recipe?.title ?? ''}
+      </Text>
+      {recipe && (
+        <View style={styles.headerActions}>
+          <Pressable onPress={handleStartEdit} style={styles.headerBtn} testID="edit-button" accessibilityLabel="Edit recipe">
+            <MaterialIcon name="edit" size={22} color={colors.onSurface} />
+          </Pressable>
+          <Pressable onPress={handleDelete} style={styles.headerBtn} testID="delete-button" accessibilityLabel="Delete recipe">
+            <MaterialIcon name="delete" size={22} color={colors.primary} />
+          </Pressable>
+        </View>
+      )}
+    </View>
+  )
 
   if (isLoading) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} testID="recipe-loading" />
+      <View style={[{ flex: 1, backgroundColor: colors.background }]}>
+        {stickyHeader}
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.primary} testID="recipe-loading" />
+        </View>
       </View>
     )
   }
 
   if (error || !recipe) {
     return (
-      <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.primary }}>Recipe not found</Text>
+      <View style={[{ flex: 1, backgroundColor: colors.background }]}>
+        {stickyHeader}
+        <View style={styles.centered}>
+          <Text style={{ color: colors.primary }}>Recipe not found</Text>
+        </View>
       </View>
     )
   }
@@ -206,29 +231,8 @@ export default function RecipeDetailScreen() {
   const groupedIngredients = groupIngredients(recipe.ingredients)
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack.Screen
-        options={{
-          title: recipe.title,
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', gap: 12, marginRight: 4 }}>
-              <Pressable onPress={handleStartEdit} testID="edit-button" style={{ padding: 4 }}>
-                <MaterialIcon name="edit" size={22} color={colors.onSurface} />
-              </Pressable>
-              <Pressable onPress={handleDelete} testID="delete-button" style={{ padding: 4 }}>
-                <MaterialIcon name="delete" size={22} color={colors.primary} />
-              </Pressable>
-            </View>
-          ),
-        }}
-      />
-
-      {/* Ingredient amount bubble */}
-      {ingredientBubble && (
-        <Animated.View style={[styles.ingredientBubble, { backgroundColor: colors.onSurface, opacity: bubbleOpacity }]} pointerEvents="none">
-          <Text style={[styles.ingredientBubbleText, { color: colors.surface }]}>{ingredientBubble}</Text>
-        </Animated.View>
-      )}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {stickyHeader}
 
       {/* Fullscreen image modal */}
       <Modal
@@ -256,7 +260,6 @@ export default function RecipeDetailScreen() {
       </Modal>
 
       <ScrollView
-        style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         testID="recipe-detail-scroll"
       >
@@ -296,7 +299,6 @@ export default function RecipeDetailScreen() {
 
           {recipe.category && <CategoryChip category={recipe.category} />}
 
-          {/* Tags */}
           {recipe.tags && recipe.tags.length > 0 && (
             <View style={styles.tagsRow}>
               {recipe.tags.map(tag => (
@@ -500,6 +502,7 @@ export default function RecipeDetailScreen() {
                 recipeTitle={recipe.title}
                 colors={colors}
                 highlightedSortOrder={highlightedSortOrder}
+                activeTip={activeTip}
                 onIngredientRefPress={handleIngredientRefPress}
                 onImagePress={setFullscreenImageUri}
               />
@@ -518,13 +521,15 @@ interface StepCardProps {
   recipeTitle: string
   colors: ReturnType<typeof useTheme>['colors']
   highlightedSortOrder: number | null
-  onIngredientRefPress: (sortOrder: number) => void
+  activeTip: { stepId: string; text: string } | null
+  onIngredientRefPress: (sortOrder: number, stepId: string) => void
   onImagePress: (uri: string) => void
 }
 
-function StepCard({ step, index, recipeId, recipeTitle, colors, highlightedSortOrder, onIngredientRefPress, onImagePress }: StepCardProps) {
+function StepCard({ step, index, recipeId, recipeTitle, colors, highlightedSortOrder, activeTip, onIngredientRefPress, onImagePress }: StepCardProps) {
   const parts = parseIngredientRefs(step.text)
   const hasRefs = parts.some(p => p.type === 'ref')
+  const tipForThisStep = activeTip?.stepId === step.id ? activeTip : null
 
   return (
     <View style={[styles.stepCard, { backgroundColor: colors.surfaceHigh }]} testID={`step-card-${index}`}>
@@ -542,7 +547,7 @@ function StepCard({ step, index, recipeId, recipeTitle, colors, highlightedSortO
               return (
                 <Text
                   key={i}
-                  onPress={() => onIngredientRefPress(part.sortOrder)}
+                  onPress={() => onIngredientRefPress(part.sortOrder, step.id)}
                   style={{
                     backgroundColor: isHighlighted ? colors.primary : `${colors.primaryContainer}88`,
                     color: isHighlighted ? colors.onPrimary : colors.primaryDim,
@@ -554,6 +559,14 @@ function StepCard({ step, index, recipeId, recipeTitle, colors, highlightedSortO
           </Text>
         ) : (
           <Text style={[styles.stepText, { color: colors.onSurface }]}>{step.text}</Text>
+        )}
+
+        {/* Ingredient amount tip — appears right after the step text */}
+        {tipForThisStep && (
+          <View style={[styles.ingredientTip, { backgroundColor: colors.onSurface }]}>
+            <MaterialIcon name="sell" size={12} color={colors.surface} />
+            <Text style={[styles.ingredientTipText, { color: colors.surface }]}>{tipForThisStep.text}</Text>
+          </View>
         )}
 
         {step.step_image_filename && (
@@ -595,6 +608,28 @@ function groupIngredients(ingredients: Ingredient[]): { group: string | null; it
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Custom sticky header (replaces navigation header — Tabs has headerShown:false for this route)
+  stickyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 12,
+    paddingHorizontal: 4,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'NotoSerif_700Bold',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 0,
+  },
+  headerBtn: {
+    padding: 10,
+  },
   content: { paddingBottom: 40 },
   heroImage: { width: '100%', aspectRatio: 16 / 9 },
   zoomHint: {
@@ -624,7 +659,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   header: { padding: 16, gap: 12 },
-  title: { fontSize: 26, fontWeight: '700', lineHeight: 32 },
+  title: { fontSize: 26, fontWeight: '700', lineHeight: 32, fontFamily: 'NotoSerif_700Bold' },
   titleInput: { fontSize: 22, fontWeight: '700', borderWidth: 1, borderRadius: 8, padding: 8 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tagChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
@@ -649,28 +684,20 @@ const styles = StyleSheet.create({
   stepCard: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: 12, marginBottom: 8 },
   stepNumBadge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   stepText: { fontSize: 14, lineHeight: 22 },
+  ingredientTip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  ingredientTipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   stepImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 8 },
   notesInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14, minHeight: 80 },
   notes: { fontSize: 14, lineHeight: 22 },
-  ingredientBubble: {
-    position: 'absolute',
-    bottom: 32,
-    left: 24,
-    right: 24,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    alignItems: 'center',
-    zIndex: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 12,
-  },
-  ingredientBubbleText: {
-    fontSize: 15,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
 })

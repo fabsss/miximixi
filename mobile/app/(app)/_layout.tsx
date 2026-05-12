@@ -1,6 +1,6 @@
 import { Tabs, router } from 'expo-router'
 import { useCallback, useEffect } from 'react'
-import { ActivityIndicator, Pressable, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useAuth } from '../../src/context/AuthContext'
 import { useTheme, type Theme } from '../../src/context/ThemeContext'
 import { MaterialIcon } from '../../src/components/MaterialIcon'
@@ -51,7 +51,12 @@ function ProtectedLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Recipes',
+            headerTitle: () => (
+              <View>
+                <Text style={{ fontFamily: 'NotoSerif_700Bold', fontSize: 22, color: colors.primary, lineHeight: 24 }}>Miximixi</Text>
+                <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.2, color: colors.onSurfaceVariant, textTransform: 'uppercase', lineHeight: 12 }}>Die Rezepte App</Text>
+              </View>
+            ),
             tabBarLabel: 'Feed',
             tabBarIcon: ({ color, size }) => (
               <MaterialIcon name="restaurant" size={size} color={color} />
