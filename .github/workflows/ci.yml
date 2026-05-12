@@ -12,7 +12,7 @@ on:
 # Cancel the redundant duplicate run that fires when a push to a PR branch
 # triggers both the push event and the pull_request event simultaneously.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -182,6 +182,13 @@ jobs:
           path: mobile/node_modules
           key: node-mobile-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json') }}
           restore-keys: node-mobile-${{ runner.os }}-
+
+      - name: Cache Jest transform cache
+        uses: actions/cache@v4
+        with:
+          path: mobile/.jest-cache
+          key: jest-mobile-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json') }}
+          restore-keys: jest-mobile-${{ runner.os }}-
 
       - name: Install mobile dependencies
         working-directory: mobile
