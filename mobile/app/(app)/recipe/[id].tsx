@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -49,6 +50,10 @@ function parseIngredientRefs(text: string): StepPart[] {
   return parts
 }
 
+function fmtAmount(n: number): string {
+  return n === Math.floor(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '')
+}
+
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { colors } = useTheme()
@@ -60,7 +65,10 @@ export default function RecipeDetailScreen() {
   const [translatedData, setTranslatedData] = useState<{ title: string; ingredients: Record<string, string>; steps: Record<string, string> } | null>(null)
   const [highlightedSortOrder, setHighlightedSortOrder] = useState<number | null>(null)
   const [fullscreenImageUri, setFullscreenImageUri] = useState<string | null>(null)
+  const [ingredientBubble, setIngredientBubble] = useState<string | null>(null)
+  const bubbleOpacity = useRef(new Animated.Value(0)).current
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Edit state
   const [editTitle, setEditTitle] = useState('')
@@ -146,16 +154,37 @@ export default function RecipeDetailScreen() {
     }
   }, [])
 
+  const showBubble = useCallback((text: string) => {
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
+    setIngredientBubble(text)
+    Animated.sequence([
+      Animated.timing(bubbleOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(bubbleOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setIngredientBubble(null))
+  }, [bubbleOpacity])
+
   const handleIngredientRefPress = useCallback((sortOrder: number) => {
     setHighlight(highlightedSortOrder === sortOrder ? null : sortOrder)
-  }, [highlightedSortOrder, setHighlight])
+    if (highlightedSortOrder !== sortOrder && recipe) {
+      const ing = recipe.ingredients.find(i => i.sort_order === sortOrder)
+      if (ing) {
+        const scaledAmt = ing.amount != null ? ing.amount * scale : null
+        const amtStr = scaledAmt != null ? `${fmtAmount(scaledAmt)}${ing.unit ? ' ' + ing.unit : ''}` : ''
+        showBubble([amtStr, ing.name].filter(Boolean).join(' — '))
+      }
+    }
+  }, [highlightedSortOrder, setHighlight, recipe, scale, showBubble])
 
   const handleIngredientPress = useCallback((sortOrder: number) => {
     setHighlight(highlightedSortOrder === sortOrder ? null : sortOrder)
   }, [highlightedSortOrder, setHighlight])
 
-  // Cleanup highlight timer on unmount
-  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current) }, [])
+  // Cleanup timers on unmount
+  useEffect(() => () => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    if (bubbleTimer.current) clearTimeout(bubbleTimer.current)
+  }, [])
 
   if (isLoading) {
     return (
@@ -177,22 +206,29 @@ export default function RecipeDetailScreen() {
   const groupedIngredients = groupIngredients(recipe.ingredients)
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title: recipe.title,
           headerRight: () => (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable onPress={handleStartEdit} testID="edit-button">
+            <View style={{ flexDirection: 'row', gap: 12, marginRight: 4 }}>
+              <Pressable onPress={handleStartEdit} testID="edit-button" style={{ padding: 4 }}>
                 <MaterialIcon name="edit" size={22} color={colors.onSurface} />
               </Pressable>
-              <Pressable onPress={handleDelete} testID="delete-button">
+              <Pressable onPress={handleDelete} testID="delete-button" style={{ padding: 4 }}>
                 <MaterialIcon name="delete" size={22} color={colors.primary} />
               </Pressable>
             </View>
           ),
         }}
       />
+
+      {/* Ingredient amount bubble */}
+      {ingredientBubble && (
+        <Animated.View style={[styles.ingredientBubble, { backgroundColor: colors.onSurface, opacity: bubbleOpacity }]} pointerEvents="none">
+          <Text style={[styles.ingredientBubbleText, { color: colors.surface }]}>{ingredientBubble}</Text>
+        </Animated.View>
+      )}
 
       {/* Fullscreen image modal */}
       <Modal
@@ -471,7 +507,7 @@ export default function RecipeDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </>
+    </View>
   )
 }
 
@@ -616,4 +652,25 @@ const styles = StyleSheet.create({
   stepImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 8 },
   notesInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14, minHeight: 80 },
   notes: { fontSize: 14, lineHeight: 22 },
+  ingredientBubble: {
+    position: 'absolute',
+    bottom: 32,
+    left: 24,
+    right: 24,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+    zIndex: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  ingredientBubbleText: {
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 })

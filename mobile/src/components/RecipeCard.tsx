@@ -39,8 +39,8 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
           <View style={[styles.imageFallback, { backgroundColor: colors.surfaceVariant }]} />
         )}
         {isFavorite && (
-          <View style={[styles.favBadge, { backgroundColor: colors.primary }]} testID="favorite-badge">
-            <MaterialIcon name="favorite" size={12} color={colors.onPrimary} />
+          <View style={styles.favBadge} testID="favorite-badge">
+            <MaterialIcon name="favorite" size={16} color="#e05b5b" />
           </View>
         )}
       </View>
@@ -95,11 +95,12 @@ const styles = StyleSheet.create({
   },
   favBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
