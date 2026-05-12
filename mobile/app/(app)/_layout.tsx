@@ -1,10 +1,10 @@
 import { Tabs, router } from 'expo-router'
 import { useEffect } from 'react'
+import { ActivityIndicator, View } from 'react-native'
 import { useAuth } from '../../src/context/AuthContext'
 import { useTheme } from '../../src/context/ThemeContext'
 import { MaterialIcon } from '../../src/components/MaterialIcon'
 import { TimerSheet } from '../../src/components/TimerSheet'
-import { View } from 'react-native'
 
 function ProtectedLayout() {
   const { user, isLoading } = useAuth()
@@ -16,7 +16,15 @@ function ProtectedLayout() {
     }
   }, [user, isLoading])
 
-  if (isLoading || !user) return null
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    )
+  }
+
+  if (!user) return null
 
   return (
     <View style={{ flex: 1 }}>

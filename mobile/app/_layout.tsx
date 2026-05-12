@@ -38,7 +38,7 @@ function RootStack() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     NotoSerif_400Regular:        require('../assets/fonts/NotoSerif_400Regular.ttf'),
     NotoSerif_700Bold:           require('../assets/fonts/NotoSerif_700Bold.ttf'),
     PlusJakartaSans_400Regular:  require('../assets/fonts/PlusJakartaSans_400Regular.ttf'),
@@ -48,12 +48,12 @@ export default function RootLayout() {
   })
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync()
     }
-  }, [fontsLoaded])
+  }, [fontsLoaded, fontError])
 
-  if (!fontsLoaded) return null
+  if (!fontsLoaded && !fontError) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
