@@ -9,6 +9,12 @@ on:
       - main
       - claude/react-native-mobile-port-WEmSk
 
+# Cancel the redundant duplicate run that fires when a push to a PR branch
+# triggers both the push event and the pull_request event simultaneously.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-tests:
     name: Backend Tests (Python)
