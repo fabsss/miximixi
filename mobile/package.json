@@ -66,7 +66,7 @@
       "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|@gorhom/.*|@miximixi/.*)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?(-[a-z-]+)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|nativewind|@gorhom/.*|@miximixi/.*)"
     ],
     "testMatch": [
       "<rootDir>/src/__tests__/**/*.test.{ts,tsx}",
