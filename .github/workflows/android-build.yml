@@ -1,0 +1,49 @@
+name: Android Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  android-preview:
+    name: Android Preview APK (EAS)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache shared node_modules
+        uses: actions/cache@v4
+        with:
+          path: shared/node_modules
+          key: node-shared-${{ runner.os }}-${{ hashFiles('shared/package-lock.json') }}
+          restore-keys: node-shared-${{ runner.os }}-
+
+      - name: Install shared dependencies
+        working-directory: shared
+        run: npm ci
+
+      - name: Cache mobile node_modules
+        uses: actions/cache@v4
+        with:
+          path: mobile/node_modules
+          key: node-mobile-${{ runner.os }}-${{ hashFiles('mobile/package-lock.json') }}
+          restore-keys: node-mobile-${{ runner.os }}-
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK
+        working-directory: mobile
+        run: eas build --platform android --profile preview --non-interactive --no-wait
