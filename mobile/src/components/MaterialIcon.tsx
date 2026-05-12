@@ -47,9 +47,11 @@ const ICON_MAP: Record<string, ComponentProps<typeof MaterialCommunityIcons>['na
   expand_less:         'chevron-up',
   play_arrow:          'play',
   pause:               'pause',
+  replay:              'replay',
   stop:                'stop',
   skip_next:           'skip-next',
   skip_previous:       'skip-previous',
+  zoom_in:             'magnify-plus-outline',
   // Category icons
   'bowl-mix-outline':  'bowl-mix-outline',
   food:                'food',

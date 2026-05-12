@@ -21,7 +21,10 @@ jest.mock('../../src/hooks/useCategories', () => ({
     data: ['Vorspeisen', 'Hauptspeisen', 'Desserts'],
     isLoading: false,
   }),
-  useCategoryCounts: jest.fn().mockReturnValue({ data: {}, isLoading: false }),
+  useCategoryCounts: jest.fn().mockReturnValue({
+    data: { counts: { Vorspeisen: 1, Hauptspeisen: 1, Desserts: 0 } },
+    isLoading: false,
+  }),
 }))
 
 jest.mock('@miximixi/shared/api', () => ({
@@ -68,16 +71,23 @@ describe('FeedScreen', () => {
     expect(getByTestId('search-input')).toBeTruthy()
   })
 
-  test('renders category pills', async () => {
+  test('hamburger button is present', () => {
     const { getByTestId } = render(<FeedScreen />, { wrapper })
-    await waitFor(() => expect(getByTestId('category-pills')).toBeTruthy())
-    expect(getByTestId('category-pill-all')).toBeTruthy()
-    expect(getByTestId('category-pill-vorspeisen')).toBeTruthy()
+    expect(getByTestId('hamburger-menu')).toBeTruthy()
   })
 
-  test('renders favorites toggle', () => {
+  test('drawer opens with category items on hamburger press', async () => {
     const { getByTestId } = render(<FeedScreen />, { wrapper })
-    expect(getByTestId('favorites-toggle')).toBeTruthy()
+    fireEvent.press(getByTestId('hamburger-menu'))
+    await waitFor(() => expect(getByTestId('category-item-all')).toBeTruthy())
+    expect(getByTestId('category-item-vorspeisen')).toBeTruthy()
+    expect(getByTestId('category-item-hauptspeisen')).toBeTruthy()
+  })
+
+  test('renders favorites toggle in drawer', async () => {
+    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    fireEvent.press(getByTestId('hamburger-menu'))
+    await waitFor(() => expect(getByTestId('favorites-toggle')).toBeTruthy())
   })
 
   test('searching updates the query filter', async () => {
@@ -89,22 +99,39 @@ describe('FeedScreen', () => {
     })
   })
 
-  test('selecting a category updates the filter', async () => {
+  test('selecting a category from drawer updates the filter', async () => {
     const { getByTestId } = render(<FeedScreen />, { wrapper })
-    await waitFor(() => getByTestId('category-pill-hauptspeisen'))
-    fireEvent.press(getByTestId('category-pill-hauptspeisen'))
+    fireEvent.press(getByTestId('hamburger-menu'))
+    await waitFor(() => getByTestId('category-item-hauptspeisen'))
+    fireEvent.press(getByTestId('category-item-hauptspeisen'))
     await waitFor(() => {
       const lastCall = mockUseInfiniteRecipes.mock.calls[mockUseInfiniteRecipes.mock.calls.length - 1]
       expect(lastCall[0].category).toBe('Hauptspeisen')
     })
   })
 
-  test('favorites toggle sets favorites filter', async () => {
+  test('favorites toggle in drawer sets favorites filter', async () => {
     const { getByTestId } = render(<FeedScreen />, { wrapper })
+    fireEvent.press(getByTestId('hamburger-menu'))
+    await waitFor(() => getByTestId('favorites-toggle'))
     fireEvent.press(getByTestId('favorites-toggle'))
     await waitFor(() => {
       const lastCall = mockUseInfiniteRecipes.mock.calls[mockUseInfiniteRecipes.mock.calls.length - 1]
       expect(lastCall[0].favorites).toBe(true)
     })
+  })
+
+  test('infinite scroll sentinel triggers fetchNextPage', async () => {
+    mockUseInfiniteRecipes.mockReturnValue({
+      data: { pages: [mockRecipes] },
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      isLoading: false,
+      isError: false,
+      fetchNextPage: mockFetchNextPage,
+    })
+    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    fireEvent(getByTestId('recipe-grid'), 'endReached')
+    expect(mockFetchNextPage).toHaveBeenCalled()
   })
 })

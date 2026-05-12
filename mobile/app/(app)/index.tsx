@@ -12,10 +12,12 @@ import {
 import { router } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { useInfiniteRecipes } from '../../src/hooks/useInfiniteRecipes'
-import { useCategories } from '../../src/hooks/useCategories'
+import { useCategories, useCategoryCounts } from '../../src/hooks/useCategories'
 import { getTags, getHeroRecipes } from '@miximixi/shared/api'
 import type { RecipeListItem } from '@miximixi/shared/types'
 import { RecipeCard } from '../../src/components/RecipeCard'
+import { CategoryChip } from '../../src/components/CategoryChip'
+import { CategoryDrawer } from '../../src/components/CategoryDrawer'
 import { HeroCarousel } from '../../src/components/HeroCarousel'
 import { MaterialIcon } from '../../src/components/MaterialIcon'
 import { useTheme } from '../../src/context/ThemeContext'
@@ -26,6 +28,7 @@ export default function FeedScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const filters = useMemo(() => ({
     q: search || undefined,
@@ -36,6 +39,7 @@ export default function FeedScreen() {
 
   const recipesQuery = useInfiniteRecipes(filters)
   const categoriesQuery = useCategories()
+  const countsQuery = useCategoryCounts()
 
   const tagsQuery = useQuery({
     queryKey: ['tags', selectedCategory],
@@ -58,10 +62,10 @@ export default function FeedScreen() {
     router.push(`/(app)/recipe/${recipe.slug ?? recipe.id}`)
   }, [])
 
-  const handleCategoryToggle = (cat: string) => {
-    setSelectedCategory(prev => prev === cat ? null : cat)
+  const handleCategorySelect = useCallback((cat: string | null) => {
+    setSelectedCategory(cat)
     setSelectedTags([])
-  }
+  }, [])
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags(prev =>
@@ -76,9 +80,12 @@ export default function FeedScreen() {
         <HeroCarousel recipes={heroQuery.data} onPress={handleRecipePress} />
       )}
 
-      {/* Search bar */}
+      {/* Search bar with hamburger */}
       <View style={[styles.searchRow, { backgroundColor: colors.surfaceContainer }]}>
-        <MaterialIcon name="search" size={20} color={colors.onSurfaceVariant} />
+        <Pressable onPress={() => setDrawerOpen(true)} testID="hamburger-menu" accessibilityLabel="Open category menu">
+          <MaterialIcon name="menu" size={22} color={colors.onSurfaceVariant} />
+        </Pressable>
+        <MaterialIcon name="search" size={18} color={colors.onSurfaceVariant} />
         <TextInput
           style={[styles.searchInput, { color: colors.onSurface }]}
           value={search}
@@ -95,39 +102,43 @@ export default function FeedScreen() {
         )}
       </View>
 
-      {/* Category filter pills */}
-      {categoriesQuery.data && (
+      {/* Active filter chips */}
+      {(selectedCategory || favoritesOnly || selectedTags.length > 0) && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillRow}
-          testID="category-pills"
+          contentContainerStyle={styles.activeFilterRow}
         >
-          <Pressable
-            onPress={() => { setSelectedCategory(null); setSelectedTags([]) }}
-            style={[
-              styles.pill,
-              { backgroundColor: !selectedCategory ? colors.primary : colors.surfaceVariant },
-            ]}
-            testID="category-pill-all"
-          >
-            <Text style={{ color: !selectedCategory ? colors.onPrimary : colors.onSurfaceVariant, fontSize: 13, fontWeight: '600' }}>
-              All
-            </Text>
-          </Pressable>
-          {categoriesQuery.data.map(cat => (
+          {selectedCategory && (
             <Pressable
-              key={cat}
-              onPress={() => handleCategoryToggle(cat)}
-              style={[
-                styles.pill,
-                { backgroundColor: selectedCategory === cat ? colors.primary : colors.surfaceVariant },
-              ]}
-              testID={`category-pill-${cat.toLowerCase()}`}
+              onPress={() => handleCategorySelect(null)}
+              style={styles.activeChipWrap}
+              accessibilityLabel={`Remove ${selectedCategory} filter`}
             >
-              <Text style={{ color: selectedCategory === cat ? colors.onPrimary : colors.onSurfaceVariant, fontSize: 13, fontWeight: '600' }}>
-                {cat}
-              </Text>
+              <CategoryChip category={selectedCategory} size="sm" />
+              <View style={[styles.removeChipBadge, { backgroundColor: colors.onSurface }]}>
+                <MaterialIcon name="close" size={10} color={colors.surface} />
+              </View>
+            </Pressable>
+          )}
+          {favoritesOnly && (
+            <Pressable
+              onPress={() => setFavoritesOnly(false)}
+              style={[styles.filterChip, { backgroundColor: colors.primaryContainer, borderColor: colors.primary }]}
+            >
+              <MaterialIcon name="favorite" size={12} color={colors.primaryDim} />
+              <Text style={{ color: colors.primaryDim, fontSize: 12, fontWeight: '600' }}>Favorites</Text>
+              <MaterialIcon name="close" size={12} color={colors.primaryDim} />
+            </Pressable>
+          )}
+          {selectedTags.map(tag => (
+            <Pressable
+              key={tag}
+              onPress={() => handleTagToggle(tag)}
+              style={[styles.filterChip, { backgroundColor: colors.secondaryContainer, borderColor: colors.secondary }]}
+            >
+              <Text style={{ color: colors.secondary, fontSize: 12, fontWeight: '600' }}>{tag}</Text>
+              <MaterialIcon name="close" size={12} color={colors.secondary} />
             </Pressable>
           ))}
         </ScrollView>
@@ -148,13 +159,13 @@ export default function FeedScreen() {
               style={[
                 styles.tagChip,
                 {
-                  backgroundColor: selectedTags.includes(tag) ? colors.secondary : colors.surfaceContainer,
+                  backgroundColor: selectedTags.includes(tag) ? colors.secondaryContainer : colors.surfaceContainer,
                   borderColor: selectedTags.includes(tag) ? colors.secondary : colors.outlineVariant,
                 },
               ]}
               testID={`tag-chip-${tag}`}
             >
-              <Text style={{ color: selectedTags.includes(tag) ? '#fff' : colors.onSurfaceVariant, fontSize: 12 }}>
+              <Text style={{ color: selectedTags.includes(tag) ? colors.secondary : colors.onSurfaceVariant, fontSize: 12, fontWeight: selectedTags.includes(tag) ? '700' : '400' }}>
                 {tag}
               </Text>
             </Pressable>
@@ -162,24 +173,10 @@ export default function FeedScreen() {
         </ScrollView>
       )}
 
-      {/* Favorites toggle */}
-      <View style={styles.filterRow}>
-        <Pressable
-          onPress={() => setFavoritesOnly(f => !f)}
-          style={[styles.favToggle, { backgroundColor: favoritesOnly ? colors.primaryContainer : colors.surfaceContainer }]}
-          testID="favorites-toggle"
-        >
-          <MaterialIcon
-            name={favoritesOnly ? 'favorite' : 'favorite_border'}
-            size={16}
-            color={favoritesOnly ? colors.primary : colors.onSurfaceVariant}
-          />
-          <Text style={{ color: favoritesOnly ? colors.primary : colors.onSurfaceVariant, fontSize: 13, fontWeight: '600' }}>
-            Favorites
-          </Text>
-        </Pressable>
+      {/* Result count */}
+      <View style={styles.countRow}>
         <Text style={[styles.countText, { color: colors.onSurfaceVariant }]}>
-          {allRecipes.length} recipes
+          {allRecipes.length} recipe{allRecipes.length !== 1 ? 's' : ''}
         </Text>
       </View>
     </View>
@@ -188,9 +185,7 @@ export default function FeedScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {recipesQuery.isError && (
-        <Text style={{ color: colors.primary, padding: 16 }}>
-          Failed to load recipes
-        </Text>
+        <Text style={{ color: colors.primary, padding: 16 }}>Failed to load recipes</Text>
       )}
       <FlatList
         data={allRecipes}
@@ -211,23 +206,28 @@ export default function FeedScreen() {
         ListHeaderComponent={ListHeader}
         ListFooterComponent={
           recipesQuery.isFetchingNextPage ? (
-            <ActivityIndicator
-              style={{ margin: 16 }}
-              color={colors.primary}
-              testID="loading-more"
-            />
+            <ActivityIndicator style={{ margin: 16 }} color={colors.primary} testID="loading-more" />
           ) : null
         }
         ListEmptyComponent={
           !recipesQuery.isLoading ? (
-            <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>
-              No recipes found
-            </Text>
+            <Text style={[styles.emptyText, { color: colors.onSurfaceVariant }]}>No recipes found</Text>
           ) : (
             <ActivityIndicator style={{ margin: 32 }} color={colors.primary} testID="loading-initial" />
           )
         }
         testID="recipe-grid"
+      />
+
+      <CategoryDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        categories={categoriesQuery.data ?? []}
+        counts={countsQuery.data?.counts ?? {}}
+        selectedCategory={selectedCategory}
+        onSelectCategory={handleCategorySelect}
+        favoritesOnly={favoritesOnly}
+        onToggleFavorites={() => setFavoritesOnly(f => !f)}
       />
     </View>
   )
@@ -244,12 +244,41 @@ const styles = StyleSheet.create({
     margin: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     padding: 0,
+  },
+  activeFilterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+    alignItems: 'center',
+  },
+  activeChipWrap: {
+    position: 'relative',
+  },
+  removeChipBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   pillRow: {
     flexDirection: 'row',
@@ -257,31 +286,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 8,
   },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
   tagChip: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
   },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  favToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+  countRow: {
+    paddingHorizontal: 14,
+    paddingBottom: 6,
   },
   countText: {
     fontSize: 12,
