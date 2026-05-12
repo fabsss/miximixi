@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import { router } from 'expo-router'
 import { getCategoryIcon, getCategoryLabel } from '@miximixi/shared/categoryUtils'
 import { useTheme } from '../context/ThemeContext'
 import { getCatColors } from '../theme/colors'
@@ -133,6 +134,24 @@ export function CategoryDrawer({
               )
             })}
 
+            {/* Divider */}
+            <View style={[styles.divider, { backgroundColor: colors.outlineVariant }]} />
+
+            {/* Tags management */}
+            <Pressable
+              onPress={() => { router.push('/(app)/tags'); onClose() }}
+              style={styles.catRow}
+              testID="drawer-item-tags"
+            >
+              <View style={[styles.catIconWrap, { backgroundColor: colors.surfaceVariant }]}>
+                <MaterialIcon name="sell" size={18} color={colors.onSurfaceVariant} />
+              </View>
+              <Text style={[styles.catLabel, { color: colors.onSurface, fontWeight: '500' }]}>
+                Tags verwalten
+              </Text>
+              <MaterialIcon name="chevron_right" size={18} color={colors.onSurfaceVariant} />
+            </Pressable>
+
           </ScrollView>
         </Animated.View>
       </View>
@@ -211,5 +230,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 8,
+    marginVertical: 8,
+  },
 })
