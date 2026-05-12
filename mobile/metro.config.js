@@ -9,6 +9,14 @@ const config = getDefaultConfig(projectRoot)
 // Let Metro watch the shared package outside the mobile directory
 config.watchFolders = [sharedRoot]
 
+// When Babel transforms files inside shared/, it emits @babel/runtime helpers.
+// Those helpers live in mobile/node_modules, not shared/node_modules (which
+// doesn't exist). Adding mobile's node_modules as a fallback search path fixes
+// "cannot find @babel/runtime" errors for any file resolved from shared/.
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+]
+
 // Explicitly resolve @miximixi/shared subpath exports to their TS source files.
 // Metro does not reliably follow the package.json "exports" field for file: deps.
 const sharedMap = {
