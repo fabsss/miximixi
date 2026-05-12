@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
   ScrollView,
   Image,
+  Modal,
   Pressable,
   TextInput,
   Alert,
@@ -27,6 +28,27 @@ import { useDensities } from '../../../src/hooks/useDensities'
 
 const LANGUAGES = ['de', 'en', 'fr', 'it', 'es', 'pl', 'nl']
 
+// Parse [ingredient name]{sort_order} refs embedded in step text
+type StepPart = { type: 'text'; content: string } | { type: 'ref'; label: string; sortOrder: number }
+
+function parseIngredientRefs(text: string): StepPart[] {
+  const parts: StepPart[] = []
+  const pattern = /\[([^\]]+)\]\{(\d+)\}/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: text.slice(lastIndex, match.index) })
+    }
+    parts.push({ type: 'ref', label: match[1], sortOrder: Number(match[2]) })
+    lastIndex = pattern.lastIndex
+  }
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', content: text.slice(lastIndex) })
+  }
+  return parts
+}
+
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { colors } = useTheme()
@@ -36,6 +58,9 @@ export default function RecipeDetailScreen() {
   const [scale, setScale] = useState(1)
   const [isEditing, setIsEditing] = useState(false)
   const [translatedData, setTranslatedData] = useState<{ title: string; ingredients: Record<string, string>; steps: Record<string, string> } | null>(null)
+  const [highlightedSortOrder, setHighlightedSortOrder] = useState<number | null>(null)
+  const [fullscreenImageUri, setFullscreenImageUri] = useState<string | null>(null)
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Edit state
   const [editTitle, setEditTitle] = useState('')
@@ -113,6 +138,25 @@ export default function RecipeDetailScreen() {
     translateMutation.mutate(lang)
   }
 
+  const setHighlight = useCallback((sortOrder: number | null) => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    setHighlightedSortOrder(sortOrder)
+    if (sortOrder !== null) {
+      highlightTimer.current = setTimeout(() => setHighlightedSortOrder(null), 3000)
+    }
+  }, [])
+
+  const handleIngredientRefPress = useCallback((sortOrder: number) => {
+    setHighlight(highlightedSortOrder === sortOrder ? null : sortOrder)
+  }, [highlightedSortOrder, setHighlight])
+
+  const handleIngredientPress = useCallback((sortOrder: number) => {
+    setHighlight(highlightedSortOrder === sortOrder ? null : sortOrder)
+  }, [highlightedSortOrder, setHighlight])
+
+  // Cleanup highlight timer on unmount
+  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current) }, [])
+
   if (isLoading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -149,19 +193,53 @@ export default function RecipeDetailScreen() {
           ),
         }}
       />
+
+      {/* Fullscreen image modal */}
+      <Modal
+        visible={!!fullscreenImageUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFullscreenImageUri(null)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={styles.fullscreenBackdrop}
+          onPress={() => setFullscreenImageUri(null)}
+        >
+          {fullscreenImageUri && (
+            <Image
+              source={{ uri: fullscreenImageUri }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
+          )}
+          <Pressable style={styles.fullscreenClose} onPress={() => setFullscreenImageUri(null)}>
+            <MaterialIcon name="close" size={24} color="#fff" />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         testID="recipe-detail-scroll"
       >
-        {/* Hero image */}
+        {/* Hero image — tap to fullscreen */}
         {recipe.image_filename && (
-          <Image
-            source={{ uri: getImageUrl(recipe.id) }}
-            style={styles.heroImage}
-            resizeMode="cover"
-            testID="recipe-hero-image"
-          />
+          <Pressable
+            onPress={() => setFullscreenImageUri(getImageUrl(recipe.id))}
+            accessibilityLabel="View full-size image"
+          >
+            <Image
+              source={{ uri: getImageUrl(recipe.id) }}
+              style={styles.heroImage}
+              resizeMode="cover"
+              testID="recipe-hero-image"
+            />
+            <View style={styles.zoomHint}>
+              <MaterialIcon name="zoom_in" size={18} color="#fff" />
+            </View>
+          </Pressable>
         )}
 
         {/* Header */}
@@ -181,6 +259,17 @@ export default function RecipeDetailScreen() {
           )}
 
           {recipe.category && <CategoryChip category={recipe.category} />}
+
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <View style={styles.tagsRow}>
+              {recipe.tags.map(tag => (
+                <View key={tag} style={[styles.tagChip, { backgroundColor: colors.surfaceHigh, borderColor: colors.outlineVariant }]}>
+                  <Text style={[styles.tagText, { color: colors.onSurfaceVariant }]}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Meta row */}
           <View style={styles.metaRow}>
@@ -274,7 +363,7 @@ export default function RecipeDetailScreen() {
 
         {/* Translation row */}
         <View style={styles.translateRow}>
-          <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Translate:</Text>
+          <MaterialIcon name="translate" size={16} color={colors.onSurfaceVariant} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexShrink: 1 }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {LANGUAGES.map(lang => (
@@ -291,7 +380,7 @@ export default function RecipeDetailScreen() {
               ))}
             </View>
           </ScrollView>
-          {translateMutation.isPending && <ActivityIndicator color={colors.primary} />}
+          {translateMutation.isPending && <ActivityIndicator color={colors.primary} size="small" />}
         </View>
 
         {/* Servings / scaling */}
@@ -330,10 +419,35 @@ export default function RecipeDetailScreen() {
                     ingredient={translatedData ? { ...ing, name: translatedData.ingredients[ing.id] ?? ing.name } : ing}
                     scale={scale}
                     densities={densities}
+                    highlighted={highlightedSortOrder === ing.sort_order}
+                    onPress={() => handleIngredientPress(ing.sort_order)}
                   />
                 ))}
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Notes / Chef's note */}
+        {(recipe.notes || isEditing) && (
+          <View style={[styles.section, styles.notesSection, { backgroundColor: colors.primaryContainer }]}>
+            <View style={styles.notesTitleRow}>
+              <MaterialIcon name="lightbulb" size={16} color={colors.primaryDim} />
+              <Text style={[styles.sectionTitle, { color: colors.primaryDim }]}>Chef's Note</Text>
+            </View>
+            {isEditing ? (
+              <TextInput
+                value={editNotes}
+                onChangeText={setEditNotes}
+                multiline
+                style={[styles.notesInput, { color: colors.onSurface, borderColor: colors.outlineVariant }]}
+                placeholder="Add notes…"
+                placeholderTextColor={colors.onSurfaceVariant}
+                testID="notes-input"
+              />
+            ) : (
+              <Text style={[styles.notes, { color: colors.primaryDim }]}>{recipe.notes}</Text>
+            )}
           </View>
         )}
 
@@ -349,29 +463,11 @@ export default function RecipeDetailScreen() {
                 recipeId={recipe.id}
                 recipeTitle={recipe.title}
                 colors={colors}
-                densities={densities}
+                highlightedSortOrder={highlightedSortOrder}
+                onIngredientRefPress={handleIngredientRefPress}
+                onImagePress={setFullscreenImageUri}
               />
             ))}
-          </View>
-        )}
-
-        {/* Notes */}
-        {(recipe.notes || isEditing) && (
-          <View style={[styles.section, { backgroundColor: colors.surfaceContainer }]}>
-            <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Notes</Text>
-            {isEditing ? (
-              <TextInput
-                value={editNotes}
-                onChangeText={setEditNotes}
-                multiline
-                style={[styles.notesInput, { color: colors.onSurface, borderColor: colors.outlineVariant }]}
-                placeholder="Add notes…"
-                placeholderTextColor={colors.onSurfaceVariant}
-                testID="notes-input"
-              />
-            ) : (
-              <Text style={[styles.notes, { color: colors.onSurface }]}>{recipe.notes}</Text>
-            )}
           </View>
         )}
       </ScrollView>
@@ -385,24 +481,58 @@ interface StepCardProps {
   recipeId: string
   recipeTitle: string
   colors: ReturnType<typeof useTheme>['colors']
-  densities: ReturnType<typeof useDensities>['data']
+  highlightedSortOrder: number | null
+  onIngredientRefPress: (sortOrder: number) => void
+  onImagePress: (uri: string) => void
 }
 
-function StepCard({ step, index, recipeId, recipeTitle, colors }: StepCardProps) {
+function StepCard({ step, index, recipeId, recipeTitle, colors, highlightedSortOrder, onIngredientRefPress, onImagePress }: StepCardProps) {
+  const parts = parseIngredientRefs(step.text)
+  const hasRefs = parts.some(p => p.type === 'ref')
+
   return (
     <View style={[styles.stepCard, { backgroundColor: colors.surfaceHigh }]} testID={`step-card-${index}`}>
       <View style={[styles.stepNumBadge, { backgroundColor: colors.primary }]}>
         <Text style={{ color: colors.onPrimary, fontWeight: '700', fontSize: 13 }}>{index + 1}</Text>
       </View>
       <View style={{ flex: 1, gap: 8 }}>
-        <Text style={[styles.stepText, { color: colors.onSurface }]}>{step.text}</Text>
-        {step.step_image_filename && (
-          <Image
-            source={{ uri: getStepImageUrl(recipeId, step.step_image_filename) }}
-            style={styles.stepImage}
-            resizeMode="cover"
-          />
+        {hasRefs ? (
+          <Text style={[styles.stepText, { color: colors.onSurface }]}>
+            {parts.map((part, i) => {
+              if (part.type === 'text') {
+                return <Text key={i}>{part.content}</Text>
+              }
+              const isHighlighted = highlightedSortOrder === part.sortOrder
+              return (
+                <Text
+                  key={i}
+                  onPress={() => onIngredientRefPress(part.sortOrder)}
+                  style={{
+                    backgroundColor: isHighlighted ? colors.primary : `${colors.primaryContainer}88`,
+                    color: isHighlighted ? colors.onPrimary : colors.primaryDim,
+                    fontWeight: '700',
+                  }}
+                >{` ${part.label} `}</Text>
+              )
+            })}
+          </Text>
+        ) : (
+          <Text style={[styles.stepText, { color: colors.onSurface }]}>{step.text}</Text>
         )}
+
+        {step.step_image_filename && (
+          <Pressable onPress={() => onImagePress(getStepImageUrl(recipeId, step.step_image_filename!))}>
+            <Image
+              source={{ uri: getStepImageUrl(recipeId, step.step_image_filename) }}
+              style={styles.stepImage}
+              resizeMode="cover"
+            />
+            <View style={[styles.zoomHint, { bottom: 8, right: 8 }]}>
+              <MaterialIcon name="zoom_in" size={16} color="#fff" />
+            </View>
+          </Pressable>
+        )}
+
         {step.time_minutes != null && step.time_minutes > 0 && (
           <ConnectedStepTimer
             recipeId={recipeId}
@@ -431,9 +561,38 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 40 },
   heroImage: { width: '100%', aspectRatio: 16 / 9 },
+  zoomHint: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 16,
+    padding: 4,
+  },
+  fullscreenBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  fullscreenClose: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    padding: 8,
+  },
   header: { padding: 16, gap: 12 },
   title: { fontSize: 26, fontWeight: '700', lineHeight: 32 },
   titleInput: { fontSize: 22, fontWeight: '700', borderWidth: 1, borderRadius: 8, padding: 8 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tagChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  tagText: { fontSize: 12, fontWeight: '600' },
   metaRow: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 13 },
@@ -444,9 +603,11 @@ const styles = StyleSheet.create({
   cookBtnText: { fontSize: 16, fontWeight: '700' },
   editActions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 8 },
   actionBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12 },
-  translateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, marginBottom: 8, flexWrap: 'nowrap' },
+  translateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, marginBottom: 8 },
   langBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   section: { margin: 8, padding: 16, borderRadius: 16, gap: 8 },
+  notesSection: { marginTop: 0 },
+  notesTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   groupLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
   stepCard: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: 12, marginBottom: 8 },

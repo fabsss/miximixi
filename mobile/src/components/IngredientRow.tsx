@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import type { Ingredient } from '@miximixi/shared/types'
 import { isCupUnit, findDensityForIngredient, convertCupToGram } from '@miximixi/shared/cupConversions'
 import type { DensityType } from '@miximixi/shared/cupConversions'
@@ -8,6 +8,8 @@ interface Props {
   ingredient: Ingredient
   scale: number
   densities: DensityType[]
+  highlighted?: boolean
+  onPress?: () => void
   testID?: string
 }
 
@@ -16,7 +18,7 @@ function formatAmount(amount: number): string {
   return amount.toFixed(1).replace(/\.0$/, '')
 }
 
-export function IngredientRow({ ingredient, scale, densities, testID }: Props) {
+export function IngredientRow({ ingredient, scale, densities, highlighted, onPress, testID }: Props) {
   const { colors } = useTheme()
   const scaledAmount = ingredient.amount != null ? ingredient.amount * scale : null
   const isCup = isCupUnit(ingredient.unit)
@@ -30,11 +32,18 @@ export function IngredientRow({ ingredient, scale, densities, testID }: Props) {
     }
   }
 
-  return (
-    <View style={[styles.row, { borderBottomColor: colors.outlineVariant }]} testID={testID ?? `ingredient-${ingredient.id}`}>
+  const inner = (
+    <View
+      style={[
+        styles.row,
+        { borderBottomColor: colors.outlineVariant },
+        highlighted && { backgroundColor: `${colors.primaryContainer}80`, borderRadius: 8, paddingHorizontal: 6 },
+      ]}
+      testID={testID ?? `ingredient-${ingredient.id}`}
+    >
       <View style={styles.amountCol}>
         {scaledAmount != null && (
-          <Text style={[styles.amount, { color: colors.primary }]}>
+          <Text style={[styles.amount, { color: highlighted ? colors.primaryDim : colors.primary }]}>
             {formatAmount(scaledAmount)}
           </Text>
         )}
@@ -45,9 +54,16 @@ export function IngredientRow({ ingredient, scale, densities, testID }: Props) {
           <Text style={[styles.conversion, { color: colors.secondary }]}>{conversionNote}</Text>
         )}
       </View>
-      <Text style={[styles.name, { color: colors.onSurface }]}>{ingredient.name}</Text>
+      <Text style={[styles.name, { color: highlighted ? colors.primaryDim : colors.onSurface, fontWeight: highlighted ? '700' : '400' }]}>
+        {ingredient.name}
+      </Text>
     </View>
   )
+
+  if (onPress) {
+    return <Pressable onPress={onPress}>{inner}</Pressable>
+  }
+  return inner
 }
 
 const styles = StyleSheet.create({

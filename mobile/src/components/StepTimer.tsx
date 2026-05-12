@@ -116,7 +116,8 @@ export function ConnectedStepTimer(props: Props) {
   const isDone = timer?.isDone ?? false
   const isRunning = timer?.isRunning ?? false
 
-  const timerColor = isDone ? colors.primary : colors.onSurface
+  const statusLabel = isDone ? 'Done ✓' : isRunning ? 'Running' : timer ? 'Paused' : 'Ready'
+  const timerColor = isDone ? colors.primary : isRunning ? colors.primaryDim : colors.onSurface
   const bgColor = isDone ? colors.primaryContainer : colors.surfaceContainer
 
   return (
@@ -124,9 +125,12 @@ export function ConnectedStepTimer(props: Props) {
       style={[styles.container, { backgroundColor: bgColor }]}
       testID={props.testID ?? `step-timer-${props.stepIndex}`}
     >
-      <Text style={[styles.time, { color: timerColor }]} testID="timer-display">
-        {formatTime(remaining)}
-      </Text>
+      <View>
+        <Text style={[styles.statusLabel, { color: colors.onSurfaceVariant }]}>{statusLabel}</Text>
+        <Text style={[styles.time, { color: timerColor }]} testID="timer-display">
+          {formatTime(remaining)}
+        </Text>
+      </View>
 
       <View style={styles.controls}>
         <Pressable
@@ -139,11 +143,11 @@ export function ConnectedStepTimer(props: Props) {
 
         <Pressable
           onPress={() => isRunning ? pauseTimer(id) : startTimer(props.recipeId, props.stepIndex, props.stepLabel, props.recipeTitle, props.totalSeconds)}
-          style={[styles.playBtn, { backgroundColor: colors.primary }]}
+          style={[styles.playBtn, { backgroundColor: isRunning ? colors.primaryDim : colors.primary }]}
           testID={isRunning ? 'timer-pause' : 'timer-start'}
         >
           <MaterialIcon
-            name={isRunning ? 'pause' : 'play_arrow'}
+            name={isRunning ? 'pause' : isDone ? 'replay' : 'play_arrow'}
             size={20}
             color={colors.onPrimary}
           />
@@ -170,11 +174,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
+  statusLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
   time: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
-    minWidth: 56,
+    minWidth: 64,
   },
   controls: {
     flexDirection: 'row',

@@ -56,6 +56,15 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
         {recipe.category && (
           <CategoryChip category={recipe.category} size="sm" />
         )}
+        {recipe.tags && recipe.tags.length > 0 && (
+          <View style={styles.tags}>
+            {recipe.tags.slice(0, 3).map(tag => (
+              <View key={tag} style={[styles.tagChip, { backgroundColor: colors.surfaceHigh, borderColor: colors.outlineVariant }]}>
+                <Text style={[styles.tagText, { color: colors.onSurfaceVariant }]} numberOfLines={1}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </Pressable>
   )
@@ -102,5 +111,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  tagChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 })

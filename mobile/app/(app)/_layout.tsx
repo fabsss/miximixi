@@ -1,14 +1,19 @@
 import { Tabs, router } from 'expo-router'
-import { useEffect } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { useCallback, useEffect } from 'react'
+import { ActivityIndicator, Pressable, View } from 'react-native'
 import { useAuth } from '../../src/context/AuthContext'
-import { useTheme } from '../../src/context/ThemeContext'
+import { useTheme, type Theme } from '../../src/context/ThemeContext'
 import { MaterialIcon } from '../../src/components/MaterialIcon'
 import { TimerSheet } from '../../src/components/TimerSheet'
 
+const THEME_CYCLE: Record<Theme, Theme> = { light: 'dark', dark: 'system', system: 'light' }
+const THEME_ICON: Record<Theme, string> = { light: 'light_mode', dark: 'dark_mode', system: 'brightness_auto' }
+
 function ProtectedLayout() {
   const { user, isLoading } = useAuth()
-  const { colors } = useTheme()
+  const { colors, theme, setTheme } = useTheme()
+
+  const cycleTheme = useCallback(() => setTheme(THEME_CYCLE[theme]), [theme, setTheme])
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -36,6 +41,11 @@ function ProtectedLayout() {
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.onSurface,
           headerTitleStyle: { fontFamily: 'NotoSerif_700Bold', fontSize: 18 },
+          headerRight: () => (
+            <Pressable onPress={cycleTheme} style={{ marginRight: 16 }} accessibilityLabel={`Switch theme (current: ${theme})`}>
+              <MaterialIcon name={THEME_ICON[theme]} size={22} color={colors.onSurface} />
+            </Pressable>
+          ),
         }}
       >
         <Tabs.Screen
