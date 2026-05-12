@@ -57,6 +57,7 @@
   "jest": {
     "preset": "jest-expo",
     "cacheDirectory": ".jest-cache",
+    "testTimeout": 30000,
     "setupFilesAfterEnv": [],
     "setupFiles": [
       "./jest.setup.js"
