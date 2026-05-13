@@ -277,7 +277,7 @@ export default function RecipeDetailScreen() {
               resizeMode="cover"
               testID="recipe-hero-image"
             />
-            {/* Gradient fade from image into background */}
+            {/* Gradient fade from image into page background */}
             <LinearGradient
               colors={['transparent', colors.background]}
               style={styles.heroGradient}
