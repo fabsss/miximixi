@@ -1,5 +1,4 @@
 import { Pressable, View, Text, Image, StyleSheet } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
 import { getImageUrl } from '@miximixi/shared/api'
 import type { RecipeListItem } from '@miximixi/shared/types'
 import { CategoryChip } from './CategoryChip'
@@ -28,31 +27,34 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
       accessibilityRole="button"
       accessibilityLabel={recipe.title}
     >
-      {/* Image */}
+      {/* Image with overlaid badges */}
       <View style={styles.imageContainer}>
         {recipe.image_filename ? (
-          <>
-            <Image
-              source={{ uri: getImageUrl(recipe.id) }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['transparent', colors.surfaceContainer]}
-              style={styles.imageGradient}
-            />
-          </>
+          <Image
+            source={{ uri: getImageUrl(recipe.id) }}
+            style={styles.image}
+            resizeMode="cover"
+          />
         ) : (
           <View style={[styles.imageFallback, { backgroundColor: colors.surfaceVariant }]} />
         )}
+
+        {/* Category chip — top-left overlay */}
+        {recipe.category && (
+          <View style={styles.categoryOverlay}>
+            <CategoryChip category={recipe.category} size="sm" />
+          </View>
+        )}
+
+        {/* Favorite heart — top-right overlay, only when liked */}
         {isFavorite && (
           <View style={styles.favBadge} testID="favorite-badge">
-            <MaterialIcon name="favorite" size={16} color="#e05b5b" />
+            <MaterialIcon name="favorite" size={14} color="#e05b5b" />
           </View>
         )}
       </View>
 
-      {/* Content */}
+      {/* Title + tags below image */}
       <View style={styles.content}>
         <Text
           style={[styles.title, { color: colors.onSurface }]}
@@ -60,9 +62,6 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
         >
           {recipe.title}
         </Text>
-        {recipe.category && (
-          <CategoryChip category={recipe.category} size="sm" />
-        )}
         {recipe.tags && recipe.tags.length > 0 && (
           <View style={styles.tags}>
             {recipe.tags.slice(0, 3).map(tag => (
@@ -90,30 +89,27 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     aspectRatio: 4 / 3,
-    position: 'relative',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  imageGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 40,
-  },
   imageFallback: {
     width: '100%',
     height: '100%',
   },
+  categoryOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+  },
   favBadge: {
     position: 'absolute',
-    bottom: 8,
+    top: 8,
     right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -124,7 +120,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     fontFamily: 'NotoSerif_700Bold',
     lineHeight: 18,
   },
@@ -132,7 +128,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
-    marginTop: 2,
   },
   tagChip: {
     borderWidth: 1,
