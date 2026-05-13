@@ -1,6 +1,7 @@
 import { Tabs, router } from 'expo-router'
 import { useCallback, useEffect } from 'react'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useAuth } from '../../src/context/AuthContext'
 import { useTheme, type Theme } from '../../src/context/ThemeContext'
 import { MaterialIcon } from '../../src/components/MaterialIcon'
@@ -38,7 +39,18 @@ function ProtectedLayout() {
           tabBarStyle: { backgroundColor: colors.surfaceLow, borderTopColor: colors.outlineVariant },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.onSurfaceVariant,
-          headerStyle: { backgroundColor: colors.surface },
+          // Semi-transparent blurred header
+          headerTransparent: true,
+          headerBackground: () =>
+            Platform.OS === 'ios' ? (
+              <BlurView
+                tint="systemChromeMaterial"
+                intensity={80}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : (
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface + 'E6' }]} />
+            ),
           headerTintColor: colors.onSurface,
           headerTitleStyle: { fontFamily: 'NotoSerif_700Bold', fontSize: 18 },
           headerRight: () => (

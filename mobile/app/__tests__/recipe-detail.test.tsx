@@ -139,12 +139,8 @@ describe('RecipeDetailScreen', () => {
     await waitFor(() => expect(getByTestId('scaling-slider')).toBeTruthy())
   })
 
-  test('rating buttons are rendered', async () => {
+  test('heart toggle button is rendered', async () => {
     const { getByTestId } = render(<RecipeDetailScreen />, { wrapper })
-    await waitFor(() => {
-      expect(getByTestId('rating-1')).toBeTruthy()
-      expect(getByTestId('rating-0')).toBeTruthy()
-      expect(getByTestId('rating--1')).toBeTruthy()
-    })
+    await waitFor(() => expect(getByTestId('rating-1')).toBeTruthy())
   })
 })

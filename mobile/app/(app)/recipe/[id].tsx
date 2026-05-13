@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useLocalSearchParams, router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -268,12 +269,18 @@ export default function RecipeDetailScreen() {
           <Pressable
             onPress={() => setFullscreenImageUri(getImageUrl(recipe.id))}
             accessibilityLabel="View full-size image"
+            style={styles.heroContainer}
           >
             <Image
               source={{ uri: getImageUrl(recipe.id) }}
               style={styles.heroImage}
               resizeMode="cover"
               testID="recipe-hero-image"
+            />
+            {/* Gradient fade from image into background */}
+            <LinearGradient
+              colors={['transparent', colors.background]}
+              style={styles.heroGradient}
             />
             <View style={styles.zoomHint}>
               <MaterialIcon name="zoom_in" size={18} color="#fff" />
@@ -345,24 +352,19 @@ export default function RecipeDetailScreen() {
             )}
           </View>
 
-          {/* Rating */}
-          <View style={styles.ratingRow}>
-            {([-1, 0, 1] as const).map(r => (
-              <Pressable
-                key={r}
-                onPress={() => handleRating(r)}
-                style={[
-                  styles.ratingBtn,
-                  { backgroundColor: recipe.rating === r ? colors.primaryContainer : colors.surfaceContainer },
-                ]}
-                testID={`rating-${r}`}
-              >
-                <Text style={{ color: recipe.rating === r ? colors.primary : colors.onSurfaceVariant, fontSize: 16 }}>
-                  {r === 1 ? '❤️' : r === -1 ? '👎' : '😐'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {/* Rating — single heart toggle (liked = rating 1, neutral = 0) */}
+          <Pressable
+            onPress={() => handleRating(recipe.rating === 1 ? 0 : 1)}
+            style={[styles.ratingBtn, { backgroundColor: recipe.rating === 1 ? colors.primaryContainer : colors.surfaceContainer }]}
+            testID="rating-1"
+            accessibilityLabel={recipe.rating === 1 ? 'Unlike recipe' : 'Like recipe'}
+          >
+            <MaterialIcon
+              name={recipe.rating === 1 ? 'favorite' : 'favorite_border'}
+              size={20}
+              color={recipe.rating === 1 ? '#e05b5b' : colors.onSurfaceVariant}
+            />
+          </Pressable>
 
           {/* Cook mode button */}
           <Pressable
@@ -631,7 +633,9 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   content: { paddingBottom: 40 },
+  heroContainer: { position: 'relative' },
   heroImage: { width: '100%', aspectRatio: 16 / 9 },
+  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 },
   zoomHint: {
     position: 'absolute',
     bottom: 10,
@@ -679,11 +683,11 @@ const styles = StyleSheet.create({
   section: { margin: 8, padding: 16, borderRadius: 16, gap: 8 },
   notesSection: { marginTop: 0 },
   notesTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', fontFamily: 'PlusJakartaSans_700Bold', marginBottom: 4 },
   groupLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginTop: 8, marginBottom: 4 },
   stepCard: { flexDirection: 'row', gap: 12, padding: 12, borderRadius: 12, marginBottom: 8 },
   stepNumBadge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  stepText: { fontSize: 14, lineHeight: 22 },
+  stepText: { fontSize: 14, lineHeight: 22, fontFamily: 'PlusJakartaSans_400Regular' },
   ingredientTip: {
     flexDirection: 'row',
     alignItems: 'center',

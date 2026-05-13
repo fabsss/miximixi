@@ -30,6 +30,7 @@ function RootStack() {
         headerTintColor: colors.onSurface,
         headerTitleStyle: { fontFamily: 'NotoSerif_700Bold' },
         contentStyle: { backgroundColor: colors.background },
+        animation: 'slide_from_right',
       }}
     >
       <Stack.Screen name="login" options={{ headerShown: false }} />

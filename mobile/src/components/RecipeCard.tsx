@@ -1,4 +1,5 @@
 import { Pressable, View, Text, Image, StyleSheet } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { getImageUrl } from '@miximixi/shared/api'
 import type { RecipeListItem } from '@miximixi/shared/types'
 import { CategoryChip } from './CategoryChip'
@@ -30,11 +31,17 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
       {/* Image */}
       <View style={styles.imageContainer}>
         {recipe.image_filename ? (
-          <Image
-            source={{ uri: getImageUrl(recipe.id) }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+          <>
+            <Image
+              source={{ uri: getImageUrl(recipe.id) }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={['transparent', colors.surfaceContainer]}
+              style={styles.imageGradient}
+            />
+          </>
         ) : (
           <View style={[styles.imageFallback, { backgroundColor: colors.surfaceVariant }]} />
         )}
@@ -89,6 +96,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  imageGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+  },
   imageFallback: {
     width: '100%',
     height: '100%',
@@ -111,6 +125,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: 'NotoSerif_700Bold',
     lineHeight: 18,
   },
   tags: {

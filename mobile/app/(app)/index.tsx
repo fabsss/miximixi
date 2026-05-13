@@ -80,28 +80,6 @@ export default function FeedScreen() {
         <HeroCarousel recipes={heroQuery.data} onPress={handleRecipePress} />
       )}
 
-      {/* Search bar with hamburger */}
-      <View style={[styles.searchRow, { backgroundColor: colors.surfaceContainer }]}>
-        <Pressable onPress={() => setDrawerOpen(true)} testID="hamburger-menu" accessibilityLabel="Open category menu">
-          <MaterialIcon name="menu" size={22} color={colors.onSurfaceVariant} />
-        </Pressable>
-        <MaterialIcon name="search" size={18} color={colors.onSurfaceVariant} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.onSurface }]}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search recipes…"
-          placeholderTextColor={colors.onSurfaceVariant}
-          returnKeyType="search"
-          testID="search-input"
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')} testID="search-clear">
-            <MaterialIcon name="close" size={18} color={colors.onSurfaceVariant} />
-          </Pressable>
-        )}
-      </View>
-
       {/* Active category chip */}
       {selectedCategory && (
         <ScrollView
@@ -184,6 +162,28 @@ export default function FeedScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Sticky search bar with hamburger — always visible above the scroll */}
+      <View style={[styles.searchRow, { backgroundColor: colors.surfaceContainer }]}>
+        <Pressable onPress={() => setDrawerOpen(true)} testID="hamburger-menu" accessibilityLabel="Open category menu">
+          <MaterialIcon name="menu" size={22} color={colors.onSurfaceVariant} />
+        </Pressable>
+        <MaterialIcon name="search" size={18} color={colors.onSurfaceVariant} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.onSurface }]}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search recipes…"
+          placeholderTextColor={colors.onSurfaceVariant}
+          returnKeyType="search"
+          testID="search-input"
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch('')} testID="search-clear">
+            <MaterialIcon name="close" size={18} color={colors.onSurfaceVariant} />
+          </Pressable>
+        )}
+      </View>
+
       {recipesQuery.isError && (
         <Text style={{ color: colors.primary, padding: 16 }}>Failed to load recipes</Text>
       )}
@@ -239,7 +239,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    margin: 12,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
