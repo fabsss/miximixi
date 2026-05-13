@@ -77,6 +77,19 @@ jest.mock('react-native-qrcode-svg', () => {
   }
 })
 
+// Mock react-native-safe-area-context so useSafeAreaInsets() works without native module
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  return {
+    SafeAreaProvider: ({ children }) => React.createElement(View, null, children),
+    SafeAreaView: ({ children, style }) => React.createElement(View, { style }, children),
+    useSafeAreaInsets: () => ({ top: 44, right: 0, bottom: 34, left: 0 }),
+    useSafeAreaFrame: () => ({ x: 0, y: 0, width: 390, height: 844 }),
+    initialWindowMetrics: { insets: { top: 44, left: 0, bottom: 34, right: 0 }, frame: { x: 0, y: 0, width: 390, height: 844 } },
+  }
+})
+
 // Mock nativewind
 jest.mock('nativewind', () => ({
   useColorScheme: jest.fn().mockReturnValue('light'),

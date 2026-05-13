@@ -4,6 +4,7 @@ import RecipeDetailScreen from '../../../app/(app)/recipe/[id]'
 import { ThemeProvider } from '../../context/ThemeContext'
 import { TimerProvider } from '../../context/TimerContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const mockRecipe = {
@@ -42,7 +43,6 @@ const mockGetRecipe = jest.fn().mockResolvedValue(mockRecipe)
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'r1' }),
   router: { push: jest.fn(), back: jest.fn() },
-  Stack: { Screen: () => null },
 }))
 
 jest.mock('@miximixi/shared/api', () => ({
@@ -61,11 +61,13 @@ jest.mock('../../hooks/useDensities', () => ({
 const wrapper = ({ children }: { children: React.ReactNode }) => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return (
-    <QueryClientProvider client={qc}>
-      <ThemeProvider>
-        <TimerProvider>{children}</TimerProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={qc}>
+        <ThemeProvider>
+          <TimerProvider>{children}</TimerProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   )
 }
 
@@ -83,12 +85,13 @@ describe('Translation integration', () => {
   })
 
   test('translated title replaces original in UI', async () => {
-    const { getByTestId, getByText } = render(<RecipeDetailScreen />, { wrapper })
+    const { getByTestId } = render(<RecipeDetailScreen />, { wrapper })
     await waitFor(() => getByTestId('recipe-title'))
-    expect(getByText('Nudeln mit Sahnesoße')).toBeTruthy()
+    // Use testID to avoid "multiple elements" when title appears in both header and content
+    expect(getByTestId('recipe-title').props.children).toBe('Nudeln mit Sahnesoße')
 
     await act(async () => { fireEvent.press(getByTestId('translate-en')) })
-    await waitFor(() => expect(getByText('Pasta with Cream Sauce')).toBeTruthy())
+    await waitFor(() => expect(getByTestId('recipe-title').props.children).toBe('Pasta with Cream Sauce'))
   })
 
   test('translated ingredient names replace originals in UI', async () => {

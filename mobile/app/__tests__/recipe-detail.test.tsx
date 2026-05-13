@@ -4,6 +4,7 @@ import RecipeDetailScreen from '../(app)/recipe/[id]'
 import { ThemeProvider } from '../../src/context/ThemeContext'
 import { TimerProvider } from '../../src/context/TimerContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const mockRecipe = {
@@ -37,17 +38,10 @@ const mockUpdateRecipe = jest.fn()
 const mockDeleteRecipe = jest.fn()
 const mockTranslateRecipe = jest.fn()
 
-jest.mock('expo-router', () => {
-  const React = require('react')
-  return {
-    useLocalSearchParams: () => ({ id: 'r1' }),
-    router: { push: jest.fn(), back: jest.fn() },
-    Stack: {
-      Screen: ({ options }: { options?: { headerRight?: () => React.ReactNode; title?: string } }) =>
-        options?.headerRight ? React.createElement(React.Fragment, null, options.headerRight()) : null,
-    },
-  }
-})
+jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => ({ id: 'r1' }),
+  router: { push: jest.fn(), back: jest.fn() },
+}))
 
 jest.mock('@miximixi/shared/api', () => ({
   getRecipe: (...args: unknown[]) => mockGetRecipe(...args),
@@ -65,11 +59,13 @@ jest.mock('../../src/hooks/useDensities', () => ({
 const wrapper = ({ children }: { children: React.ReactNode }) => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return (
-    <QueryClientProvider client={qc}>
-      <ThemeProvider>
-        <TimerProvider>{children}</TimerProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={qc}>
+        <ThemeProvider>
+          <TimerProvider>{children}</TimerProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   )
 }
 
