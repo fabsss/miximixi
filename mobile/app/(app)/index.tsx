@@ -21,14 +21,16 @@ import { CategoryDrawer } from '../../src/components/CategoryDrawer'
 import { HeroCarousel } from '../../src/components/HeroCarousel'
 import { MaterialIcon } from '../../src/components/MaterialIcon'
 import { useTheme } from '../../src/context/ThemeContext'
+import { useDrawer } from '../../src/context/DrawerContext'
 
 export default function FeedScreen() {
   const { colors } = useTheme()
+  const { isOpen: drawerOpen, close: closeDrawer } = useDrawer()
+
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [favoritesOnly, setFavoritesOnly] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const filters = useMemo(() => ({
     q: search || undefined,
@@ -80,6 +82,25 @@ export default function FeedScreen() {
         <HeroCarousel recipes={heroQuery.data} onPress={handleRecipePress} />
       )}
 
+      {/* Search bar — in scrollable content, matching web layout (hero → search → tags → grid) */}
+      <View style={[styles.searchRow, { backgroundColor: colors.surfaceContainer }]}>
+        <MaterialIcon name="search" size={18} color={colors.onSurfaceVariant} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.onSurface }]}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search recipes…"
+          placeholderTextColor={colors.onSurfaceVariant}
+          returnKeyType="search"
+          testID="search-input"
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch('')} testID="search-clear">
+            <MaterialIcon name="close" size={18} color={colors.onSurfaceVariant} />
+          </Pressable>
+        )}
+      </View>
+
       {/* Active category chip */}
       {selectedCategory && (
         <ScrollView
@@ -108,7 +129,7 @@ export default function FeedScreen() {
           contentContainerStyle={styles.pillRow}
           testID="tag-chips"
         >
-          {/* Favorites — first chip in the tag row */}
+          {/* Favorites toggle — first chip */}
           <Pressable
             onPress={() => setFavoritesOnly(f => !f)}
             style={[
@@ -162,28 +183,6 @@ export default function FeedScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Sticky search bar with hamburger — always visible above the scroll */}
-      <View style={[styles.searchRow, { backgroundColor: colors.surfaceContainer }]}>
-        <Pressable onPress={() => setDrawerOpen(true)} testID="hamburger-menu" accessibilityLabel="Open category menu">
-          <MaterialIcon name="menu" size={22} color={colors.onSurfaceVariant} />
-        </Pressable>
-        <MaterialIcon name="search" size={18} color={colors.onSurfaceVariant} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.onSurface }]}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search recipes…"
-          placeholderTextColor={colors.onSurfaceVariant}
-          returnKeyType="search"
-          testID="search-input"
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')} testID="search-clear">
-            <MaterialIcon name="close" size={18} color={colors.onSurfaceVariant} />
-          </Pressable>
-        )}
-      </View>
-
       {recipesQuery.isError && (
         <Text style={{ color: colors.primary, padding: 16 }}>Failed to load recipes</Text>
       )}
@@ -219,9 +218,10 @@ export default function FeedScreen() {
         testID="recipe-grid"
       />
 
+      {/* CategoryDrawer uses Modal (statusBarTranslucent) so it covers the full screen */}
       <CategoryDrawer
         isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={closeDrawer}
         categories={categoriesQuery.data ?? []}
         counts={countsQuery.data?.counts ?? {}}
         selectedCategory={selectedCategory}
@@ -239,9 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 4,
+    margin: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
@@ -271,15 +269,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
   pillRow: {
     flexDirection: 'row',
     gap: 8,
@@ -287,6 +276,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 999,

@@ -1,8 +1,9 @@
 import { Pressable, View, Text, Image, StyleSheet } from 'react-native'
 import { getImageUrl } from '@miximixi/shared/api'
+import { getCategoryIcon } from '@miximixi/shared/categoryUtils'
 import type { RecipeListItem } from '@miximixi/shared/types'
-import { CategoryChip } from './CategoryChip'
 import { MaterialIcon } from './MaterialIcon'
+import { getCatColors } from '../theme/colors'
 import { useTheme } from '../context/ThemeContext'
 
 interface Props {
@@ -14,13 +15,16 @@ interface Props {
 export function RecipeCard({ recipe, onPress, testID }: Props) {
   const { colors } = useTheme()
   const isFavorite = recipe.rating === 1
+  const catColors = recipe.category ? getCatColors(recipe.category, colors) : null
+  const cardBg = catColors?.bg ?? colors.surfaceContainer
+  const iconName = recipe.category ? getCategoryIcon(recipe.category) : null
 
   return (
     <Pressable
       onPress={() => onPress(recipe)}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: colors.surfaceContainer },
+        { backgroundColor: cardBg },
         pressed && styles.cardPressed,
       ]}
       testID={testID ?? `recipe-card-${recipe.id}`}
@@ -39,14 +43,14 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
           <View style={[styles.imageFallback, { backgroundColor: colors.surfaceVariant }]} />
         )}
 
-        {/* Category chip — top-left overlay */}
-        {recipe.category && (
-          <View style={styles.categoryOverlay}>
-            <CategoryChip category={recipe.category} size="sm" />
+        {/* Category icon badge — top-left, icon only, matching web design */}
+        {iconName && catColors && (
+          <View style={[styles.catBadge, { backgroundColor: `${catColors.bg}CC` }]}>
+            <MaterialIcon name={iconName} size={16} color={catColors.text} />
           </View>
         )}
 
-        {/* Favorite heart — top-right overlay, only when liked */}
+        {/* Favourite heart — top-right, only when liked */}
         {isFavorite && (
           <View style={styles.favBadge} testID="favorite-badge">
             <MaterialIcon name="favorite" size={14} color="#e05b5b" />
@@ -54,12 +58,9 @@ export function RecipeCard({ recipe, onPress, testID }: Props) {
         )}
       </View>
 
-      {/* Title + tags below image */}
+      {/* Title + tags below image, on category-coloured background */}
       <View style={styles.content}>
-        <Text
-          style={[styles.title, { color: colors.onSurface }]}
-          numberOfLines={2}
-        >
+        <Text style={[styles.title, { color: colors.onSurface }]} numberOfLines={2}>
           {recipe.title}
         </Text>
         {recipe.tags && recipe.tags.length > 0 && (
@@ -80,11 +81,11 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     margin: 4,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   cardPressed: {
-    opacity: 0.85,
+    opacity: 0.88,
     transform: [{ scale: 0.97 }],
   },
   imageContainer: {
@@ -98,18 +99,23 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  categoryOverlay: {
+  catBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   favBadge: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -119,10 +125,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     fontFamily: 'NotoSerif_700Bold',
-    lineHeight: 18,
+    lineHeight: 22,
   },
   tags: {
     flexDirection: 'row',
@@ -132,11 +138,12 @@ const styles = StyleSheet.create({
   tagChip: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   tagText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
 })

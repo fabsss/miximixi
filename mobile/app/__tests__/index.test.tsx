@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import FeedScreen from '../(app)/index'
 import { ThemeProvider } from '../../src/context/ThemeContext'
+import { DrawerContext } from '../../src/context/DrawerContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const mockRecipes = [
@@ -33,13 +34,22 @@ jest.mock('@miximixi/shared/api', () => ({
   getImageUrl: (id: string) => `https://api.test/images/${id}`,
 }))
 
-const wrapper = ({ children }: { children: React.ReactNode }) => {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return (
-    <QueryClientProvider client={qc}>
-      <ThemeProvider>{children}</ThemeProvider>
-    </QueryClientProvider>
-  )
+// Wrapper with controllable drawer state — hamburger lives in the Tabs header
+// (in _layout.tsx), so tests open the drawer via DrawerContext directly
+function makeWrapper(initialDrawerOpen = false) {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    const [isOpen, setIsOpen] = useState(initialDrawerOpen)
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return (
+      <QueryClientProvider client={qc}>
+        <ThemeProvider>
+          <DrawerContext.Provider value={{ isOpen, open: () => setIsOpen(true), close: () => setIsOpen(false) }}>
+            {children}
+          </DrawerContext.Provider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    )
+  }
 }
 
 beforeEach(() => {
@@ -56,42 +66,35 @@ beforeEach(() => {
 
 describe('FeedScreen', () => {
   test('renders recipe grid', () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
     expect(getByTestId('recipe-grid')).toBeTruthy()
   })
 
   test('renders all recipe cards', () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
     expect(getByTestId('recipe-card-r1')).toBeTruthy()
     expect(getByTestId('recipe-card-r2')).toBeTruthy()
   })
 
   test('renders search input', () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
     expect(getByTestId('search-input')).toBeTruthy()
   })
 
-  test('hamburger button is present', () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
-    expect(getByTestId('hamburger-menu')).toBeTruthy()
+  test('renders favorites toggle', async () => {
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
+    await waitFor(() => expect(getByTestId('favorites-toggle')).toBeTruthy())
   })
 
-  test('drawer opens with category items on hamburger press', async () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
-    fireEvent.press(getByTestId('hamburger-menu'))
+  test('drawer shows category items when open', async () => {
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper(true) })
     await waitFor(() => expect(getByTestId('category-item-all')).toBeTruthy())
     expect(getByTestId('category-item-vorspeisen')).toBeTruthy()
     expect(getByTestId('category-item-hauptspeisen')).toBeTruthy()
   })
 
-  test('renders favorites toggle in drawer', async () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
-    fireEvent.press(getByTestId('hamburger-menu'))
-    await waitFor(() => expect(getByTestId('favorites-toggle')).toBeTruthy())
-  })
-
   test('searching updates the query filter', async () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
     fireEvent.changeText(getByTestId('search-input'), 'pasta')
     await waitFor(() => {
       const lastCall = mockUseInfiniteRecipes.mock.calls[mockUseInfiniteRecipes.mock.calls.length - 1]
@@ -100,8 +103,7 @@ describe('FeedScreen', () => {
   })
 
   test('selecting a category from drawer updates the filter', async () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
-    fireEvent.press(getByTestId('hamburger-menu'))
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper(true) })
     await waitFor(() => getByTestId('category-item-hauptspeisen'))
     fireEvent.press(getByTestId('category-item-hauptspeisen'))
     await waitFor(() => {
@@ -110,9 +112,8 @@ describe('FeedScreen', () => {
     })
   })
 
-  test('favorites toggle in drawer sets favorites filter', async () => {
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
-    fireEvent.press(getByTestId('hamburger-menu'))
+  test('favorites toggle sets favorites filter', async () => {
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
     await waitFor(() => getByTestId('favorites-toggle'))
     fireEvent.press(getByTestId('favorites-toggle'))
     await waitFor(() => {
@@ -130,7 +131,7 @@ describe('FeedScreen', () => {
       isError: false,
       fetchNextPage: mockFetchNextPage,
     })
-    const { getByTestId } = render(<FeedScreen />, { wrapper })
+    const { getByTestId } = render(<FeedScreen />, { wrapper: makeWrapper() })
     fireEvent(getByTestId('recipe-grid'), 'endReached')
     expect(mockFetchNextPage).toHaveBeenCalled()
   })

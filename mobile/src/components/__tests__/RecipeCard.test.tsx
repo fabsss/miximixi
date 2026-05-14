@@ -34,12 +34,13 @@ describe('RecipeCard', () => {
     expect(getByText('Test Pasta')).toBeTruthy()
   })
 
-  test('renders category chip', () => {
+  test('renders category icon badge', () => {
     const { getByTestId } = render(
       <RecipeCard recipe={baseRecipe} onPress={jest.fn()} />,
       { wrapper },
     )
-    expect(getByTestId('category-chip-hauptspeisen')).toBeTruthy()
+    // Hauptspeisen maps to 'food' icon — icon badge replaces the old CategoryChip
+    expect(getByTestId('icon-food')).toBeTruthy()
   })
 
   test('shows favorite badge when rating is 1', () => {
@@ -76,11 +77,11 @@ describe('RecipeCard', () => {
     expect(getByTestId('recipe-card-r1')).toBeTruthy()
   })
 
-  test('renders without category chip when category is null', () => {
+  test('renders without category icon badge when category is null', () => {
     const { queryByTestId } = render(
       <RecipeCard recipe={{ ...baseRecipe, category: null }} onPress={jest.fn()} />,
       { wrapper },
     )
-    expect(queryByTestId('category-chip-null')).toBeNull()
+    expect(queryByTestId('icon-food')).toBeNull()
   })
 })
