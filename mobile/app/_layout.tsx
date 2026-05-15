@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
+import { useFonts } from 'expo-font'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -8,7 +10,6 @@ import { ThemeProvider, useTheme } from '../src/context/ThemeContext'
 import { AuthProvider } from '../src/context/AuthContext'
 import { TimerProvider } from '../src/context/TimerContext'
 
-// Fonts are pre-linked via the expo-font config plugin in app.json — no useFonts() needed
 SplashScreen.preventAutoHideAsync()
 
 const queryClient = new QueryClient({
@@ -39,9 +40,21 @@ function RootStack() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    ...MaterialCommunityIcons.font,
+    NotoSerif_400Regular: require('../assets/fonts/NotoSerif_400Regular.ttf'),
+    NotoSerif_700Bold: require('../assets/fonts/NotoSerif_700Bold.ttf'),
+    PlusJakartaSans_400Regular: require('../assets/fonts/PlusJakartaSans_400Regular.ttf'),
+    PlusJakartaSans_500Medium: require('../assets/fonts/PlusJakartaSans_500Medium.ttf'),
+    PlusJakartaSans_600SemiBold: require('../assets/fonts/PlusJakartaSans_600SemiBold.ttf'),
+    PlusJakartaSans_700Bold: require('../assets/fonts/PlusJakartaSans_700Bold.ttf'),
+  })
+
   useEffect(() => {
-    SplashScreen.hideAsync()
-  }, [])
+    if (fontsLoaded || fontError) SplashScreen.hideAsync()
+  }, [fontsLoaded, fontError])
+
+  if (!fontsLoaded && !fontError) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
