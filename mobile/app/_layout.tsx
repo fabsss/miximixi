@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts } from 'expo-font'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -41,7 +40,8 @@ function RootStack() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    ...MaterialCommunityIcons.font,
+    // Load as 'MaterialCommunityIcons' — same name the Text component uses in MaterialIcon.tsx
+    MaterialCommunityIcons: require('../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf'),
     NotoSerif_400Regular: require('../assets/fonts/NotoSerif_400Regular.ttf'),
     NotoSerif_700Bold: require('../assets/fonts/NotoSerif_700Bold.ttf'),
     PlusJakartaSans_400Regular: require('../assets/fonts/PlusJakartaSans_400Regular.ttf'),

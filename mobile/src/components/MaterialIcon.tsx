@@ -1,8 +1,12 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons'
-import type { ComponentProps } from 'react'
+import { Text } from 'react-native'
+// Import glyph map directly — Metro bundles JSON as a module.
+// This bypasses @expo/vector-icons' async font-loading state machine entirely.
+// The font 'MaterialCommunityIcons' is loaded synchronously via useFonts() in _layout.tsx.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const glyphMap: Record<string, number> = require('@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialCommunityIcons.json')
 
-// Map web Material Symbols names to MaterialCommunityIcons equivalents
-const ICON_MAP: Record<string, ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+// Map web Material Symbols names → MaterialCommunityIcons names
+const ICON_MAP: Record<string, string> = {
   search:              'magnify',
   sell:                'tag-outline',
   timer:               'timer-outline',
@@ -52,7 +56,7 @@ const ICON_MAP: Record<string, ComponentProps<typeof MaterialCommunityIcons>['na
   skip_next:           'skip-next',
   skip_previous:       'skip-previous',
   zoom_in:             'magnify-plus-outline',
-  // Category icons
+  // Category icons (passed through directly)
   'bowl-mix-outline':  'bowl-mix-outline',
   food:                'food',
   'ice-cream':         'ice-cream',
@@ -70,13 +74,16 @@ interface Props {
 }
 
 export function MaterialIcon({ name, size = 24, color = '#000', testID }: Props) {
-  const mapped = ICON_MAP[name] ?? ('help-circle-outline' as ComponentProps<typeof MaterialCommunityIcons>['name'])
+  const mcName = ICON_MAP[name] ?? 'help-circle-outline'
+  const codePoint = glyphMap[mcName] ?? glyphMap['help-circle-outline']
+  const glyph = String.fromCodePoint(codePoint)
   return (
-    <MaterialCommunityIcons
-      name={mapped}
-      size={size}
-      color={color}
+    <Text
+      style={{ fontFamily: 'MaterialCommunityIcons', fontSize: size, color, lineHeight: size * 1.2 }}
+      allowFontScaling={false}
       testID={testID ?? `icon-${name}`}
-    />
+    >
+      {glyph}
+    </Text>
   )
 }
