@@ -12,6 +12,7 @@ class Settings(BaseSettings):
         env_file=str(Path(__file__).parent.parent.parent / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",  # Felder für andere Services (Supabase, Vite) ignorieren
+        case_sensitive=False,  # Allow both ALLOWED_ORIGINS and allowed_origins
     )
 
     # LLM
@@ -75,11 +76,11 @@ class Settings(BaseSettings):
         return [uid.strip() for uid in self.telegram_admin_ids_str.split(",") if uid.strip()]
 
     # Frontend URL for deep links in Telegram notifications and CORS
-    frontend_url: str = "https://miximixi.example.com"
+    frontend_url: str = Field(default="https://miximixi.example.com", validation_alias="FRONTEND_URL")
 
     # Allow additional origins for development (e.g., localhost:3000, localhost:5173)
     # Format: "http://localhost:3000,http://localhost:5173" (comma-separated)
-    allowed_origins: str = ""
+    allowed_origins: str = Field(default="", validation_alias="ALLOWED_ORIGINS")
 
     # Auth
     secret_key: str = ""          # JWT signing secret — fetched from Vaultwarden
