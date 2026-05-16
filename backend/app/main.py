@@ -348,6 +348,12 @@ async def register(req: RegisterRequest):
         db.close()
 
 
+@app.options("/auth/login")
+async def options_login():
+    """Handle CORS preflight request for login endpoint."""
+    return {}
+
+
 @app.post("/auth/login")
 async def login(req: LoginRequest):
     db = get_db()
