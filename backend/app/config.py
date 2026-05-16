@@ -76,11 +76,11 @@ class Settings(BaseSettings):
         return [uid.strip() for uid in self.telegram_admin_ids_str.split(",") if uid.strip()]
 
     # Frontend URL for deep links in Telegram notifications and CORS
-    frontend_url: str = Field(default="https://miximixi.example.com", validation_alias="FRONTEND_URL")
+    frontend_url: str = Field(default="https://miximixi.example.com")
 
     # Allow additional origins for development (e.g., localhost:3000, localhost:5173)
     # Format: "http://localhost:3000,http://localhost:5173" (comma-separated)
-    allowed_origins: str = Field(default="", validation_alias="ALLOWED_ORIGINS")
+    allowed_origins: str = Field(default="", env=["ALLOWED_ORIGINS", "allowed_origins"])
 
     # Auth
     secret_key: str = ""          # JWT signing secret — fetched from Vaultwarden
