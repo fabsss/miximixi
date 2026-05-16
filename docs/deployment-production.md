@@ -147,7 +147,52 @@ Directory structure:
 └── docs/
 ```
 
-### Step 3: Create Production `.env` File
+### Step 3: Understand CORS & JWT Authentication (Important for Frontend)
+
+**Background: Why CORS matters now**
+
+With JWT (JSON Web Token) authentication enabled, the frontend needs explicit permission to:
+1. Make requests to the backend API
+2. Send the JWT token in the `Authorization` header
+
+The browser enforces this via CORS (Cross-Origin Resource Sharing) headers. The backend must explicitly allow requests from your frontend's origin.
+
+**Production CORS Configuration:**
+
+Your production setup has two domains:
+- **Frontend:** `https://rezepte.example.com` (served by reverse proxy)
+- **Backend API:** `https://api.rezepte.example.com` (FastAPI)
+
+These are **different origins** (different subdomains), so CORS is required.
+
+**How it works:**
+
+1. **FRONTEND_URL** — Set this to your frontend domain
+   ```bash
+   FRONTEND_URL=https://rezepte.example.com
+   ```
+   The backend uses this to allow CORS requests from the frontend.
+
+2. **ALLOWED_ORIGINS** — Leave empty in production
+   ```bash
+   ALLOWED_ORIGINS=
+   ```
+   This is only for development when you have multiple localhost origins.
+
+3. **Backend CORS Middleware** automatically allows:
+   - Your `FRONTEND_URL` domain
+   - Any additional origins in `ALLOWED_ORIGINS` (if set)
+   - Credentials (JWT tokens in Authorization header)
+
+**If frontend shows "Failed to fetch" error:**
+- Check that `FRONTEND_URL` matches your actual frontend domain
+- Verify reverse proxy is routing requests correctly
+- Check browser console for CORS error details
+- Restart backend after changing `FRONTEND_URL`
+
+---
+
+### Step 3b: Create Production `.env` File
 
 ```bash
 cp .env.example .env
@@ -223,9 +268,26 @@ INSTAGRAM_PASSWORD=<secure password>
 INSTAGRAM_COLLECTION_ID=<collection numeric ID>
 
 # ============================================
-# Frontend Configuration
+# Frontend & API Configuration
 # ============================================
+# Frontend domain (used for Telegram deep links)
+FRONTEND_URL=https://rezepte.example.com
+
+# API endpoint (used by frontend JavaScript to call the backend)
 VITE_API_BASE_URL=https://api.rezepte.example.com
+
+# ============================================
+# CORS Configuration (Production)
+# ============================================
+# In production, CORS is configured via FRONTEND_URL alone.
+# Leave ALLOWED_ORIGINS empty — the backend will only accept requests
+# from your production FRONTEND_URL domain.
+#
+# ONLY use ALLOWED_ORIGINS if you have multiple frontend domains
+# pointing to the same backend (rare in production).
+# 
+# Example (if needed): ALLOWED_ORIGINS=https://mirror.example.com
+ALLOWED_ORIGINS=
 
 # ============================================
 # Domain Configuration (for Zoraxy)
@@ -269,6 +331,34 @@ openssl rand -base64 32
 **For authentication secrets (SECRET_KEY, ADMIN_KEY, ENCRYPTION_KEY):**
 - Generate them in Vaultwarden instead of here
 - See "Vaultwarden Setup" section below for instructions
+
+**Docker Environment Variables**
+
+When deploying with Docker, pass environment variables either:
+
+1. **Via `.env` file** (loaded automatically by docker-compose):
+   ```bash
+   docker compose up -d
+   # Reads .env automatically
+   ```
+
+2. **Via docker-compose.yml**:
+   ```yaml
+   backend:
+     environment:
+       - FRONTEND_URL=https://rezepte.example.com
+       - ALLOWED_ORIGINS=
+       - LLM_PROVIDER=gemini
+       # ... other vars
+   ```
+
+3. **Via shell export** (for one-off runs):
+   ```bash
+   export FRONTEND_URL=https://rezepte.example.com
+   docker compose up -d
+   ```
+
+**On your Proxmox server:** Ensure `.env` is in the miximixi directory before running `docker compose up -d`.
 
 ### LLM Provider Quick Decision Guide
 
@@ -1108,6 +1198,57 @@ docker compose up -d db
 # Restore from backup
 docker exec -i miximixi-db psql -U postgres miximixi < backup.sql
 ```
+
+### "Failed to fetch" or CORS errors when accessing frontend
+
+**Symptom:** Browser shows "Failed to fetch", API requests from frontend fail with CORS error
+
+**Cause:** `FRONTEND_URL` in `.env` doesn't match the actual frontend domain, or backend not restarted after config change
+
+**Solution:**
+
+1. **Verify FRONTEND_URL in .env**:
+   ```bash
+   # On Proxmox server
+   cat .env | grep FRONTEND_URL
+   # Should show: FRONTEND_URL=https://rezepte.example.com
+   ```
+
+2. **Check what domain you're actually using**:
+   - Open browser: `https://rezepte.example.com`
+   - Look at the address bar — use this exact domain
+   - Note: `https` not `http`, exact domain spelling
+
+3. **Update if needed**:
+   ```bash
+   # Edit .env on Proxmox
+   nano .env
+   # Change: FRONTEND_URL=https://YOUR_ACTUAL_DOMAIN
+   
+   # Save and restart backend
+   docker-compose restart backend
+   ```
+
+4. **Verify it worked**:
+   ```bash
+   # Check logs for CORS headers
+   docker-compose logs backend | grep -i "CORS\|allow_origins"
+   
+   # Test with curl
+   curl -i https://api.rezepte.example.com/health
+   # Look for: Access-Control-Allow-Origin header in response
+   ```
+
+5. **Browser console debugging**:
+   - Open browser → Press F12 → Console tab
+   - Reload page
+   - Look for errors mentioning "CORS" or "Access-Control-Allow-Origin"
+   - Copy exact origin from error message and match it to `FRONTEND_URL`
+
+**Common mistake:**
+- Setting `FRONTEND_URL=https://rezepte.example.com`
+- But accessing frontend via `https://192.168.1.100` or `https://server-ip`
+- These are different origins → CORS blocks the request
 
 ### Ollama model keeps redownloading (if using Ollama)
 

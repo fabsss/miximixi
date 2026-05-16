@@ -92,6 +92,23 @@ DB_HOST=localhost
 DB_PORT=5432
 
 # ============================================
+# Frontend & API Configuration
+# ============================================
+# Frontend URL (used for Telegram deep links)
+FRONTEND_URL=http://localhost:5173
+
+# API endpoint (used by frontend to call backend)
+VITE_API_BASE_URL=http://localhost:8000
+
+# ============================================
+# CORS Configuration (Development)
+# ============================================
+# Allow localhost origins for development
+# Format: comma-separated list of origins
+# Frontend runs on localhost:5173, other tools may use localhost:3000
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# ============================================
 # Telegram (optional, for error notifications)
 # ============================================
 TELEGRAM_BOT_TOKEN=<from @BotFather>
@@ -117,6 +134,30 @@ TELEGRAM_BOT_USERNAME=miximixi_bot
 # Note: Production uses Vaultwarden for secrets (see docs/deployment-production.md)
 # Development skips Vaultwarden since VAULTWARDEN_CLIENT_ID is empty
 ```
+
+### Step 2b: Understanding CORS Configuration (Development)
+
+**What is CORS?**
+CORS (Cross-Origin Resource Sharing) is a browser security feature. When your frontend (running on `localhost:5173`) makes API requests to your backend (running on `localhost:8000`), the browser checks if the backend explicitly allows requests from that origin.
+
+**Development Setup:**
+- Frontend runs on `http://localhost:5173`
+- Backend API on `http://localhost:8000`
+- `ALLOWED_ORIGINS` tells the backend to accept requests from these localhost addresses
+- `FRONTEND_URL` is used for Telegram deep links (should match your frontend URL)
+
+**Configuration in `.env`:**
+```bash
+FRONTEND_URL=http://localhost:5173
+VITE_API_BASE_URL=http://localhost:8000
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+
+**If you get "Failed to fetch" errors:**
+1. Check that `ALLOWED_ORIGINS` includes your frontend's origin
+2. Verify backend is running on the port specified in `VITE_API_BASE_URL`
+3. Check browser console for detailed CORS error messages
+4. Restart backend after changing `ALLOWED_ORIGINS`
 
 ### Step 3: Start Docker Services
 
