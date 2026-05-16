@@ -257,6 +257,11 @@ if settings.frontend_url:
 if settings.allowed_origins:
     cors_origins.extend([o.strip() for o in settings.allowed_origins.split(',') if o.strip()])
 
+logger.info(f"🔐 CORS Configuration Debug:")
+logger.info(f"  FRONTEND_URL: {settings.frontend_url}")
+logger.info(f"  ALLOWED_ORIGINS: {settings.allowed_origins}")
+logger.info(f"  Final CORS origins list: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if cors_origins else ["*"],
